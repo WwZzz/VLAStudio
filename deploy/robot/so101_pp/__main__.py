@@ -51,7 +51,10 @@ def main():
         robot.calibrate()
     finally:
         if robot.bus.is_connected:
-            robot.bus.disconnect(disable_torque=True)
+            try:
+                robot.bus.disconnect(disable_torque=True)
+            except Exception as exc:
+                print(f"Warning: failed to disconnect cleanly: {exc}")
 
 
 if __name__ == "__main__":

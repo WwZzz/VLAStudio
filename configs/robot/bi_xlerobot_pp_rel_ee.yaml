@@ -1,0 +1,111 @@
+# XLeRobot++ dual-arm VR configuration.
+#
+# Left bus:  PP arm IDs 1-7 + head IDs 8,9
+# Right bus: PP arm IDs 1-7 + wheel IDs 8,9,10
+# VR action remains 14D and controls only the two PP arms.
+- type: deploy.visualizer.camera_visualizer.CameraVisualizer
+  name: biso101_cameras
+  args:
+    shm_names:
+      # - top_camera
+      # - head_camera
+      - left_wrist_camera
+      - right_wrist_camera
+    fps: 30
+    scale: 0.5
+
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: left_wrist_camera
+  args:
+    name: left_wrist_camera
+    index_or_path: /dev/left_camera
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: right_wrist_camera
+  args:
+    name: right_wrist_camera
+    index_or_path: /dev/right_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true    
+
+- type: deploy.robot.xlerobot_pp.XLerobotPP
+  name: bi_xlerobot_pp_rel_ee
+  args:
+    name: bi_xlerobot_pp_rel_ee
+    fps: 100.0
+    control_mode: rel_ee
+
+    # Stable USB paths prevent left/right swapping after reconnect or reboot.
+    left_arm_port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C120975-if00
+    right_arm_port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C122994-if00
+
+    # Reuse the exact BiSo101PP arm calibration files.
+    left_arm_id: so101_pp_left
+    right_arm_id: so101_pp_right
+
+    # Initialize the extra XLeRobot motors, but do not expose them to VR actions.
+    enable_head: true
+    enable_base: true
+
+    # Current head pose captured on 2026-09-08: pan ID 8, tilt ID 9.
+    # Left stick is an absolute offset around this pose; release returns home.
+    head_home_raw: [3728, 895]
+    head_pan_range_ticks: 300
+    head_tilt_range_ticks: 250
+    head_pan_sign: 1
+    head_tilt_sign: -1
+
+    # Right stick: up/down drives forward/back; left/right turns CCW/CW.
+    base_max_linear_m_s: 0.15
+    base_max_angular_deg_s: 45.0
+    base_max_raw: 2000
+    base_forward_sign: -1
+    base_turn_sign: 1
+    thumbstick_deadzone: 0.12
+    base_watchdog_s: 0.3
+
+    left_home_qpos: [-5.255474, -97.483221, 99.358974, 81.244197, -2.638007, 2.626642, 0.432900]
+    right_home_qpos: [-2.313625, -97.322176, 99.625643, 78.228782, 1.050061, 4.913430, 0.277585]
+
+    ik_end_frame: gripper_body
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+    ik_eps: 0.01
+    ik_max_iter: 60
+    ik_max_solve_time_s: 0.05
+    ik_rotation_weight: 0.3
+    ik_position_only: false
+    ik_joint_reg_weights: [20.0, 20.0, 10.0, 5.0, 0.02, 0.02]
+    ik_regularize_to_warmstart: true
+    clip_joint_delta: true
+
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    gripper_absolute: true
+
+    joint_smooth_alpha: 0.15
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 5
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    max_joint_delta_deg: 30.0
+
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]
+    home_duration_s: 1.5
+    home_step_sleep: 0.03
+    debug: false
+    gripper_trace: false
+    diag_log: false

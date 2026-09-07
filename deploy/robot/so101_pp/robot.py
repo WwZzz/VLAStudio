@@ -150,3 +150,46 @@ class So101PP(BaseRobot):
 
     def is_running(self):
         return self._robot.is_connected
+
+
+
+# The original lightweight wrapper above is kept for compatibility with any code
+# importing its helpers from older sessions. The final exported So101PP class
+# below reuses the mature So101Plus EE/IK/Quest3 control path while swapping the
+# hardware backend to the parallel-gripper SO101PP implementation.
+from deploy.robot.so101_plus.robot import So101Plus as _So101PlusWrapper  # noqa: E402
+from .so101_pp import SO101PP as _SO101PPBackend  # noqa: E402
+
+
+class So101PP(_So101PlusWrapper):
+    """
+    SO101++ ILStudio wrapper with qpos, delta_ee and rel_ee support.
+
+    The arm geometry and motor order match So101Plus, so the existing IK and VR
+    relative-EE control logic can be reused. The backend robot class remains
+    SO101PP, which preserves the parallel-gripper calibration and norm flipping.
+    """
+
+    ROBOT_CONFIG_CLS = SO101PPConfig
+    ROBOT_BACKEND_CLS = _SO101PPBackend
+    CONTROL_MODES = ("qpos", "delta_ee", "rel_ee")
+
+    def __init__(
+        self,
+        *args,
+        robot_id: str = "so101_pp_arm",
+        qlimit_min: Optional[List[float]] = None,
+        qlimit_max: Optional[List[float]] = None,
+        joint_signs: Optional[List[int]] = None,
+        **kwargs,
+    ):
+        super().__init__(
+            *args,
+            robot_id=robot_id,
+            # Keep the exact So101Plus URDF/IK mapping. The PP upgrade changes
+            # only the gripper backend; its six arm joints have Plus geometry.
+            qlimit_min=qlimit_min,
+            qlimit_max=qlimit_max,
+            joint_signs=joint_signs,
+            **kwargs,
+        )

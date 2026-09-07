@@ -61,6 +61,9 @@ class So101Plus(BaseRobot):
     ``gripper_body`` (not gripper tip ``gripper_finger``).
     """
 
+    ROBOT_CONFIG_CLS = SO101PlusConfig
+    ROBOT_BACKEND_CLS = SO101Plus
+
     CONTROL_MODES = ("qpos", "delta_ee", "rel_ee")
 
     def __init__(
@@ -231,14 +234,14 @@ class So101Plus(BaseRobot):
                 f"(flange, not gripper tip); position_only={self.ik_position_only}"
             )
 
-        robot_config = SO101PlusConfig(
+        robot_config = self.ROBOT_CONFIG_CLS(
             port=com,
             id=robot_id,
             cameras={},
         )
         if calibration_dir:
             robot_config.calibration_dir = Path(calibration_dir).expanduser()
-        self._robot = SO101Plus(robot_config)
+        self._robot = self.ROBOT_BACKEND_CLS(robot_config)
         self._motors = list(self._robot.bus.motors)
 
         if len(self._motors) != N_JOINTS:

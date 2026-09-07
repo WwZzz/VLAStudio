@@ -24,6 +24,8 @@ from deploy.utils import RateLimiter
 class BiSo101Plus(BaseRobot):
     """Compose left + right ``So101Plus`` for 14D dual VR teleop."""
 
+    ARM_CLS = So101Plus
+
     CONTROL_MODES = ("qpos", "delta_ee", "rel_ee")
 
     def __init__(
@@ -122,14 +124,14 @@ class BiSo101Plus(BaseRobot):
         # Drop unused YAML extras (cameras etc.)
         _ = kwargs
 
-        self.left = So101Plus(
+        self.left = self.ARM_CLS(
             name=f"{name}_left",
             com=left_arm_port,
             robot_id=left_arm_id,
             home_qpos=left_home_qpos,
             **shared,
         )
-        self.right = So101Plus(
+        self.right = self.ARM_CLS(
             name=f"{name}_right",
             com=right_arm_port,
             robot_id=right_arm_id,
@@ -335,10 +337,12 @@ class BiSo101Plus(BaseRobot):
             action_dict["action"] = None
             return action_dict
 
-        if l_cmd is None:
-            l_cmd = np.zeros(N_JOINTS, dtype=np.float64)
-        if r_cmd is None:
-            r_cmd = np.zeros(N_JOINTS, dtype=np.float64)
+        # Never synthesize an all-zero joint command here: normalized zero is
+        # the middle of the calibrated range and would pull an idle arm away
+        # from its startup pose. If no safe hold target exists, skip the frame.
+        if l_cmd is None or r_cmd is None:
+            action_dict["action"] = None
+            return action_dict
 
         action_dict["action"] = np.concatenate(
             [np.asarray(l_cmd, dtype=np.float64).reshape(-1)[:N_JOINTS],
@@ -377,9 +381,12 @@ class BiSo101Plus(BaseRobot):
         if self.control_mode == "qpos":
             return super().start()
 
-        # Warm IK / joint state
-        self.left.get_observation()
-        self.right.get_observation()
+        # Warm IK from the measured startup pose and seed both hold commands.
+        # This makes the first VR frame relative to the actual arm poses.
+        startup_obs = self.get_observation()
+        if startup_obs is not None:
+            self._last_left_cmd = np.asarray(startup_obs["left_qpos"], dtype=np.float64).copy()
+            self._last_right_cmd = np.asarray(startup_obs["right_qpos"], dtype=np.float64).copy()
         _ = self.left.ik_solver
         _ = self.right.ik_solver
 

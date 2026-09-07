@@ -89,6 +89,7 @@ class Quest3Teleop(BaseTeleopDevice):
         gripper_trace: bool = False,
         keep_screen_awake: bool = True,
         keep_screen_awake_interval: float = 5.0,
+        publish_thumbsticks: bool = False,
         adb_path: Optional[str] = None,
         **kwargs
     ):
@@ -162,6 +163,7 @@ class Quest3Teleop(BaseTeleopDevice):
         self.debug = debug
         self.gripper_trace = gripper_trace
         self.keep_screen_awake = keep_screen_awake
+        self.publish_thumbsticks = bool(publish_thumbsticks)
         self._keep_awake = QuestKeepAwake(
             enabled=keep_screen_awake,
             interval_s=keep_screen_awake_interval,
@@ -646,6 +648,18 @@ class Quest3Teleop(BaseTeleopDevice):
             buttons
             and (buttons.get("unsqueeze", False) or buttons.get("squeeze", False))
         )
+
+    @staticmethod
+    def _get_thumbstick(goal) -> list[float]:
+        if goal is None or not goal.metadata:
+            return [0.0, 0.0]
+        stick = goal.metadata.get("thumbstick", {}) or {}
+        try:
+            x = float(stick.get("x", 0.0))
+            y = float(stick.get("y", 0.0))
+        except (TypeError, ValueError, AttributeError):
+            return [0.0, 0.0]
+        return [float(np.clip(x, -1.0, 1.0)), float(np.clip(y, -1.0, 1.0))]
     
     def convert_data_to_action(self, data: dict) -> tuple:
         """
@@ -885,6 +899,15 @@ class Quest3Teleop(BaseTeleopDevice):
         else:
             action_dict["left_unsqueeze_active"] = False
             action_dict["right_unsqueeze_active"] = self._right_unsqueeze_active
+
+        # XLeRobot uses both sticks even while arm side-grips are released.
+        # Keep this opt-in so existing arm-only Quest configurations retain
+        # their original shared-memory write behavior.
+        if self.publish_thumbsticks:
+            action_dict["left_thumbstick"] = self._get_thumbstick(data.get("left"))
+            action_dict["right_thumbstick"] = self._get_thumbstick(data.get("right"))
+            if data.get("left") is not None or data.get("right") is not None:
+                should_write = True
 
         if self.debug:
             now = time.time()

@@ -23,10 +23,7 @@ def _sts_resolution(bus, motor: str) -> int:
     return 4095
 
 
-def calibrate_gripper_with_slider(
-    bus,
-    motor: str = "gripper",
-) -> tuple[int, int, int, int]:
+def calibrate_gripper_with_slider(bus, motor: str = "gripper") -> tuple[int, int, int, int]:
     """
     Run interactive gripper calibration: set closed, then open.
 
@@ -39,7 +36,6 @@ def calibrate_gripper_with_slider(
     """
     # Start from factory-like frame (Homing_Offset=0) so recorded poses are absolute encoder values.
     bus.reset_calibration([motor])
-
     res_max = _sts_resolution(bus, motor)
     present0 = int(bus.read("Present_Position", motor, normalize=False))
 
