@@ -169,6 +169,7 @@ class Quest3Teleop(BaseTeleopDevice):
             interval_s=keep_screen_awake_interval,
             adb_path=adb_path,
         )
+        self._keep_awake_attempted = False
         self._closed = False
         
         # Calibration transform matrix (3x3)
@@ -240,9 +241,11 @@ class Quest3Teleop(BaseTeleopDevice):
         """
         print("[Quest3Teleop] Initializing VR connection...")
 
-        # Best-effort: keep Quest awake while removed (adb). Warns at most once on failure.
-        self._keep_awake.start()
-        
+        # Prefer an already-connected Quest (USB first, then wireless). If none
+        # exists, WebXR's source IP is used later as a best-effort fallback.
+        if self.keep_screen_awake:
+            self._keep_awake_attempted = self._keep_awake.start_connected_if_available()
+
         # Setup XLeVR environment
         setup_xlevr_environment()
         
@@ -264,6 +267,21 @@ class Quest3Teleop(BaseTeleopDevice):
             # Check if headset data is available
             goals = self.vr_monitor.get_latest_goal_nowait()
             if goals and goals.get("has_headset", False):
+                if self.keep_screen_awake and not self._keep_awake_attempted:
+                    self._keep_awake_attempted = True
+                    headset_goal = goals.get("headset")
+                    metadata = getattr(headset_goal, "metadata", None) or {}
+                    client_ip = metadata.get("client_ip")
+                    if client_ip:
+                        try:
+                            self._keep_awake.set_webxr_client_ip(client_ip)
+                            self._keep_awake.start()
+                        except ValueError as e:
+                            logger.warning(f"[QuestKeepAwake] {e}")
+                    else:
+                        logger.warning(
+                            "[QuestKeepAwake] WebXR client IP unavailable; keep-awake not started"
+                        )
                 print("[Quest3Teleop] VR headset connected successfully!")
                 return True
             

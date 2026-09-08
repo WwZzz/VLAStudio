@@ -1,13 +1,15 @@
 """Keep Meta Quest display awake during VR teleop via adb proximity spoof.
 
 Sends ``com.oculus.vrpowermanager.prox_close`` periodically so removing the
-headset does not immediately sleep the device. Requires USB debugging + adb.
-Failures are reported at most once per helper instance.
+headset does not immediately sleep the device. The wireless adb address is
+derived from the WebXR client's source IP. Failures are reported at most once
+per helper instance.
 """
 
 from __future__ import annotations
 
 import atexit
+import ipaddress
 import shutil
 import subprocess
 import threading
@@ -23,6 +25,7 @@ DEFAULT_INTERVAL_S = 5.0
 ADB_TIMEOUT_S = 8.0
 # Restore on exit must finish before collect_data kills the teleop subprocess (~3–5s join).
 ADB_RESTORE_TIMEOUT_S = 2.0
+DEFAULT_ADB_PORT = 5555
 
 
 def find_adb(explicit: Optional[str] = None) -> Optional[str]:
@@ -72,6 +75,14 @@ def list_adb_devices(adb: str) -> List[str]:
     return devices
 
 
+def is_quest_device(adb: str, serial: str) -> bool:
+    code, out, _err = _run_adb(
+        adb,
+        ["-s", serial, "shell", "getprop", "ro.product.model"],
+    )
+    return code == 0 and "quest" in out.strip().lower()
+
+
 class QuestKeepAwake:
     """Background helper that spoofs headset-on via adb."""
 
@@ -80,15 +91,20 @@ class QuestKeepAwake:
         enabled: bool = True,
         interval_s: float = DEFAULT_INTERVAL_S,
         adb_path: Optional[str] = None,
+        adb_port: int = DEFAULT_ADB_PORT,
     ):
         self.enabled = enabled
         self.interval_s = max(1.0, float(interval_s))
         self.adb_path = adb_path
+        self.adb_port = int(adb_port)
+        self.adb_target: Optional[str] = None
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._warned = False
         self._active = False
         self._adb: Optional[str] = None
+        self._serial: Optional[str] = None
+        self._wireless_connected = False
         self._atexit_registered = False
         self._restore_done = False
         self._stop_lock = threading.Lock()
@@ -103,11 +119,94 @@ class QuestKeepAwake:
         self._warned = True
         logger.warning(f"[QuestKeepAwake] {message}")
 
-    def _broadcast(self, action: str, timeout: float = ADB_TIMEOUT_S) -> Tuple[int, str, str]:
+    def set_webxr_client_ip(self, client_ip: str) -> None:
+        """Select the Quest adb target from the WebXR TCP peer address."""
+        if self._active:
+            return
+        address = ipaddress.ip_address(str(client_ip).strip())
+        if address.is_loopback or address.is_unspecified:
+            raise ValueError(f"invalid WebXR client IP for wireless adb: {address}")
+        host = f"[{address}]" if address.version == 6 else str(address)
+        self.adb_target = f"{host}:{self.adb_port}"
+
+    def _run_for_device(
+        self,
+        args: Sequence[str],
+        timeout: float = ADB_TIMEOUT_S,
+    ) -> Tuple[int, str, str]:
         adb = self._adb or find_adb(self.adb_path)
         if not adb:
             return 127, "", "adb not found"
-        return _run_adb(adb, ["shell", "am", "broadcast", "-a", action], timeout=timeout)
+        if not self._serial:
+            return 1, "", "adb device not selected"
+        return _run_adb(adb, ["-s", self._serial, *args], timeout=timeout)
+
+    def _select_device(self, adb: str) -> bool:
+        devices = list_adb_devices(adb)
+        usb_devices = [serial for serial in devices if ":" not in serial]
+        if len(usb_devices) == 1:
+            self._serial = usb_devices[0]
+            return True
+
+        if self.adb_target:
+            _run_adb(adb, ["connect", self.adb_target])
+            if self.adb_target in list_adb_devices(adb):
+                self._serial = self.adb_target
+                self._wireless_connected = True
+                return True
+            return False
+
+        if len(devices) == 1:
+            self._serial = devices[0]
+            return True
+        wireless = [serial for serial in devices if ":" in serial]
+        if len(wireless) == 1:
+            self._serial = wireless[0]
+            return True
+        return False
+
+    def start_connected_if_available(self) -> bool:
+        """Prefer an already-connected Quest: USB first, then wireless."""
+        if not self.enabled:
+            return False
+        adb = find_adb(self.adb_path)
+        if not adb:
+            return False
+
+        quest_devices = [
+            serial for serial in list_adb_devices(adb) if is_quest_device(adb, serial)
+        ]
+        usb_devices = [serial for serial in quest_devices if ":" not in serial]
+        wireless_devices = [serial for serial in quest_devices if ":" in serial]
+        if len(usb_devices) == 1:
+            serial = usb_devices[0]
+            transport = "USB"
+        elif not usb_devices and len(wireless_devices) == 1:
+            serial = wireless_devices[0]
+            transport = "wireless"
+        else:
+            return False
+
+        self._adb = adb
+        self._serial = serial
+        if transport == "wireless":
+            self.adb_target = serial
+        logger.info(f"[QuestKeepAwake] Using connected {transport} Quest: {serial}")
+        return self.start()
+
+    def _broadcast(self, action: str, timeout: float = ADB_TIMEOUT_S) -> Tuple[int, str, str]:
+        return self._run_for_device(
+            ["shell", "am", "broadcast", "-a", action],
+            timeout=timeout,
+        )
+
+    def _disconnect_wireless(self) -> None:
+        if not (self._wireless_connected and self.adb_target):
+            return
+        adb = self._adb or find_adb(self.adb_path)
+        if adb:
+            _run_adb(adb, ["disconnect", self.adb_target], timeout=ADB_RESTORE_TIMEOUT_S)
+        self._wireless_connected = False
 
     def _restore_proximity(self) -> None:
         """Re-enable normal take-off sleep so the headset can power-save again."""
@@ -115,10 +214,10 @@ class QuestKeepAwake:
             adb = self._adb or find_adb(self.adb_path)
             if not adb:
                 return
-            if not list_adb_devices(adb):
-                logger.warning("[QuestKeepAwake] Restore skipped: no adb device")
-                return
             self._adb = adb
+            if not self._serial and not self._select_device(adb):
+                logger.debug("[QuestKeepAwake] Restore skipped: no unambiguous adb device")
+                return
             # Order matches common Quest tooling: disable automation spoof, then prox_far.
             for action in (PROX_RESTORE_ACTION, PROX_FAR_ACTION):
                 code, _out, err = self._broadcast(action, timeout=ADB_RESTORE_TIMEOUT_S)
@@ -130,6 +229,8 @@ class QuestKeepAwake:
         except BaseException as e:
             # Must not abort exit path on SIGINT during subprocess.communicate.
             logger.warning(f"[QuestKeepAwake] Restore interrupted or failed: {e!r}")
+        finally:
+            self._disconnect_wireless()
 
     def _probe_and_pulse(self) -> bool:
         adb = find_adb(self.adb_path)
@@ -140,18 +241,16 @@ class QuestKeepAwake:
             )
             return False
 
-        devices = list_adb_devices(adb)
-        if not devices:
+        self._adb = adb
+        if not self._serial and not self._select_device(adb):
+            target = self.adb_target or "an authorized Quest"
             self._warn_once(
-                "Cannot keep Quest screen awake: no authorized adb device. "
-                "Connect Quest via USB, allow debugging, check `adb devices`."
+                f"Cannot keep Quest screen awake: wireless adb target {target} is unavailable. "
+                "Enable wireless adb on the headset and verify that port 5555 is reachable."
             )
             return False
 
-        code, _out, err = _run_adb(
-            adb,
-            ["shell", "am", "broadcast", "-a", PROX_CLOSE_ACTION],
-        )
+        code, _out, err = self._broadcast(PROX_CLOSE_ACTION)
         if code != 0:
             detail = (err or _out).strip() or f"exit={code}"
             self._warn_once(
@@ -160,7 +259,6 @@ class QuestKeepAwake:
             )
             return False
 
-        self._adb = adb
         return True
 
     def start(self) -> bool:
@@ -191,13 +289,8 @@ class QuestKeepAwake:
         return True
 
     def _loop(self) -> None:
-        adb = self._adb
-        assert adb is not None
         while not self._stop.wait(self.interval_s):
-            code, _out, err = _run_adb(
-                adb,
-                ["shell", "am", "broadcast", "-a", PROX_CLOSE_ACTION],
-            )
+            code, _out, err = self._broadcast(PROX_CLOSE_ACTION)
             if code != 0:
                 # Device unplugged mid-session: warn once, then stop pulsing.
                 detail = (err or _out).strip() or f"exit={code}"
