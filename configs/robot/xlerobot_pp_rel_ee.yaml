@@ -51,7 +51,7 @@
     fourcc: MJPG
     bgr_to_rgb: true
 
-- type: deploy.robot.xlerobot_pp.XLerobotPP
+- type: deploy.robot.xlerobot_pp.async_ik.XLerobotPPAsync
   name: xlerobot_pp_rel_ee
   args:
     name: xlerobot_pp_rel_ee
