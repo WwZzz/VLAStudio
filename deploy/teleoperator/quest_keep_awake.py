@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import atexit
 import ipaddress
+import os
 import shutil
 import subprocess
 import threading
+import time
+from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
 from loguru import logger
@@ -26,6 +29,7 @@ ADB_TIMEOUT_S = 8.0
 # Restore on exit must finish before collect_data kills the teleop subprocess (~3–5s join).
 ADB_RESTORE_TIMEOUT_S = 2.0
 DEFAULT_ADB_PORT = 5555
+CACHE_FILE_NAME = "quest_adb_target"
 
 
 def find_adb(explicit: Optional[str] = None) -> Optional[str]:
@@ -83,6 +87,51 @@ def is_quest_device(adb: str, serial: str) -> bool:
     return code == 0 and "quest" in out.strip().lower()
 
 
+def _normalize_wireless_target(value: str, default_port: int) -> Optional[str]:
+    value = str(value).strip()
+    if not value:
+        return None
+    host, separator, port_text = value.rpartition(":")
+    if not separator:
+        host, port_text = value, str(default_port)
+    try:
+        address = ipaddress.ip_address(host.strip("[]"))
+        port = int(port_text)
+    except (ValueError, TypeError):
+        return None
+    if address.version != 4 or address.is_loopback or address.is_unspecified:
+        return None
+    if not 1 <= port <= 65535:
+        return None
+    return f"{address}:{port}"
+
+
+def _default_cache_path() -> Path:
+    cache_root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+    return cache_root / "ilstudio" / CACHE_FILE_NAME
+
+
+def _quest_wifi_ip(adb: str, serial: str) -> Optional[str]:
+    code, out, _err = _run_adb(
+        adb,
+        ["-s", serial, "shell", "ip", "route"],
+        timeout=2.0,
+    )
+    if code != 0:
+        return None
+    fields = out.replace("\n", " ").split()
+    for index, field in enumerate(fields[:-1]):
+        if field != "src":
+            continue
+        try:
+            address = ipaddress.ip_address(fields[index + 1])
+        except ValueError:
+            continue
+        if address.version == 4 and not address.is_loopback and not address.is_unspecified:
+            return str(address)
+    return None
+
+
 class QuestKeepAwake:
     """Background helper that spoofs headset-on via adb."""
 
@@ -107,7 +156,9 @@ class QuestKeepAwake:
         self._wireless_connected = False
         self._atexit_registered = False
         self._restore_done = False
+        self._ever_active = False
         self._stop_lock = threading.Lock()
+        self._cache_path = _default_cache_path()
 
     @property
     def active(self) -> bool:
@@ -129,6 +180,105 @@ class QuestKeepAwake:
         host = f"[{address}]" if address.version == 6 else str(address)
         self.adb_target = f"{host}:{self.adb_port}"
 
+    def _load_cached_target(self) -> Optional[str]:
+        try:
+            return _normalize_wireless_target(
+                self._cache_path.read_text(encoding="utf-8"),
+                self.adb_port,
+            )
+        except OSError:
+            return None
+
+    def _save_cached_target(self, target: str) -> None:
+        target = _normalize_wireless_target(target, self.adb_port)
+        if not target:
+            return
+        try:
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            self._cache_path.write_text(f"{target}\n", encoding="utf-8")
+        except OSError as e:
+            logger.debug(f"[QuestKeepAwake] Could not cache adb target: {e}")
+
+    def _neighbor_targets(self) -> List[str]:
+        """Return IPv4 neighbors as best-effort legacy adb candidates."""
+        try:
+            proc = subprocess.run(
+                ["ip", "-4", "neigh", "show"],
+                capture_output=True,
+                text=True,
+                timeout=2.0,
+            )
+        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+            return []
+        if proc.returncode != 0:
+            return []
+
+        targets = []
+        for line in proc.stdout.splitlines():
+            if " FAILED" in f" {line}":
+                continue
+            ip_text = line.split(maxsplit=1)[0] if line.strip() else ""
+            target = _normalize_wireless_target(ip_text, self.adb_port)
+            if target:
+                targets.append(target)
+        return targets
+
+    def _wireless_candidates(self) -> List[str]:
+        candidates = [self._load_cached_target(), self.adb_target]
+        candidates.extend(self._neighbor_targets())
+        unique = []
+        for candidate in candidates:
+            target = _normalize_wireless_target(candidate or "", self.adb_port)
+            if target and target not in unique:
+                unique.append(target)
+        return unique
+
+    def _connect_wireless_target(self, adb: str, target: str) -> bool:
+        _run_adb(adb, ["connect", target], timeout=2.0)
+        if target not in list_adb_devices(adb) or not is_quest_device(adb, target):
+            return False
+        self._serial = target
+        self.adb_target = target
+        self._wireless_connected = True
+        self._save_cached_target(target)
+        logger.info(f"[QuestKeepAwake] Connected to wireless Quest: {target}")
+        return True
+
+    def _bootstrap_wireless_from_usb(self, adb: str, usb_serial: str) -> bool:
+        """Enable legacy wireless adb dynamically while continuing to prefer USB."""
+        wifi_ip = _quest_wifi_ip(adb, usb_serial)
+        if not wifi_ip:
+            logger.warning("[QuestKeepAwake] Could not determine Quest Wi-Fi address over USB")
+            return False
+        target = f"{wifi_ip}:{self.adb_port}"
+        code, out, err = _run_adb(
+            adb,
+            ["-s", usb_serial, "tcpip", str(self.adb_port)],
+        )
+        if code != 0:
+            detail = (err or out).strip() or f"exit={code}"
+            logger.warning(f"[QuestKeepAwake] Wireless adb bootstrap failed ({detail})")
+            return False
+
+        self.adb_target = target
+        # tcpip restarts adbd: wait for real transports before starting pulses.
+        deadline = time.monotonic() + 12.0
+        while time.monotonic() < deadline and not self._stop.is_set():
+            _run_adb(adb, ["connect", target], timeout=2.0)
+            devices = list_adb_devices(adb)
+            if target in devices and is_quest_device(adb, target):
+                self._wireless_connected = True
+                self._save_cached_target(target)
+                self._serial = usb_serial if usb_serial in devices else target
+                logger.info(
+                    f"[QuestKeepAwake] Wireless adb prepared at {target}; USB remains preferred"
+                )
+                return True
+            self._stop.wait(0.5)
+        self._serial = None
+        logger.warning("[QuestKeepAwake] ADB restart still pending; background retry will continue")
+        return False
+
     def _run_for_device(
         self,
         args: Sequence[str],
@@ -142,27 +292,24 @@ class QuestKeepAwake:
         return _run_adb(adb, ["-s", self._serial, *args], timeout=timeout)
 
     def _select_device(self, adb: str) -> bool:
-        devices = list_adb_devices(adb)
-        usb_devices = [serial for serial in devices if ":" not in serial]
+        quest_devices = [
+            serial for serial in list_adb_devices(adb) if is_quest_device(adb, serial)
+        ]
+        usb_devices = [serial for serial in quest_devices if ":" not in serial]
         if len(usb_devices) == 1:
             self._serial = usb_devices[0]
             return True
 
-        if self.adb_target:
-            _run_adb(adb, ["connect", self.adb_target])
-            if self.adb_target in list_adb_devices(adb):
-                self._serial = self.adb_target
-                self._wireless_connected = True
-                return True
-            return False
-
-        if len(devices) == 1:
-            self._serial = devices[0]
-            return True
-        wireless = [serial for serial in devices if ":" in serial]
-        if len(wireless) == 1:
+        wireless = [serial for serial in quest_devices if ":" in serial]
+        if not usb_devices and len(wireless) == 1:
             self._serial = wireless[0]
+            self.adb_target = wireless[0]
+            self._save_cached_target(wireless[0])
             return True
+
+        for target in self._wireless_candidates():
+            if self._connect_wireless_target(adb, target):
+                return True
         return False
 
     def start_connected_if_available(self) -> bool:
@@ -191,7 +338,10 @@ class QuestKeepAwake:
         self._serial = serial
         if transport == "wireless":
             self.adb_target = serial
+            self._save_cached_target(serial)
         logger.info(f"[QuestKeepAwake] Using connected {transport} Quest: {serial}")
+        if transport == "USB":
+            self._bootstrap_wireless_from_usb(adb, serial)
         return self.start()
 
     def _broadcast(self, action: str, timeout: float = ADB_TIMEOUT_S) -> Tuple[int, str, str]:
@@ -243,10 +393,9 @@ class QuestKeepAwake:
 
         self._adb = adb
         if not self._serial and not self._select_device(adb):
-            target = self.adb_target or "an authorized Quest"
             self._warn_once(
-                f"Cannot keep Quest screen awake: wireless adb target {target} is unavailable. "
-                "Enable wireless adb on the headset and verify that port 5555 is reachable."
+                "Cannot keep Quest screen awake yet: no reachable authorized Quest adb device. "
+                "Will keep retrying while teleop is running."
             )
             return False
 
@@ -257,8 +406,10 @@ class QuestKeepAwake:
                 f"Cannot keep Quest screen awake: prox_close failed ({detail}). "
                 "Developer Mode / USB debugging may be required."
             )
+            self._serial = None
             return False
 
+        self._ever_active = True
         return True
 
     def start(self) -> bool:
@@ -268,11 +419,10 @@ class QuestKeepAwake:
         if self._thread is not None and self._thread.is_alive():
             return self._active
 
-        if not self._probe_and_pulse():
-            return False
+        first_pulse_ok = self._probe_and_pulse()
 
         self._stop.clear()
-        self._active = True
+        self._active = first_pulse_ok
         self._thread = threading.Thread(
             target=self._loop,
             name="quest-keep-awake",
@@ -282,23 +432,31 @@ class QuestKeepAwake:
         if not self._atexit_registered:
             atexit.register(self.stop)
             self._atexit_registered = True
-        logger.info(
-            f"[QuestKeepAwake] Started (interval={self.interval_s:.0f}s). "
-            "Will auto-stop and restore proximity on exit."
-        )
-        return True
+        if first_pulse_ok:
+            logger.info(
+                f"[QuestKeepAwake] Started (interval={self.interval_s:.0f}s). "
+                "Will auto-stop and restore proximity on exit."
+            )
+        else:
+            logger.info(
+                f"[QuestKeepAwake] Waiting for Quest adb; retrying every "
+                f"{self.interval_s:.0f}s"
+            )
+        return first_pulse_ok
 
     def _loop(self) -> None:
         while not self._stop.wait(self.interval_s):
+            if not self._active:
+                self._active = self._probe_and_pulse()
+                continue
             code, _out, err = self._broadcast(PROX_CLOSE_ACTION)
             if code != 0:
-                # Device unplugged mid-session: warn once, then stop pulsing.
                 detail = (err or _out).strip() or f"exit={code}"
                 self._warn_once(
-                    f"Keep-awake pulse failed mid-session ({detail}); stopping keep-awake."
+                    f"Keep-awake pulse failed mid-session ({detail}); reconnecting."
                 )
                 self._active = False
-                break
+                self._serial = None
 
     def stop(self) -> None:
         """Stop pulsing and restore Quest proximity sleep (safe to call multiple times)."""
@@ -310,7 +468,7 @@ class QuestKeepAwake:
                 thread.join(timeout=2.0)
             self._thread = None
             self._active = False
-            if was_active and not self._restore_done:
+            if was_active and self._ever_active and not self._restore_done:
                 self._restore_proximity()
                 self._restore_done = True
                 logger.info("[QuestKeepAwake] Stopped")

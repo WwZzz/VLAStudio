@@ -8,11 +8,24 @@
   args:
     shm_names:
       # - top_camera
-      # - head_camera
+      - head_camera
       - left_wrist_camera
       - right_wrist_camera
     fps: 30
     scale: 0.5
+
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: head_camera
+  args:
+    name: head_camera
+    index_or_path: /dev/head_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true
+    horizontal_flip: true
 
 - type: deploy.sensor.camera.opencv_camera.OpenCVCamera
   name: left_wrist_camera
@@ -36,12 +49,12 @@
     fps: 30
     max_size_mb: 10
     fourcc: MJPG
-    bgr_to_rgb: true    
+    bgr_to_rgb: true
 
 - type: deploy.robot.xlerobot_pp.XLerobotPP
-  name: bi_xlerobot_pp_rel_ee
+  name: xlerobot_pp_rel_ee
   args:
-    name: bi_xlerobot_pp_rel_ee
+    name: xlerobot_pp_rel_ee
     fps: 100.0
     control_mode: rel_ee
 
@@ -57,9 +70,9 @@
     enable_head: true
     enable_base: true
 
-    # Current head pose captured on 2026-09-08: pan ID 8, tilt ID 9.
+    # Current head pose captured on 2026-09-09: pan ID 8, tilt ID 9.
     # Left stick is an absolute offset around this pose; release returns home.
-    head_home_raw: [3728, 895]
+    head_home_raw: [3723, 893]
     head_pan_range_ticks: 300
     head_tilt_range_ticks: 250
     head_pan_sign: 1
@@ -74,8 +87,8 @@
     thumbstick_deadzone: 0.12
     base_watchdog_s: 0.3
 
-    left_home_qpos: [-5.255474, -97.483221, 99.358974, 81.244197, -2.638007, 2.626642, 0.432900]
-    right_home_qpos: [-2.313625, -97.322176, 99.625643, 78.228782, 1.050061, 4.913430, 0.277585]
+    left_home_qpos: [-4.452555, -98.573826, 98.168498, 48.932219, 0.0, 5.909944, 0.346320]
+    right_home_qpos: [-2.093279, -97.740586, 99.344876, 38.376384, 0.268620, -3.416004, 0.277585]
 
     ik_end_frame: gripper_body
     ik_ee_offset_xyz: [0.0, 0.0, 0.0]
