@@ -270,6 +270,35 @@ class MetaPolicy:
             of MetaAction dicts. Length equals the model's temporal output length.
             Chunk consumption/truncation is delegated to the action_manager.
         """
+        # Pick the state representation that matches training ctrl_space.
+        # Alicia (and others) may publish state_joint + state_ee; default `state`
+        # is usually joints, which would break EE-conditioned policies.
+        cs = str(self.ctrl_space).lower()
+        state_src = "state"
+        if cs in ("ee", "eef", "end_effector"):
+            if getattr(mobs, "state_ee", None) is None:
+                raise RuntimeError(
+                    "EE policy (ctrl_space=ee) requires MetaObs.state_ee, but it is None. "
+                    "Refusing to fall back to default state (often qpos)."
+                )
+            mobs.state = mobs.state_ee
+            state_src = "state_ee"
+        elif cs in ("joint", "qpos", "joints"):
+            if getattr(mobs, "state_joint", None) is not None:
+                mobs.state = mobs.state_joint
+                state_src = "state_joint"
+
+        if not getattr(self, "_logged_state_src", False):
+            st = np.asarray(mobs.state).reshape(-1)
+            logger.info(
+                "MetaPolicy state source={} ctrl_space={} ctrl_type={} state[:7]={}",
+                state_src,
+                self.ctrl_space,
+                self.ctrl_type,
+                np.array2string(st[:7], precision=4, separator=","),
+            )
+            self._logged_state_src = True
+
         # Normalize state before preparing samples
         normed_mobs = self.state_normalizer.normalize_metaobs(mobs, self.ctrl_space)
         samples = self.normed_mobs_to_samples(normed_mobs)

@@ -13,15 +13,16 @@ name: quest3_teleop
 args:
   name: quest3_teleop
   max_size_mb: 1
-  fps: 100.0
+  fps: 30.0
   arm_mode: right
   mode: rel_ee
   position_scale: 1.0
   rotation_scale: 1.0
-  connect_timeout: 60.0
+  connect_timeout: 180.0
   gripper_default_closed: true
-  gripper_delta_mode: true
-  gripper_delta_value: 0.1
+  # Absolute open amount from trigger (needs robot gripper_absolute: true). No ramp delay.
+  gripper_delta_mode: false
+  gripper_delta_value: 0.25
   gripper_use_trigger: true
   gripper_trigger_mode: analog_travel
   gripper_trigger_analog_scale: 1.0
@@ -36,3 +37,7 @@ args:
 
   debug: false
   gripper_trace: false
+  # Keep Quest display awake while headset is removed (needs adb + USB debugging).
+  # Warns once if adb/device unavailable; set false to disable.
+  keep_screen_awake: true
+  keep_screen_awake_interval: 5.0

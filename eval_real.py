@@ -51,6 +51,7 @@ from deploy.runtime import (
     KBHit,
     eval_real_pause_menu_step,
     setup_eval_real_output_dir,
+    resolve_eval_real_output_dir,
     try_enter_eval_real_pause_menu,
     validate_eval_real_save_as_dataset,
 )
@@ -96,8 +97,14 @@ def parse_param():
              '(video/real_eval_episode_XXXX.mp4) from device SHM only; main process does not read '
              'device SHM for recording, so control / inference path stays unchanged.',
     )
-    parser.add_argument('-i', '--episode_id', type=int, default=-1,
-                       help='Episode ID for eval data recording (-1 means append after existing episodes)')
+    parser.add_argument(
+        '-i', '-s', '--episode_id', '--start-idx', '--episode',
+        type=int,
+        default=-1,
+        dest='episode_id',
+        help='Starting episode index for eval recording (-1 = append after existing episodes). '
+             'Aliases: -s / --start-idx / --episode (same as collect_data.py).',
+    )
     parser.add_argument(
         '--save-as-dataset',
         type=str,
@@ -120,6 +127,39 @@ def parse_param():
     # Visualization
     parser.add_argument('-v', '--visualize', action='store_true',
                        help='Enable visualization (if robot module provides Visualizer)')
+
+    # Optional: leave home before policy starts (abs EE hold-at-home experiments).
+    parser.add_argument(
+        '--prestart_dataset',
+        type=str,
+        default='',
+        help='LeRobot dataset root with data/**/episode_XXXXXX.parquet (for --prestart_frame).',
+    )
+    parser.add_argument(
+        '--prestart_episode',
+        type=int,
+        default=0,
+        help='Episode index for --prestart_frame (default: 0).',
+    )
+    parser.add_argument(
+        '--prestart_frame',
+        type=int,
+        default=-1,
+        help='If >=0: before Enter, interpolate joints to observation.qpos[frame] then settle. '
+             'Use to escape abs-EE home hold (e.g. 150).',
+    )
+    parser.add_argument(
+        '--prestart_move_s',
+        type=float,
+        default=3.0,
+        help='Seconds to interpolate home→prestart qpos (default: 3).',
+    )
+    parser.add_argument(
+        '--prestart_settle_s',
+        type=float,
+        default=1.0,
+        help='Hold prestart qpos after move (default: 1).',
+    )
     
     # Parse arguments (allow unknown for dotted overrides)
     args, unknown = parser.parse_known_args()
@@ -130,12 +170,74 @@ def parse_param():
     return args
 
 
+def _load_prestart_qpos(dataset_root: str, episode: int, frame: int) -> np.ndarray:
+    """Load observation.qpos[frame] from a LeRobot v2.1 episode parquet."""
+    from pathlib import Path
+    import pyarrow.parquet as pq
+
+    root = Path(dataset_root)
+    matches = sorted(root.glob(f"data/**/episode_{episode:06d}.parquet"))
+    if not matches:
+        raise FileNotFoundError(
+            f"No episode_{episode:06d}.parquet under {root}/data"
+        )
+    path = matches[0]
+    table = pq.read_table(path, columns=["observation.qpos"])
+    n = table.num_rows
+    if frame < 0 or frame >= n:
+        raise IndexError(f"prestart_frame={frame} out of range for {path} (T={n})")
+    q = np.asarray(table.column("observation.qpos")[frame].as_py(), dtype=np.float64).reshape(-1)
+    if q.size < 7:
+        raise ValueError(f"observation.qpos dim={q.size} < 7 in {path}")
+    return q[:7].copy()
+
+
+def _prestart_move_away_from_home(
+    control_shm: SharedMemoryChannel,
+    target_qpos: np.ndarray,
+    *,
+    publish_hz: float,
+    move_s: float,
+    settle_s: float,
+) -> None:
+    """Publish interpolated joint abs commands so the arm leaves home before policy."""
+    target = np.asarray(target_qpos, dtype=np.float64).reshape(-1)[:7]
+    # Connect always homes to zeros; start interpolate from that.
+    q0 = np.zeros(7, dtype=np.float64)
+    q0[6] = float(target[6])  # open/close with target gripper during move
+    n_move = max(1, int(round(float(move_s) * float(publish_hz))))
+    n_hold = max(1, int(round(float(settle_s) * float(publish_hz))))
+    dt = 1.0 / max(float(publish_hz), 1.0)
+
+    logger.info(
+        "[Prestart] Moving away from home → qpos={} (deg={}, g={:.3f}) over {:.1f}s + settle {:.1f}s",
+        np.array2string(target[:6], precision=3),
+        np.array2string(np.rad2deg(target[:6]), precision=1),
+        float(target[6]),
+        move_s,
+        settle_s,
+    )
+    t0 = time.perf_counter()
+    for i in range(n_move):
+        a = (i + 1) / n_move
+        q = (1.0 - a) * q0 + a * target
+        control_shm.write({"action": q.astype(np.float64), "timestamp": time.perf_counter()})
+        target_t = t0 + (i + 1) * dt
+        slack = target_t - time.perf_counter()
+        if slack > 0:
+            time.sleep(slack)
+    for i in range(n_hold):
+        control_shm.write({"action": target.copy(), "timestamp": time.perf_counter()})
+        time.sleep(dt)
+    logger.info("[Prestart] At non-home pose. Press Enter when ready to start policy.")
+
+
 def main():
     set_seed(0)
     args = parse_param()
     args.is_training = False
 
-    output_dir = setup_eval_real_output_dir(args)
+    output_dir = resolve_eval_real_output_dir(args)
     rt = EvalRealRuntime()
     rt.register_exit_hooks()
 
@@ -161,11 +263,13 @@ def main():
     logger.info("Created policy_control_shm for action publishing.")
 
     def send_robot_reset() -> None:
-        """Ask robot subprocesses to execute their reset() implementation."""
+        """Reset policy state and command robot subprocess to go home."""
         control_shm.write({
-            'cmd': 'reset',
+            "cmd": "reset",
+            "go_home": True,
+            "timestamp": time.perf_counter(),
         })
-        logger.info("[Pause] Sent robot reset command through policy_control_shm.")
+        logger.info("[Pause] Sent go_home through policy_control_shm.")
     
     # Start all devices in subprocesses
     logger.info("Starting all devices...")
@@ -224,6 +328,23 @@ def main():
     # appears before the Enter prompt (otherwise users miss the instruction).
     time.sleep(2.0)
 
+    if int(getattr(args, "prestart_frame", -1)) >= 0:
+        ds = str(getattr(args, "prestart_dataset", "") or "").strip()
+        if not ds:
+            raise ValueError("--prestart_frame requires --prestart_dataset")
+        pre_q = _load_prestart_qpos(
+            ds,
+            int(args.prestart_episode),
+            int(args.prestart_frame),
+        )
+        _prestart_move_away_from_home(
+            control_shm,
+            pre_q,
+            publish_hz=float(args.publish_rate),
+            move_s=float(args.prestart_move_s),
+            settle_s=float(args.prestart_settle_s),
+        )
+
     kb = None
 
     try:
@@ -239,7 +360,9 @@ def main():
             time.sleep(0.001)
         while kb.get_input() is not None:
             pass
-        rt.post_recorder_cmd("resume_recording")
+        # Must wait for ack: a fire-and-forget post leaves a stale "resumed" ack that
+        # desyncs later pause/save send_recorder_cmd calls (false "0 frames" saves).
+        rt.send_recorder_cmd("resume_recording")
 
         # Main control loop
         logger.info("="*60)

@@ -50,6 +50,9 @@ class OpenCVCamera(BaseDevice):
         self.camera: Optional[cv2.VideoCapture] = None
         self._capture_width: Optional[int] = None
         self._capture_height: Optional[int] = None
+        self._read_fail_count = 0
+        self._read_ok_count = 0
+        self._last_fail_log_t = 0.0
 
         self._open_and_configure()
 
@@ -133,7 +136,35 @@ class OpenCVCamera(BaseDevice):
             return None
         ret, image = self.camera.read()
         if not ret or image is None:
+            self._read_fail_count += 1
+            now = time.time()
+            if (
+                self._read_fail_count in (1, 10, 30)
+                or (now - self._last_fail_log_t) >= 5.0
+            ):
+                self._last_fail_log_t = now
+                hint = (
+                    "stream lost after earlier frames — check cable/USB power, "
+                    "or dmesg 'Not enough bandwidth' if sharing a hub"
+                    if self._read_ok_count > 0
+                    else (
+                        "no frames yet — if another camera works on the same hub, "
+                        "check dmesg for 'Not enough bandwidth' and use a different USB port"
+                    )
+                )
+                logger.warning(
+                    f"[{self.name}] Camera read failed "
+                    f"(fails={self._read_fail_count}, oks={self._read_ok_count}, "
+                    f"path={self.index_or_path}). {hint}."
+                )
             return None
+        # Recovered from failures.
+        if self._read_fail_count > 0:
+            logger.info(
+                f"[{self.name}] Camera read recovered after {self._read_fail_count} fails"
+            )
+            self._read_fail_count = 0
+        self._read_ok_count += 1
         if self.horizontal_flip and self.vertical_flip:
             image = cv2.flip(image, -1)  # -1 = both horizontal and vertical flip
         elif self.horizontal_flip:
@@ -143,6 +174,23 @@ class OpenCVCamera(BaseDevice):
         if self.bgr_to_rgb:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return {"image": image, "timestamp": time.perf_counter()}
+
+    def _try_reopen(self) -> bool:
+        """Release and reopen capture (USB unplug/replug or stream stall)."""
+        try:
+            if self.camera is not None:
+                self.camera.release()
+        except Exception:
+            pass
+        self.camera = None
+        try:
+            self._open_and_configure()
+            logger.info(f"[{self.name}] Camera reopened: {self.index_or_path}")
+            return True
+        except Exception as e:
+            logger.warning(f"[{self.name}] Camera reopen failed: {e}")
+            self.camera = None
+            return False
 
     @staticmethod
     def obs2meta(device_data: dict) -> dict:
@@ -184,12 +232,22 @@ class OpenCVCamera(BaseDevice):
             logger.info(
                 f"[{self.name}] Camera opened: {w}x{h} @ {actual_fps:.1f}fps, fourcc={fourcc_str}"
             )
+        consecutive_fail = 0
+        last_reopen_t = 0.0
         while self.is_running:
             data = self.get_data()
             if data is not None:
+                consecutive_fail = 0
                 self.write_data_to_shm(data)
-            # No rate_limiter.sleep() - camera.read() is the natural rate limiter
-
+                continue
+            # Failed read: do not busy-spin (can hit millions of fails/sec).
+            consecutive_fail += 1
+            now = time.time()
+            if consecutive_fail >= 30 and (now - last_reopen_t) >= 2.0:
+                last_reopen_t = now
+                self._try_reopen()
+                consecutive_fail = 0
+            time.sleep(0.05)
 
 # ==============================================================================
 # Test (Multi-camera: read config, start one process per camera, display 3 views)

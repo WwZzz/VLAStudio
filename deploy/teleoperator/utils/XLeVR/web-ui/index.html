@@ -5,7 +5,8 @@
     <title>XLeVR - Robot Arm Teleoperation</title>
     <meta name="description" content="XLeVR - Robot Arm Teleoperation">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <!-- Serve A-Frame locally: Quest Browser often cannot reach aframe.io CDN. -->
+    <script src="aframe.min.js"></script>
     <script src="vr_app.js" defer></script>
     <script src="interface.js" defer></script>
     <link rel="stylesheet" href="styles.css">
@@ -251,10 +252,12 @@
       <div class="vr-title">VR Teleoperation</div>
     </div>
 
-    <!-- A-Frame VR Scene -->
-    <a-scene vr-mode-ui="enabled: true;">
-      <!-- Passthrough setup -->
-      <a-entity webxr-passthrough="referenceSpaceType: local-floor"></a-entity>
+    <!-- A-Frame VR Scene: immersive-vr is enough for controller teleop (more reliable than AR after Quest OS updates). -->
+    <a-scene
+      vr-mode-ui="enabled: true"
+      webxr="requiredFeatures: local-floor; optionalFeatures: hand-tracking,layers;"
+      background="color: #222; transparent: false"
+      renderer="colorManagement: true; antialias: true">
 
       <!-- Headset tracking entity -->
       <a-entity id="headset" camera>

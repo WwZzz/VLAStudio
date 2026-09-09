@@ -5,48 +5,72 @@
   name: alicia_d_rel_ee
   args:
     name: alicia_d
-    fps: 200.0
+    fps: 100.0
     control_mode: rel_ee
     port: /dev/ttyACM0
 
     speed_deg_s: 400.0
-    gripper_speed_deg_s: 483.4
+    gripper_speed_deg_s: 800.0
 
     ik_end_frame: link6
     ik_ee_offset_xyz: [0.0, 0.0, 0.0]
     ik_ee_offset_rpy: [0.0, 0.0, 0.0]
 
-    ik_eps: 0.01
-    ik_max_iter: 200
+    ik_eps: 0.05
+    # Teleop scipy IK wall-clock budget. On exceed: keep best intermediate (not freeze at warmstart).
+    # 12ms was too tight on this machine → frequent timed_out/iters=0 stutter.
+    ik_max_iter: 60
+    ik_max_solve_time_s: 0.022
     ik_rotation_weight: 0.1
 
     position_scale: 1.0
     rotation_scale: 1.0
     gripper_scale: 1.0
+    # Trigger maps directly to open amount (pair with teleop gripper_delta_mode: false)
+    gripper_absolute: true
+    # EE/IK EMA (silky while moving). 1.0=off; lower=more inertia.
+    joint_smooth_alpha: 0.15
+    # Motion-gated stop: hold cmd when hand is still (fixes settle jitter).
+    # Does not engage while moving → keeps interpolation feel.
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 5
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    # Inference-style deadband off for teleop streaming.
+    joint_cmd_deadband_deg: 0.0
+    joint_creep_deg: 0.0
 
     max_joint_delta_deg: 30.0
     debug: false
-    # 夹爪调试：true 时打 [GripperTrace:robot]，可与 teleop 的 gripper_trace 对照
+    # 调试夹爪延迟时可临时 true，看 publish_gripper_immediate 是否在松扳机时立刻出现
     gripper_trace: false
-
 
 - type: deploy.sensor.camera.opencv_camera.OpenCVCamera
   name: wrist_camera
   args:
     name: wrist_camera
-    index_or_path: /dev/video4
+    # Stable by USB id (not /dev/videoN). Capture node is *-video-index0.
+    # IMPORTANT: wrist (TSTC) + side (WN) must NOT share the same USB hub/controller.
+    # Same hub → dmesg "Not enough bandwidth" → wrist opens but never produces frames
+    # (visualizer shows "No Data"). Plug one camera into a laptop-native USB port.
+    index_or_path: /dev/v4l/by-id/usb-TSTC_USB20_WEB_CAMERA_TSTC_USB20_WEB_CAMERA_01.00.00-video-index0
     width: 640
     height: 480
     max_size_mb: 10
     fps: 30
     fourcc: MJPG
     bgr_to_rgb: true
+    # 180° rotation = flip both axes
+    horizontal_flip: true
+    vertical_flip: true
 
 - type: deploy.sensor.camera.opencv_camera.OpenCVCamera
   name: side_camera
   args:
     name: side_camera
-    index_or_path: /dev/video2
+    index_or_path: /dev/v4l/by-id/usb-WN-241121-J_WN_Camera-video-index0
     width: 640
     height: 480
     fps: 30

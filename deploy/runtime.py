@@ -18,6 +18,7 @@ import os
 import signal
 import sys
 import time
+from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional
 
 if os.name == "nt":
@@ -138,20 +139,22 @@ def eval_real_session_recorder_main(
 
     - ``"pause_recording"``: while the eval main loop is paused, do not write dataset
       or mosaic video (SHM may still be read to stay in sync).
-    - ``"save_episode"``: finish current episode (save). Next episode does **not**
-      start until ``"resume_recording"``.
-    - ``"discard_episode"``: same, but discard the current episode.
-    - ``"resume_recording"``: re-enable recording; if save/discard deferred a new
-      episode, start it here (same moment the main loop resumes).
+    - ``"save_episode"``: save the open episode only. Does **not** open/create the
+      next episode file (avoids truncating an existing next MP4 when back-filling).
+    - ``"discard_episode"`` / reset:
+        * unsaved frames → discard buffer and reopen the **same** episode;
+        * after a save (nothing open) → open the **next free** episode index.
+    - ``"resume_recording"``: re-enable writing into the already-open episode.
+      Does **not** create a new episode (press ``r`` after ``s`` to open next).
     - ``"exit_discard"``: discard the current in-progress episode (if any), drop
       deferred next-episode state, stop writing; used when the user exits from the
       pause menu.
 
     Acknowledgement tuples are sent back via ``ack_queue``:
-    ``(status_str, frame_count_or_zero, next_episode_idx_or_none)`` — for
-    ``save_episode`` / ``discard_episode``, the second field is the finished episode's
-    frame count (discard may be 0 if nothing was buffered). Third field is set on
-    ``resume_recording`` when a new episode was started; ``None`` for save/discard acks.
+    ``(status_str, frame_count_or_zero, episode_idx_or_none)`` — for
+    ``save_episode``, third field is the **saved** episode index; for
+    ``discard_episode``, the discarded index (or ``None`` on no-op). For
+    ``resume_recording``, third field is the active episode index.
 
     ``stop_event`` must be a ``multiprocessing.Event`` (picklable for spawn).
 
@@ -224,7 +227,11 @@ def eval_real_session_recorder_main(
     actual_episode_idx = None
     device_name_list = [name for name, _ in valid]
     episode_start_deferred = False
-    # Video-only: after discard with 0 frames, next deferred start reuses the same episode id.
+    # Video-only: True while a mosaic writer is open for the current episode.
+    episode_open = False
+    # After a successful save: waiting for ``r`` to open the next free episode.
+    saved_awaiting_next = False
+    # Video-only: after discarding an *open* episode, next start reuses that idx.
     video_only_reuse_same_episode_after_discard = False
     recording_active = bool(initial_recording_active)
 
@@ -238,45 +245,138 @@ def eval_real_session_recorder_main(
             writer = None
         path = current_video_path
         current_video_path = None
+        # Only delete on explicit discard, or empty file that we just created.
+        # Never delete when closing a successful save (delete_file=False).
         if path and os.path.isfile(path):
             try:
-                if delete_file or video_mosaic_count == 0:
+                if delete_file:
+                    os.remove(path)
+                elif video_mosaic_count == 0:
+                    # Empty open (never written): remove stub; do not touch
+                    # pre-existing files we refused to open.
                     os.remove(path)
             except OSError:
                 pass
         video_mosaic_count = 0
 
-    def _open_video_writer_for_episode(ep_idx: int) -> None:
-        nonlocal writer, current_video_path
+    def _episode_file_exists(ep_idx: int) -> bool:
         if not video_path:
-            return
-        _close_video_writer(delete_file=False)
+            return False
         p = _episode_video_file(ep_idx)
+        try:
+            return os.path.isfile(p) and os.path.getsize(p) > 0
+        except OSError:
+            return False
+
+    def _next_free_episode_idx(start_from: Optional[int] = None) -> int:
+        """Smallest free index >= start_from that has no non-empty MP4."""
+        if start_from is None:
+            start_from = 0
+        idx = max(0, int(start_from))
+        # Cap scan so a full directory cannot hang forever.
+        for _ in range(100000):
+            if not _episode_file_exists(idx):
+                return idx
+            idx += 1
+        return idx
+
+    def _open_video_writer_for_episode(ep_idx: int) -> int:
+        """Open mosaic writer for ``ep_idx``, skipping existing non-empty files.
+
+        Returns the actual episode index opened (may be > ep_idx if skipped).
+        """
+        nonlocal writer, current_video_path, actual_episode_idx
+        if not video_path:
+            return int(ep_idx)
+        _close_video_writer(delete_file=False)
+        idx = int(ep_idx)
+        if _episode_file_exists(idx):
+            skipped = idx
+            idx = _next_free_episode_idx(start_from=idx + 1)
+            logger.warning(
+                "[SessionRecorder] episode {} already exists — using free index {}",
+                skipped,
+                idx,
+            )
+        p = _episode_video_file(idx)
         writer = imageio.get_writer(p, fps=fps)
         current_video_path = p
-        logger.info("[SessionRecorder] episode {} video -> {} (max {:.1f} Hz)", ep_idx, p, fps)
+        actual_episode_idx = idx
+        logger.info("[SessionRecorder] episode {} video -> {} (max {:.1f} Hz)", idx, p, fps)
+        return idx
 
-    def _start_new_episode(requested_idx=None):
-        nonlocal actual_episode_idx, queued_frames, video_mosaic_count
-        nonlocal video_only_reuse_same_episode_after_discard
+    def _next_video_only_episode_idx() -> int:
+        """Next free mosaic index under video_dir (max existing + 1, or 0)."""
+        if not video_dir or not os.path.isdir(video_dir):
+            return 0
+        prefix = f"{video_basename}_episode_"
+        suffix = ".mp4"
+        max_idx = -1
+        try:
+            names = os.listdir(video_dir)
+        except OSError:
+            return 0
+        for name in names:
+            if not (name.startswith(prefix) and name.endswith(suffix)):
+                continue
+            mid = name[len(prefix) : -len(suffix)]
+            try:
+                max_idx = max(max_idx, int(mid))
+            except ValueError:
+                continue
+        return max_idx + 1
+
+    def _start_new_episode(requested_idx=None, *, allow_overwrite: bool = False):
+        """Open a new episode for recording (still may be paused).
+
+        - ``requested_idx`` + ``allow_overwrite``: open that exact slot (``-s N`` start,
+          or reopen after discard of the same idx).
+        - ``requested_idx is None``: advance to the next **free** index (never clobber
+          an existing non-empty MP4 — safe for 补录).
+        """
+        nonlocal actual_episode_idx, queued_frames, video_mosaic_count, episode_open
+        nonlocal video_only_reuse_same_episode_after_discard, saved_awaiting_next
+        nonlocal writer, current_video_path
         queued_frames = 0
         video_mosaic_count = 0
+        saved_awaiting_next = False
+        reuse = False
         if data_saver is None:
             if requested_idx is not None:
                 actual_episode_idx = int(requested_idx)
                 video_only_reuse_same_episode_after_discard = False
+                reuse = bool(allow_overwrite)
             else:
                 if video_only_reuse_same_episode_after_discard:
                     video_only_reuse_same_episode_after_discard = False
+                    reuse = True  # same idx; file was deleted on discard
                 elif actual_episode_idx is None:
-                    actual_episode_idx = 0
+                    actual_episode_idx = _next_free_episode_idx(0)
                 else:
-                    actual_episode_idx = actual_episode_idx + 1
+                    actual_episode_idx = _next_free_episode_idx(
+                        start_from=int(actual_episode_idx) + 1
+                    )
             logger.info(
                 "[SessionRecorder] started video-only episode {} (mosaic MP4)",
                 actual_episode_idx,
             )
-            _open_video_writer_for_episode(actual_episode_idx)
+            if reuse or (
+                requested_idx is not None and allow_overwrite
+            ):
+                if video_path:
+                    _close_video_writer(delete_file=False)
+                    p = _episode_video_file(actual_episode_idx)
+                    writer = imageio.get_writer(p, fps=fps)
+                    current_video_path = p
+                    logger.info(
+                        "[SessionRecorder] episode {} video -> {} (max {:.1f} Hz)",
+                        actual_episode_idx,
+                        p,
+                        fps,
+                    )
+            else:
+                _open_video_writer_for_episode(actual_episode_idx)
+            episode_open = True
             return
         actual_episode_idx = data_saver.start_episode(
             episode_idx=requested_idx,
@@ -284,33 +384,53 @@ def eval_real_session_recorder_main(
             teleop_device=None,
         )
         logger.info("[SessionRecorder] started episode {} in {}", actual_episode_idx, data_saver.dataset_path)
-        _open_video_writer_for_episode(actual_episode_idx)
+        if requested_idx is not None and allow_overwrite and video_path:
+            _close_video_writer(delete_file=False)
+            p = _episode_video_file(int(actual_episode_idx))
+            writer = imageio.get_writer(p, fps=fps)
+            current_video_path = p
+        else:
+            _open_video_writer_for_episode(actual_episode_idx)
+        episode_open = True
 
     def _finish_current_episode(save: bool) -> int:
-        nonlocal queued_frames, video_only_reuse_same_episode_after_discard
+        nonlocal queued_frames, episode_open, video_only_reuse_same_episode_after_discard
+        nonlocal saved_awaiting_next
         if data_saver is None:
-            n = queued_frames if save else 0
+            # Already finished: do not touch reuse/index.
+            if not episode_open:
+                return 0
+            n = int(queued_frames)
             _close_video_writer(delete_file=not save)
             ep = actual_episode_idx
             queued_frames = 0
-            if not save and n == 0:
-                video_only_reuse_same_episode_after_discard = True
-            else:
-                video_only_reuse_same_episode_after_discard = False
+            episode_open = False
+            # Reuse same idx only when discarding a non-empty open trial.
+            video_only_reuse_same_episode_after_discard = (not save) and n > 0
+            if save and n > 0:
+                saved_awaiting_next = True
             if ep is not None:
                 action = "saved" if save else "discarded"
                 logger.info("[SessionRecorder] {} episode {} ({} video frames)", action, ep, n)
             return n
+        # Dataset path: ignore save/discard if episode already closed.
+        if not episode_open and not data_saver.is_recording:
+            return 0
+        n_buf = int(queued_frames)
         _close_video_writer(delete_file=not save)
         if not data_saver.is_recording:
+            episode_open = False
             return 0
-        n = data_saver.finish_episode(save=save and queued_frames > 0)
+        n = data_saver.finish_episode(save=save and n_buf > 0)
+        episode_open = False
+        if save and n > 0:
+            saved_awaiting_next = True
         action = "saved" if save else "discarded"
         logger.info("[SessionRecorder] {} episode {} ({} frames)", action, actual_episode_idx, n)
         return n
 
     def _process_cmd_queue():
-        nonlocal episode_start_deferred, recording_active, queued_frames
+        nonlocal episode_start_deferred, recording_active, queued_frames, saved_awaiting_next
         if cmd_queue is None:
             return
         while True:
@@ -326,26 +446,52 @@ def eval_real_session_recorder_main(
             elif cmd == "resume_recording":
                 if episode_start_deferred:
                     episode_start_deferred = False
-                    _start_new_episode(requested_idx=None)
-                recording_active = True
+                # Do NOT auto-create next episode here — that wiped existing MP4s
+                # when ``s`` used to open N+1. After save, user must ``r`` first.
+                if not episode_open and saved_awaiting_next:
+                    logger.warning(
+                        "[SessionRecorder] resume with no open episode after save — "
+                        "press r to open the next episode first"
+                    )
+                recording_active = bool(episode_open)
                 if ack_queue is not None:
-                    ack_queue.put(("resumed", 0, actual_episode_idx))
+                    ack_queue.put(("resumed", 0, actual_episode_idx if episode_open else None))
             elif cmd == "save_episode":
+                # Save only — never open/truncate the next episode file.
+                ep_saved = actual_episode_idx if episode_open else None
                 n = _finish_current_episode(save=True)
-                episode_start_deferred = True
+                episode_start_deferred = False
                 if ack_queue is not None:
-                    ack_queue.put(("saved", n, None))
+                    ack_queue.put(("saved", n, ep_saved))
             elif cmd == "discard_episode":
-                n_disc = _finish_current_episode(save=False)
-                episode_start_deferred = True
-                if ack_queue is not None:
-                    ack_queue.put(("discarded", n_disc, None))
+                n_buf = int(queued_frames) if episode_open else 0
+                if episode_open and n_buf > 0:
+                    # Unsaved trial: discard and reopen SAME index.
+                    ep_disc = actual_episode_idx
+                    n_disc = _finish_current_episode(save=False)
+                    episode_start_deferred = False
+                    _start_new_episode(
+                        requested_idx=ep_disc,
+                        allow_overwrite=True,
+                    )
+                    if ack_queue is not None:
+                        ack_queue.put(("discarded", n_disc, ep_disc))
+                elif saved_awaiting_next or not episode_open:
+                    # After save (or nothing open): reset opens the next FREE episode.
+                    episode_start_deferred = False
+                    _start_new_episode(requested_idx=None)
+                    if ack_queue is not None:
+                        # n=0 means no discard; third field = newly opened episode.
+                        ack_queue.put(("discarded", 0, actual_episode_idx))
+                else:
+                    # Open but empty: no-op.
+                    if ack_queue is not None:
+                        ack_queue.put(("discarded", 0, None))
             elif cmd == "exit_discard":
                 recording_active = False
                 episode_start_deferred = False
-                if data_saver is not None and data_saver.is_recording:
-                    _finish_current_episode(save=False)
-                elif writer is not None:
+                saved_awaiting_next = False
+                if episode_open:
                     _finish_current_episode(save=False)
                 queued_frames = 0
                 if ack_queue is not None:
@@ -363,7 +509,11 @@ def eval_real_session_recorder_main(
                 fps=int(round(fps)),
                 task=task,
             )
-            _start_new_episode(requested_idx=requested_episode_idx)
+            # Explicit -s N may overwrite that slot; auto index never clobbers.
+            _start_new_episode(
+                requested_idx=requested_episode_idx,
+                allow_overwrite=requested_episode_idx is not None,
+            )
             logger.info(
                 "[SessionRecorder] recording dataset to {} (episode={}, format={})",
                 data_saver.dataset_path,
@@ -371,7 +521,10 @@ def eval_real_session_recorder_main(
                 dataset_format,
             )
         elif dataset_output_dir and video_path:
-            _start_new_episode(requested_idx=requested_episode_idx)
+            _start_new_episode(
+                requested_idx=requested_episode_idx,
+                allow_overwrite=requested_episode_idx is not None,
+            )
             logger.info(
                 "[SessionRecorder] video-only recording (no dataset); mosaic MP4 under {}",
                 video_dir or os.path.dirname(video_path) or ".",
@@ -473,6 +626,10 @@ def validate_eval_real_save_as_dataset(args: Any, parser: Any) -> None:
             args.save_as_dataset = _save
 
 
+def _env_truthy(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def setup_eval_real_output_dir(args) -> str:
     """
     If ``-o`` / ``output_dir`` is set: mkdir, write ``eval_real_manifest.json``, return absolute path.
@@ -504,6 +661,45 @@ def setup_eval_real_output_dir(args) -> str:
     return output_dir
 
 
+def resolve_eval_real_output_dir(args) -> str:
+    """
+    Resolve ``-o`` / ``output_dir`` for eval_real.
+
+    When unset, auto-creates ``data/eval_real/<ckpt>_<timestamp>/`` for mosaic MP4
+    recording (pause-menu save). Set ``EVAL_REAL_NO_RECORD=1`` to disable.
+    """
+    output_dir = setup_eval_real_output_dir(args)
+    if output_dir:
+        return output_dir
+    if _env_truthy("EVAL_REAL_NO_RECORD"):
+        logger.info(
+            "Session recording disabled (EVAL_REAL_NO_RECORD=1, no -o). "
+            "Pause-menu save is unavailable."
+        )
+        return ""
+
+    auto = (os.environ.get("EVAL_REAL_OUTPUT_DIR", "") or "").strip()
+    if auto and auto.lower() not in ("0", "off", "false", "no"):
+        args.output_dir = auto
+        return setup_eval_real_output_dir(args)
+
+    model = getattr(args, "model_name_or_path", "eval") or "eval"
+    ckpt_name = os.path.basename(str(model).rstrip("/\\")) or "eval"
+    # URLs like http://127.0.0.1:10002 → basename still has ':' which is illegal
+    # on some filesystems (exFAT/NTFS mounts, etc.).
+    ckpt_name = "".join(c if (c.isalnum() or c in "-_.") else "_" for c in ckpt_name)
+    ckpt_name = ckpt_name.strip("._") or "eval"
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    args.output_dir = os.path.join("data", "eval_real", f"{ckpt_name}_{ts}")
+    output_dir = setup_eval_real_output_dir(args)
+    logger.info(
+        "No -o given; auto-enabled session recording to {} "
+        "(set EVAL_REAL_NO_RECORD=1 to disable, or pass -o explicitly).",
+        output_dir,
+    )
+    return output_dir
+
+
 class EvalRealRuntime:
     """
     Tracks device/inference/viz subprocesses, main-process SHM channels, and the optional
@@ -521,6 +717,10 @@ class EvalRealRuntime:
             "cmd_queue": None,
             "ack_queue": None,
         }
+
+    @property
+    def has_recorder(self) -> bool:
+        return self.recorder_state.get("cmd_queue") is not None
 
     def start_session_recorder(
         self,
@@ -606,21 +806,64 @@ class EvalRealRuntime:
             p.terminate()
             p.join(timeout=5.0)
 
+    _RECORDER_ACK_STATUS = {
+        "pause_recording": "paused",
+        "resume_recording": "resumed",
+        "save_episode": "saved",
+        "discard_episode": "discarded",
+        "exit_discard": "exit_ok",
+    }
+
     def send_recorder_cmd(self, cmd_str: str, timeout: float = 30.0) -> Optional[tuple]:
-        """Send a command to the recorder subprocess and wait for ack. Returns None if no recorder."""
+        """Send a command to the recorder subprocess and wait for its ack.
+
+        Drains any stale acks first (e.g. left by :meth:`post_recorder_cmd`) and, when
+        the command has a known ack status, ignores mismatched acks until the matching
+        one arrives or ``timeout`` elapses.
+        """
+        import queue as _queue_mod
+
         cq = self.recorder_state.get("cmd_queue")
         aq = self.recorder_state.get("ack_queue")
         if cq is None or aq is None:
             return None
+
+        while True:
+            try:
+                stale = aq.get_nowait()
+            except _queue_mod.Empty:
+                break
+            logger.warning("Dropping stale recorder ack before '{}': {}", cmd_str, stale)
+
         cq.put(cmd_str)
-        try:
-            return aq.get(timeout=timeout)
-        except Exception:
-            logger.warning("Recorder did not acknowledge '{}' within {}s", cmd_str, timeout)
-            return None
+        expected = self._RECORDER_ACK_STATUS.get(cmd_str)
+        deadline = time.perf_counter() + float(timeout)
+        while True:
+            remaining = deadline - time.perf_counter()
+            if remaining <= 0:
+                break
+            try:
+                ack = aq.get(timeout=remaining)
+            except Exception:
+                break
+            if expected is None or (isinstance(ack, tuple) and ack and ack[0] == expected):
+                return ack
+            logger.warning(
+                "Ignoring unexpected recorder ack for '{}' (want {!r}): {}",
+                cmd_str,
+                expected,
+                ack,
+            )
+        logger.warning("Recorder did not acknowledge '{}' within {}s", cmd_str, timeout)
+        return None
 
     def post_recorder_cmd(self, cmd_str: str) -> bool:
-        """Send a recorder command without blocking for an acknowledgement."""
+        """Send a recorder command without blocking for an acknowledgement.
+
+        Prefer :meth:`send_recorder_cmd` when the caller needs the ack (frame counts,
+        episode index). Fire-and-forget posts can leave stale acks that desync later
+        ``send_recorder_cmd`` calls unless those drain the queue.
+        """
         cq = self.recorder_state.get("cmd_queue")
         if cq is None:
             return False
@@ -784,17 +1027,42 @@ class KBHit:
 
 EvalRealPauseMenuStep = Literal["idle", "resumed", "exit", "still_paused"]
 
-EVAL_REAL_PAUSE_MENU = (
+EVAL_REAL_PAUSE_MENU_WITH_RECORDER = (
     "\n"
     "========== PAUSED ==========\n"
     "  (Dataset / session video recording is paused.)\n"
     "  >>>  Type a command and Enter:\n"
-    "  s / save+Enter — save current episode (stay paused; Saving... / Successfully Saved.)\n"
-    "  r / reset+Enter — reset policy + robot and discard current episode (stay paused)\n"
-    "  Enter only — resume inference (after save/reset, next episode starts on resume)\n"
+    "  s / save+Enter — save current episode only (does NOT open/delete the next file)\n"
+    "  r / reset+Enter — reset policy + go_home; then:\n"
+    "                   • unsaved frames → discard & re-record SAME episode\n"
+    "                   • after save → open next FREE episode (skip existing MP4s)\n"
+    "  Enter only — resume into the currently open episode (after s: press r first)\n"
     "  quit / q+Enter — quit (discard unsaved episode if any, then exit)\n"
     "============================\n"
 )
+
+EVAL_REAL_PAUSE_MENU_NO_RECORDER = (
+    "\n"
+    "========== PAUSED ==========\n"
+    "  (No session recorder — pass -o or unset EVAL_REAL_NO_RECORD to enable save.)\n"
+    "  >>>  Type a command and Enter:\n"
+    "  r / reset+Enter — reset policy and go home (stay paused)\n"
+    "  Enter only — resume inference\n"
+    "  quit / q+Enter — quit\n"
+    "============================\n"
+)
+
+
+def eval_real_pause_menu_text(rt: EvalRealRuntime) -> str:
+    return (
+        EVAL_REAL_PAUSE_MENU_WITH_RECORDER
+        if rt.has_recorder
+        else EVAL_REAL_PAUSE_MENU_NO_RECORDER
+    )
+
+
+# Backward-compatible alias
+EVAL_REAL_PAUSE_MENU = EVAL_REAL_PAUSE_MENU_WITH_RECORDER
 
 
 def _normalize_eval_real_pause_command(raw: str) -> str:
@@ -816,7 +1084,7 @@ def try_enter_eval_real_pause_menu(kb: KBHit, rt: EvalRealRuntime) -> bool:
         pass
     kb.clear_line_buffer()
     rt.send_recorder_cmd("pause_recording")
-    print(EVAL_REAL_PAUSE_MENU, end="", flush=True)
+    print(eval_real_pause_menu_text(rt), end="", flush=True)
     print(">>> ", end="", flush=True)
     return True
 
@@ -835,17 +1103,38 @@ def eval_real_pause_menu_step(
     cmd = _normalize_eval_real_pause_command(line)
 
     if cmd == "s":
+        if not rt.has_recorder:
+            print(
+                "\nSave unavailable: no session recorder. "
+                "Restart with -o OUTPUT_DIR (or unset EVAL_REAL_NO_RECORD).",
+                flush=True,
+            )
+            print(">>> ", end="", flush=True)
+            return "still_paused"
         print("\nSaving...", flush=True)
         ack = rt.send_recorder_cmd("save_episode")
-        if ack:
-            print("Successfully Saved.", flush=True)
+        if ack and isinstance(ack, tuple) and ack and ack[0] == "saved":
+            n_frames = int(ack[1]) if len(ack) > 1 else 0
+            ep_idx = ack[2] if len(ack) > 2 else None
+            ep_txt = f" episode {ep_idx}" if ep_idx is not None else ""
+            if n_frames > 0:
+                print(
+                    f"Successfully Saved{ep_txt} ({n_frames} frames). "
+                    "Press r to open the next episode (will not touch existing MP4s).",
+                    flush=True,
+                )
+            else:
+                print(
+                    f"Saved{ep_txt} (0 frames — episode was empty).",
+                    flush=True,
+                )
             logger.info(
-                "[Pause] Saved episode: {} frames; dataset streaming for next episode "
-                "starts after you resume (Enter).",
-                ack[1],
+                "[Pause] Saved episode {}: {} frames; waiting for r to open next.",
+                ep_idx,
+                n_frames,
             )
         else:
-            print("Save failed or recorder unavailable.", flush=True)
+            print("Save failed (recorder did not respond).", flush=True)
         print(">>> ", end="", flush=True)
         return "still_paused"
 
@@ -861,25 +1150,50 @@ def eval_real_pause_menu_step(
             print(f"Reset failed: {e}", flush=True)
             print(">>> ", end="", flush=True)
             return "still_paused"
-        print("Successfully reset.", flush=True)
-        if ack:
+        n_disc = 0
+        ep_idx = None
+        if ack and isinstance(ack, tuple) and ack and ack[0] == "discarded":
             n_disc = int(ack[1]) if len(ack) > 1 else 0
-            if n_disc > 0:
-                logger.info(
-                    "[Pause] Reset policy + robot and discarded episode ({} frames); next dataset segment starts after resume (Enter).",
-                    n_disc,
-                )
-            else:
-                logger.info(
-                    "[Pause] Reset policy + robot; no unsaved episode data was discarded.",
-                )
+            ep_idx = ack[2] if len(ack) > 2 else None
+        if n_disc > 0:
+            ep_txt = f" episode {ep_idx}" if ep_idx is not None else ""
+            print(
+                f"Successfully reset; discarded unsaved{ep_txt} "
+                f"({n_disc} frames) — re-record the same episode. Enter=resume.",
+                flush=True,
+            )
+            logger.info(
+                "[Pause] Reset + discarded episode {} ({} frames); same index reopened.",
+                ep_idx,
+                n_disc,
+            )
         else:
-            logger.info("[Pause] Reset policy + robot (no recorder).")
+            ep_txt = f" episode {ep_idx}" if ep_idx is not None else ""
+            print(
+                f"Successfully reset (policy + go_home). "
+                f"Next open{ep_txt}. Enter=resume.",
+                flush=True,
+            )
+            logger.info(
+                "[Pause] Reset; opened next episode {} (no discard).",
+                ep_idx,
+            )
         print(">>> ", end="", flush=True)
         return "still_paused"
 
     if cmd == "":
-        rt.send_recorder_cmd("resume_recording")
+        ack = rt.send_recorder_cmd("resume_recording")
+        ep_open = None
+        if ack and isinstance(ack, tuple) and len(ack) > 2:
+            ep_open = ack[2]
+        if ep_open is None and rt.has_recorder:
+            print(
+                "[Control loop] No episode open after save — press r to open next, "
+                "then Enter to resume.\n",
+                flush=True,
+            )
+            print(">>> ", end="", flush=True)
+            return "still_paused"
         print("[Control loop] Resumed.\n", flush=True)
         kb.clear_line_buffer()
         return "resumed"

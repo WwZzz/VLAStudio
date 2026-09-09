@@ -1,0 +1,58 @@
+# SO101 Plus LEFT arm only — Quest3 right-hand rel_ee
+#
+# Same teleop as single-arm right: configs/teleop/quest3_so101_plus_rel_ee.yaml
+# (arm_mode: right → use right VR controller)
+#
+# Example:
+#   bash scripts/so101_plus_left_vr_tele.sh
+#   # or
+#   python collect_data.py \
+#     -r configs/robot/so101_plus_left_rel_ee.yaml \
+#     -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
+#     -o data/so101_plus_left_vr_teleop \
+#     --no-record-teleop
+
+- type: deploy.robot.so101_plus.So101Plus
+  name: so101_plus_left_rel_ee
+  args:
+    name: so101_plus_left_rel_ee
+    fps: 100.0
+    control_mode: rel_ee
+    com: /dev/ttyACM0
+    robot_id: so101_plus_left
+
+    ik_end_frame: gripper_body
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+
+    ik_eps: 0.01
+    ik_max_iter: 60
+    ik_max_solve_time_s: 0.05
+    ik_rotation_weight: 0.3
+    ik_position_only: false
+    ik_joint_reg_weights: [20.0, 20.0, 10.0, 5.0, 0.02, 0.02]
+    ik_regularize_to_warmstart: true
+    clip_joint_delta: true
+
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    gripper_absolute: true
+
+    joint_smooth_alpha: 0.15
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 5
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    max_joint_delta_deg: 30.0
+
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]
+    debug: false
+    gripper_trace: false
+    diag_log: false
+    # Fixed go_home (from live left arm). Order: pan,lift,elbow,flex,roll,yaw,gripper
+    home_qpos: [-2.10, -98.64, 92.34, 84.73, 1.38, 0.14, 2.20]
+    home_duration_s: 1.5
+    home_step_sleep: 0.03

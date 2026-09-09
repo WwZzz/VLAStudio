@@ -13,7 +13,6 @@ This is an HTTP/JSON alternative to the TCP+pickle server in `deploy/comm/server
 from __future__ import annotations
 
 import argparse
-import base64
 import os
 import signal
 import sys
@@ -38,33 +37,14 @@ from data_utils.utils import set_seed
 from ..base import BaseServer
 
 
-NDARRAY_TYPE_TAG = "__type__"
-NDARRAY_TYPE_NAME = "ndarray"
-
-
-def _encode_ndarray(arr: np.ndarray) -> Dict[str, Any]:
-    if not isinstance(arr, np.ndarray):
-        raise TypeError(f"Expected np.ndarray, got {type(arr)}")
-    return {
-        NDARRAY_TYPE_TAG: NDARRAY_TYPE_NAME,
-        "dtype": str(arr.dtype),
-        "shape": list(arr.shape),
-        "data": base64.b64encode(arr.tobytes(order="C")).decode("ascii"),
-    }
-
-
-def _decode_ndarray(obj: Dict[str, Any]) -> np.ndarray:
-    try:
-        dtype = np.dtype(obj["dtype"])
-        shape = tuple(int(x) for x in obj["shape"])
-        raw = base64.b64decode(obj["data"])
-    except Exception as e:
-        raise ValueError(f"Invalid ndarray payload: {e}") from e
-    arr = np.frombuffer(raw, dtype=dtype)
-    try:
-        return arr.reshape(shape)
-    except Exception as e:
-        raise ValueError(f"Invalid ndarray shape {shape} for buffer: {e}") from e
+from .codec import (
+    JPEG_TYPE_NAME,
+    NDARRAY_TYPE_TAG,
+    NDARRAY_TYPE_NAME,
+    decode_images_jpeg,
+    decode_ndarray as _decode_ndarray,
+    encode_ndarray as _encode_ndarray,
+)
 
 
 def _to_jsonable(x: Any) -> Any:
@@ -104,8 +84,11 @@ def _from_jsonable(x: Any) -> Any:
     if x is None:
         return None
     if isinstance(x, dict):
-        if x.get(NDARRAY_TYPE_TAG) == NDARRAY_TYPE_NAME:
+        tag = x.get(NDARRAY_TYPE_TAG)
+        if tag == NDARRAY_TYPE_NAME:
             return _decode_ndarray(x)
+        if tag == JPEG_TYPE_NAME:
+            return decode_images_jpeg(x)
         return {k: _from_jsonable(v) for k, v in x.items()}
     if isinstance(x, list):
         return [_from_jsonable(v) for v in x]
@@ -541,6 +524,8 @@ def create_app(policy, batch_wait_ms: float = 1.0) -> FastAPI:
             "requests_processed": manager._request_count,
             "batches_processed": manager._batch_count,
             "superseded_requests": manager._superseded_count,
+            # Advertised to FastAPIPolicyClient (image_encoding=auto → jpeg).
+            "image_codecs": [JPEG_TYPE_NAME, "jpeg", NDARRAY_TYPE_NAME],
         }
 
     @app.post("/inference")

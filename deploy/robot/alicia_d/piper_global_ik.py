@@ -16,6 +16,7 @@ Unlike the Piper reference, the end-effector frame is configurable:
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
@@ -39,6 +40,12 @@ class PiperStyleGlobalIKSolver:
         max_iterations: int = 50,
         tol: float = 1e-4,
         jump_reset_threshold_deg: float = 30.0,
+        # Teleop keeps defaults (reg→0, no exact early-exit).
+        # Recording / inference EE control: regularize_to_warmstart + exact_when_converged.
+        regularize_to_warmstart: bool = False,
+        exact_when_converged: bool = False,
+        # Soft wall-clock budget for scipy teleop (None = disabled). On exceed, hold warm-start.
+        max_solve_time_s: Optional[float] = None,
     ):
         import pinocchio as pin
         from scipy import optimize
@@ -56,7 +63,14 @@ class PiperStyleGlobalIKSolver:
         self.max_iterations = max_iterations
         self.tol = tol
         self.jump_reset_threshold_rad = np.deg2rad(jump_reset_threshold_deg)
+        self.regularize_to_warmstart = bool(regularize_to_warmstart)
+        self.exact_when_converged = bool(exact_when_converged)
+        self.max_solve_time_s = (
+            None if max_solve_time_s is None or float(max_solve_time_s) <= 0
+            else float(max_solve_time_s)
+        )
         self._last_solve_iterations = max_iterations
+        self._last_solve_timed_out = False
 
         self.model = pin.buildModelFromUrdf(self.urdf_path)
         self.data = self.model.createData()
@@ -137,6 +151,7 @@ class PiperStyleGlobalIKSolver:
             self.opti = casadi.Opti()
             self.var_q = self.opti.variable(self.reduced_model.nq)
             self.param_tf = self.opti.parameter(4, 4)
+            self.param_q_reg = self.opti.parameter(self.reduced_model.nq)
 
             error_vec = self.error(self.var_q, self.param_tf)
             pos_error = error_vec[:3]
@@ -145,7 +160,10 @@ class PiperStyleGlobalIKSolver:
                 casadi.sumsqr(self.position_weight * pos_error)
                 + casadi.sumsqr(self.rotation_weight * ori_error)
             )
-            regularization = casadi.sumsqr(self.var_q)
+            if self.regularize_to_warmstart:
+                regularization = casadi.sumsqr(self.var_q - self.param_q_reg)
+            else:
+                regularization = casadi.sumsqr(self.var_q)
 
             self.opti.subject_to(
                 self.opti.bounded(
@@ -181,6 +199,7 @@ class PiperStyleGlobalIKSolver:
             self.opti = None
             self.var_q = None
             self.param_tf = None
+            self.param_q_reg = None
 
         self.init_data = np.zeros(self.reduced_model.nq, dtype=np.float64)
         self.history_data = np.zeros(self.reduced_model.nq, dtype=np.float64)
@@ -211,6 +230,7 @@ class PiperStyleGlobalIKSolver:
         if self._backend == "casadi":
             self.opti.set_initial(self.var_q, q_init)
             self.opti.set_value(self.param_tf, target_pose)
+            self.opti.set_value(self.param_q_reg, q_init)
             try:
                 self.opti.solve_limited()
                 sol_q = np.asarray(self.opti.value(self.var_q), dtype=np.float64).reshape(-1)
@@ -219,7 +239,39 @@ class PiperStyleGlobalIKSolver:
             except Exception:
                 return False, q_init.copy()
 
+        q_reg = np.asarray(q_init, dtype=np.float64)
+        self._last_solve_timed_out = False
+        t0 = time.perf_counter()
+        n_cb = [0]
+        # Track best pose-error iterate so a time-budget abort can still move toward target.
+        best_q = q_init.copy()
+        best_err = self._compute_error_norm(q_init, target_pose)
+
+        class _BudgetExceeded(Exception):
+            pass
+
+        def _maybe_update_best(q: np.ndarray) -> None:
+            nonlocal best_q, best_err
+            err = self._compute_error_norm(q, target_pose)
+            if err < best_err:
+                best_err = err
+                best_q = np.asarray(q, dtype=np.float64).copy()
+
+        def _budget_pick() -> np.ndarray:
+            """Prefer best intermediate if it does not jump too far from warm-start."""
+            dq = float(np.max(np.abs(best_q - q_init)))
+            if np.all(np.isfinite(best_q)) and dq <= self.jump_reset_threshold_rad:
+                return best_q.copy()
+            return q_init.copy()
+
         def objective(q: np.ndarray) -> float:
+            nonlocal best_q, best_err
+            if (
+                self.max_solve_time_s is not None
+                and (time.perf_counter() - t0) > self.max_solve_time_s
+            ):
+                self._last_solve_timed_out = True
+                raise _BudgetExceeded()
             q = np.asarray(q, dtype=np.float64)
             self.pin.forwardKinematics(self.reduced_model, self.reduced_data, q)
             self.pin.updateFramePlacements(self.reduced_model, self.reduced_data)
@@ -228,24 +280,59 @@ class PiperStyleGlobalIKSolver:
             err = self.pin.log(current_pose.actInv(target)).vector
             pos_error = err[:3]
             ori_error = err[3:]
+            # Track every evaluate — timeout often hits before L-BFGS callback (nit=0),
+            # so callback-only best tracking used to freeze at warmstart.
+            err_norm = float(np.linalg.norm(np.concatenate([
+                self.position_weight * pos_error,
+                self.rotation_weight * ori_error,
+            ])))
+            if np.all(np.isfinite(q)) and err_norm < best_err:
+                best_err = err_norm
+                best_q = q.copy()
             total_cost = (
                 np.sum((self.position_weight * pos_error) ** 2)
                 + np.sum((self.rotation_weight * ori_error) ** 2)
             )
-            regularization = np.sum(q**2)
+            if self.regularize_to_warmstart:
+                regularization = np.sum((q - q_reg) ** 2)
+            else:
+                regularization = np.sum(q**2)
             return float(self.total_cost_scale * total_cost + self.regularization_weight * regularization)
 
-        result = self.optimize.minimize(
-            objective,
-            q_init,
-            method="L-BFGS-B",
-            bounds=self._bounds,
-            options={
-                "maxiter": self.max_iterations,
-                "ftol": self.tol,
-            },
-        )
-        self._last_solve_iterations = int(getattr(result, "nit", self.max_iterations))
+        def _time_callback(xk: np.ndarray):
+            n_cb[0] += 1
+            xk = np.asarray(xk, dtype=np.float64)
+            if np.all(np.isfinite(xk)):
+                _maybe_update_best(xk)
+            if self.max_solve_time_s is not None and (time.perf_counter() - t0) > self.max_solve_time_s:
+                self._last_solve_timed_out = True
+                return True
+            return False
+
+        try:
+            result = self.optimize.minimize(
+                objective,
+                q_init,
+                method="L-BFGS-B",
+                bounds=self._bounds,
+                callback=_time_callback if self.max_solve_time_s is not None else None,
+                options={
+                    "maxiter": self.max_iterations,
+                    "maxfun": max(self.max_iterations * 4, 40),
+                    "ftol": self.tol,
+                },
+            )
+        except _BudgetExceeded:
+            self._last_solve_iterations = int(n_cb[0])
+            self._last_solve_timed_out = True
+            return True, _budget_pick()
+
+        self._last_solve_iterations = int(getattr(result, "nit", n_cb[0] or self.max_iterations))
+        if self._last_solve_timed_out:
+            if np.all(np.isfinite(result.x)):
+                _maybe_update_best(result.x)
+            return True, _budget_pick()
+
         if result.success:
             return True, np.asarray(result.x, dtype=np.float64)
         if np.all(np.isfinite(result.x)):
@@ -282,6 +369,14 @@ class PiperStyleGlobalIKSolver:
             q_init = self.init_data
         else:
             q_init = np.asarray(q_init, dtype=np.float64).reshape(-1)[: self.reduced_model.nq]
+
+        if self.exact_when_converged:
+            err_init = self._compute_error_norm(q_init, target_pose)
+            if err_init <= self.tol:
+                self.init_data = q_init.copy()
+                self.history_data = q_init.copy()
+                self._last_solve_iterations = 0
+                return True, q_init.copy(), 0, err_init
 
         success, sol_q = self._solve_impl(target_pose, q_init)
         if not success:

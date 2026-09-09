@@ -1,0 +1,15 @@
+# SO101++ Leader — parallel gripper
+#
+# Calibration files from:
+#   python -m deploy.robot.so101_pp --port /dev/ttyACM0 --id so101_pp_leader --calibrate
+# are under robots/so101_pp/; point calibration_dir there so teleop reuses them.
+
+type: deploy.teleoperator.so101_pp_leader.So101PPLeader
+name: so101_pp_leader
+args:
+  name: so101_pp_leader
+  max_size_mb: 1
+  fps: 100.0
+  com: /dev/ttyACM0
+  robot_id: so101_pp_leader
+  calibration_dir: ~/.cache/huggingface/lerobot/calibration/robots/so101_pp

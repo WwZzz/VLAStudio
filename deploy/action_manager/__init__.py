@@ -5,6 +5,8 @@ from .temporal_older import TemporalOlderManager
 from .delay_free import DelayFreeManager
 from .truncated import TruncatedManager
 from .async_chunk_ratio import AsyncChunkRatioManager
+from .sync_chunk import SyncChunkManager
+from .ee_seq_to_qpos import EESequenceToQposManager, EESequenceToQposAsyncManager
 from .loader import load_action_manager
 
 __all__ = [
@@ -16,6 +18,9 @@ __all__ = [
     'DelayFreeManager',
     'TruncatedManager',
     'AsyncChunkRatioManager',
+    'SyncChunkManager',
+    'EESequenceToQposManager',
+    'EESequenceToQposAsyncManager',
     'load_action_manager',
 ]
 

@@ -10,12 +10,13 @@ import asyncio
 import threading
 import time
 import numpy as np
-from typing import Optional, Literal, Dict, Any
+from typing import Optional, Literal, Dict, Any, Union, Sequence
 from scipy.spatial.transform import Rotation as R
 
 from loguru import logger
 
 from deploy.teleoperator.base import BaseTeleopDevice
+from deploy.teleoperator.quest_keep_awake import QuestKeepAwake
 from deploy.utils import RateLimiter
 
 # Set the absolute path to the XLeVR folder
@@ -67,7 +68,7 @@ class Quest3Teleop(BaseTeleopDevice):
         fps: float = 50.0,
         mode: str = 'delta_ee',
         arm_mode: Literal["left", "right", "dual"] = "dual",
-        position_scale: float = 1.0,
+        position_scale: Union[float, Sequence[float]] = 1.0,
         rotation_scale: float = 1.0,
         connect_timeout: float = 60.0,
         calibration_transform: Optional[list] = None,
@@ -81,8 +82,15 @@ class Quest3Teleop(BaseTeleopDevice):
         gripper_trigger_mode: Literal["delta_binary", "analog_travel", "a_open_trigger_close"] = "delta_binary",
         gripper_trigger_analog_scale: float = 1.0,
         gripper_trigger_analog_deadband: float = 0.06,
+        # If True: swap open↔close on the gripper channel (absolute: g→1-g; delta: g→-g).
+        # Use with absolute mode so trigger released = closed when hardware expects it.
+        gripper_invert: bool = False,
         debug: bool = False,
         gripper_trace: bool = False,
+        keep_screen_awake: bool = True,
+        keep_screen_awake_interval: float = 5.0,
+        publish_thumbsticks: bool = False,
+        adb_path: Optional[str] = None,
         **kwargs
     ):
         """
@@ -99,7 +107,8 @@ class Quest3Teleop(BaseTeleopDevice):
                               pose at that moment becomes the anchor. All subsequent actions 
                               are relative poses from the anchor until re-freeze.
             arm_mode: "left", "right", or "dual" for which arm(s) to control
-            position_scale: Scale factor for position delta
+            position_scale: Position scale after calibration_transform (robot XYZ).
+                            float → all axes; [sx, sy, sz] → per-axis (Z usually up/down).
             rotation_scale: Scale factor for rotation delta
             connect_timeout: Timeout in seconds for VR connection
             calibration_transform: 3x3 matrix to transform VR coordinates to robot coordinates
@@ -117,8 +126,12 @@ class Quest3Teleop(BaseTeleopDevice):
             gripper_trigger_mode: delta_binary | analog_travel | a_open_trigger_close (delta mode only)
             gripper_trigger_analog_scale: Scales analog_travel contribution
             gripper_trigger_analog_deadband: |tr-0.5| below this → no trigger delta (analog_travel)
+            gripper_invert: Invert open/close on output (absolute: 1-g; delta: -g)
             debug: Enable debug output
             gripper_trace: Log [GripperTrace:teleop] on each SHM write (pair with robot gripper_trace)
+            keep_screen_awake: Try to keep Quest display awake via adb prox_close while teleoping
+            keep_screen_awake_interval: Seconds between keep-awake pulses
+            adb_path: Optional explicit path to adb binary
         """
         super().__init__(name=name, max_size_mb=max_size_mb, fps=fps)
         
@@ -128,7 +141,7 @@ class Quest3Teleop(BaseTeleopDevice):
         self.mode = mode
         
         self.arm_mode = arm_mode
-        self.position_scale = position_scale
+        self.position_scale = self._normalize_position_scale(position_scale)
         self.rotation_scale = rotation_scale
         self.connect_timeout = connect_timeout
         self.gripper_default_closed = gripper_default_closed
@@ -146,8 +159,18 @@ class Quest3Teleop(BaseTeleopDevice):
         self.gripper_trigger_mode = gripper_trigger_mode
         self.gripper_trigger_analog_scale = float(gripper_trigger_analog_scale)
         self.gripper_trigger_analog_deadband = float(gripper_trigger_analog_deadband)
+        self.gripper_invert = bool(gripper_invert)
         self.debug = debug
         self.gripper_trace = gripper_trace
+        self.keep_screen_awake = keep_screen_awake
+        self.publish_thumbsticks = bool(publish_thumbsticks)
+        self._keep_awake = QuestKeepAwake(
+            enabled=keep_screen_awake,
+            interval_s=keep_screen_awake_interval,
+            adb_path=adb_path,
+        )
+        self._keep_awake_attempted = False
+        self._closed = False
         
         # Calibration transform matrix (3x3)
         # Used for both position and rotation coordinate transformation
@@ -217,7 +240,12 @@ class Quest3Teleop(BaseTeleopDevice):
             True if connected successfully, False otherwise
         """
         print("[Quest3Teleop] Initializing VR connection...")
-        
+
+        # Prefer an already-connected Quest (USB first, then wireless). If none
+        # exists, WebXR's source IP is used later as a best-effort fallback.
+        if self.keep_screen_awake:
+            self._keep_awake_attempted = self._keep_awake.start_connected_if_available()
+
         # Setup XLeVR environment
         setup_xlevr_environment()
         
@@ -239,12 +267,28 @@ class Quest3Teleop(BaseTeleopDevice):
             # Check if headset data is available
             goals = self.vr_monitor.get_latest_goal_nowait()
             if goals and goals.get("has_headset", False):
+                if self.keep_screen_awake and not self._keep_awake_attempted:
+                    self._keep_awake_attempted = True
+                    headset_goal = goals.get("headset")
+                    metadata = getattr(headset_goal, "metadata", None) or {}
+                    client_ip = metadata.get("client_ip")
+                    if client_ip:
+                        try:
+                            self._keep_awake.set_webxr_client_ip(client_ip)
+                            self._keep_awake.start()
+                        except ValueError as e:
+                            logger.warning(f"[QuestKeepAwake] {e}")
+                    else:
+                        logger.warning(
+                            "[QuestKeepAwake] WebXR client IP unavailable; keep-awake not started"
+                        )
                 print("[Quest3Teleop] VR headset connected successfully!")
                 return True
             
             time.sleep(0.1)
         
         print(f"[Quest3Teleop] VR connection timeout after {self.connect_timeout}s")
+        self._keep_awake.stop()
         return False
     
     def get_data(self) -> Optional[dict]:
@@ -269,6 +313,27 @@ class Quest3Teleop(BaseTeleopDevice):
             "has_right": goals.get("has_right", False),
             "has_headset": goals.get("has_headset", False),
         }
+
+    @staticmethod
+    def _normalize_position_scale(scale: Union[float, Sequence[float]]) -> np.ndarray:
+        """Return (3,) robot-frame XYZ scales. Scalar broadcasts to all axes."""
+        if isinstance(scale, (list, tuple, np.ndarray)):
+            arr = np.asarray(scale, dtype=np.float64).reshape(-1)
+            if arr.size != 3:
+                raise ValueError(
+                    f"position_scale list must have 3 elements [sx, sy, sz], got {arr.size}"
+                )
+            return arr
+        return np.full(3, float(scale), dtype=np.float64)
+
+    def _apply_gripper_invert(self, gripper_value: float) -> float:
+        """Optionally swap open↔close on the gripper channel."""
+        g = float(gripper_value)
+        if not self.gripper_invert:
+            return g
+        if self.gripper_delta_mode:
+            return -g
+        return float(np.clip(1.0 - g, 0.0, 1.0))
     
     def _compute_arm_delta(
         self,
@@ -342,7 +407,10 @@ class Quest3Teleop(BaseTeleopDevice):
             # Also check buttons dict for unsqueeze
             buttons = goal.metadata.get("buttons", {})
             
-            if buttons and buttons.get("unsqueeze", False):
+            # XLeVR sends "squeeze"; some paths use "unsqueeze"
+            if buttons and (
+                buttons.get("unsqueeze", False) or buttons.get("squeeze", False)
+            ):
                 is_unsqueeze_pressed = True
             
             # ============================================================
@@ -453,11 +521,13 @@ class Quest3Teleop(BaseTeleopDevice):
                     close_button = False
 
                 if self.gripper_use_trigger and is_unsqueeze_pressed:
+                    # Absolute open amount [0,1] (1=fully open). Tracks trigger continuously.
                     if self.gripper_default_closed:
-                        gripper_value = 0.0 if trigger_active else 1.0
+                        gripper_value = 1.0 - trv
                     else:
-                        gripper_value = 1.0 if trigger_active else 0.0
+                        gripper_value = trv
                 else:
+                    # Frozen: placeholder (robot ignores when gripper_absolute and not unsqueeze)
                     gripper_value = 1.0 if not self.gripper_default_closed else 0.0
                 if open_button and self.gripper_a_maps_to_open and not close_button:
                     gripper_value = 1.0
@@ -496,11 +566,10 @@ class Quest3Teleop(BaseTeleopDevice):
                         
                         # Transform to previous frame's LOCAL frame
                         pos_delta_local = R_prev_world.T @ pos_diff_world
-                        pos_delta_local = pos_delta_local * self.position_scale
                         
-                        # Apply calibration transform
+                        # Apply calibration transform, then per-axis scale in robot XYZ
                         pos_delta_robot = self.calibration_transform @ pos_delta_local
-                        delta_pose[:3] = pos_delta_robot
+                        delta_pose[:3] = pos_delta_robot * self.position_scale
                         
                         # Rotation delta in local frame
                         if current_quaternion is not None and prev_quaternion is not None:
@@ -542,11 +611,11 @@ class Quest3Teleop(BaseTeleopDevice):
                         # Transform position difference to anchor's LOCAL frame
                         # R_anchor_world.T rotates from world to anchor-local
                         pos_rel_local = R_anchor_world.T @ pos_diff_world
-                        pos_rel_local = pos_rel_local * self.position_scale
                         
-                        # Apply calibration transform (anchor-local VR -> robot frame)
+                        # Apply calibration transform, then per-axis scale in robot XYZ
+                        # (Z is typically up/down after calibration_transform)
                         pos_rel_robot = self.calibration_transform @ pos_rel_local
-                        delta_pose[:3] = pos_rel_robot
+                        delta_pose[:3] = pos_rel_robot * self.position_scale
                         
                         # Rotation relative to anchor in anchor's local frame
                         if current_quaternion is not None and anchor_quaternion is not None:
@@ -593,7 +662,22 @@ class Quest3Teleop(BaseTeleopDevice):
         if goal.metadata.get("grip_active", False):
             return True
         buttons = goal.metadata.get("buttons", {})
-        return bool(buttons and buttons.get("unsqueeze", False))
+        return bool(
+            buttons
+            and (buttons.get("unsqueeze", False) or buttons.get("squeeze", False))
+        )
+
+    @staticmethod
+    def _get_thumbstick(goal) -> list[float]:
+        if goal is None or not goal.metadata:
+            return [0.0, 0.0]
+        stick = goal.metadata.get("thumbstick", {}) or {}
+        try:
+            x = float(stick.get("x", 0.0))
+            y = float(stick.get("y", 0.0))
+        except (TypeError, ValueError, AttributeError):
+            return [0.0, 0.0]
+        return [float(np.clip(x, -1.0, 1.0)), float(np.clip(y, -1.0, 1.0))]
     
     def convert_data_to_action(self, data: dict) -> tuple:
         """
@@ -612,7 +696,8 @@ class Quest3Teleop(BaseTeleopDevice):
             
         Note:
             - unsqueeze (side grip): Enables pose delta transmission
-            - Gripper: A/X open, B/Y close only; trigger ignored. Frozen: B (right) / Y (left) edge = go_home
+            - Gripper: A/X open, B/Y close only; trigger ignored.
+            - B (right) / Y (left) rising edge = go_home (no side-grip required)
         """
         should_write = False
         has_new_data = False
@@ -627,48 +712,36 @@ class Quest3Teleop(BaseTeleopDevice):
             if self.gripper_delta_mode:
                 default_gripper = 0.0
             else:
+                # Output space: 0=closed / 1=open (do not run through gripper_invert).
                 default_gripper = 0.0 if self.gripper_default_closed else 1.0
             action = np.zeros(14)
             action[6] = default_gripper   # Left gripper default
             action[13] = default_gripper  # Right gripper default
             
-            # Left arm - check if new goal OR unsqueeze state change
+            # Left arm — always recompute from latest goal (do not gate on object id;
+            # stale id + zeros in action[0:6] left that arm frozen in dual mode).
             left_goal = data.get("left")
-            left_goal_id = id(left_goal) if left_goal else None
-            left_is_new = (left_goal_id != self._left_last_goal_id) and (left_goal is not None)
-            self._left_last_goal_id = left_goal_id
-            left_unsqueeze_now = self._get_unsqueeze_pressed(left_goal)
-            left_should_update = left_is_new or (left_unsqueeze_now != left_was_active)
-            
-            if left_should_update:
-                (left_delta, self._left_prev_position, self._left_prev_quaternion, 
+            if left_goal is not None:
+                (left_delta, self._left_prev_position, self._left_prev_quaternion,
                  self._left_unsqueeze_active, left_gripper,
                  self._left_anchor_position, self._left_anchor_quaternion) = self._compute_arm_delta(
-                    left_goal, 
-                    self._left_prev_position, 
+                    left_goal,
+                    self._left_prev_position,
                     self._left_prev_quaternion,
                     self._left_unsqueeze_active,
-                    is_right_hand=False,  # Left hand: X button
+                    is_right_hand=False,
                     anchor_position=self._left_anchor_position,
                     anchor_quaternion=self._left_anchor_quaternion,
                 )
                 action[0:6] = left_delta
-                action[6] = left_gripper
+                action[6] = self._apply_gripper_invert(left_gripper)
                 has_new_data = True
-                
-                # Detect anchor just set (unsqueeze just activated)
                 if self._left_unsqueeze_active and not left_was_active:
                     anchor_just_set = True
-            
-            # Right arm - check if new goal OR unsqueeze state change
+
+            # Right arm — same always-update path
             right_goal = data.get("right")
-            right_goal_id = id(right_goal) if right_goal else None
-            right_is_new = (right_goal_id != self._right_last_goal_id) and (right_goal is not None)
-            self._right_last_goal_id = right_goal_id
-            right_unsqueeze_now = self._get_unsqueeze_pressed(right_goal)
-            right_should_update = right_is_new or (right_unsqueeze_now != right_was_active)
-            
-            if right_should_update:
+            if right_goal is not None:
                 (right_delta, self._right_prev_position, self._right_prev_quaternion,
                  self._right_unsqueeze_active, right_gripper,
                  self._right_anchor_position, self._right_anchor_quaternion) = self._compute_arm_delta(
@@ -676,26 +749,24 @@ class Quest3Teleop(BaseTeleopDevice):
                     self._right_prev_position,
                     self._right_prev_quaternion,
                     self._right_unsqueeze_active,
-                    is_right_hand=True,  # Right hand: A button
+                    is_right_hand=True,
                     anchor_position=self._right_anchor_position,
                     anchor_quaternion=self._right_anchor_quaternion,
                 )
                 action[7:13] = right_delta
-                action[13] = right_gripper
+                action[13] = self._apply_gripper_invert(right_gripper)
                 has_new_data = True
-                
-                # Detect anchor just set (unsqueeze just activated)
                 if self._right_unsqueeze_active and not right_was_active:
                     anchor_just_set = True
-            
+
             # Only write when VR unsqueeze is active AND there's new data
             # OR if unsqueeze just turned off (send one last frame to signal robot)
             unsqueeze_active = self._left_unsqueeze_active or self._right_unsqueeze_active
             just_released = (left_was_active and not self._left_unsqueeze_active) or \
                           (right_was_active and not self._right_unsqueeze_active)
-                          
+
             should_write = (has_new_data and unsqueeze_active) or just_released
-            
+
         elif self.arm_mode == "left":
             if self.gripper_delta_mode:
                 default_gripper = 0.0
@@ -724,7 +795,7 @@ class Quest3Teleop(BaseTeleopDevice):
                     anchor_quaternion=self._left_anchor_quaternion,
                 )
                 action[0:6] = left_delta
-                action[6] = left_gripper
+                action[6] = self._apply_gripper_invert(left_gripper)
                 has_new_data = True
                 
                 # Detect anchor just set (unsqueeze just activated)
@@ -762,7 +833,7 @@ class Quest3Teleop(BaseTeleopDevice):
                     anchor_quaternion=self._right_anchor_quaternion,
                 )
                 action[0:6] = right_delta
-                action[6] = right_gripper
+                action[6] = self._apply_gripper_invert(right_gripper)
                 has_new_data = True
                 
                 # Detect anchor just set (unsqueeze just activated)
@@ -785,48 +856,55 @@ class Quest3Teleop(BaseTeleopDevice):
                 should_write = True
         
         # ============================================================
-        # B / Y go-home (only when unsqueeze is NOT active). Rising edge only.
-        # Gripper never uses B when gripper_b_maps_to_close is False (Alicia).
+        # B / Y go-home: always allowed (no side-grip / unsqueeze required).
+        # Rising edge only. gripper_b_maps_to_close=False → B/Y never close gripper.
         # ============================================================
         go_home = False
         final_unsqueeze = unsqueeze_active if 'unsqueeze_active' in dir() else (self._left_unsqueeze_active or self._right_unsqueeze_active)
-        
-        if not final_unsqueeze:
-            # Check B button on right hand (or Y on left hand)
-            for hand_key in (["right"] if self.arm_mode == "right" else 
-                            ["left"] if self.arm_mode == "left" else 
-                            ["right", "left"]):
-                goal = data.get(hand_key)
-                if goal is not None and goal.metadata:
-                    buttons = goal.metadata.get("buttons", {})
-                    if hand_key == "right":
-                        b_pressed = (buttons.get("b", False) or 
-                                    buttons.get("button_b", False) or
-                                    buttons.get("B", False))
-                        # Rising edge detection
-                        if b_pressed and not self._right_b_was_pressed:
-                            go_home = True
-                        self._right_b_was_pressed = b_pressed
-                    else:
-                        b_pressed = (buttons.get("y", False) or 
-                                    buttons.get("button_y", False) or
-                                    buttons.get("Y", False))
-                        if b_pressed and not self._left_b_was_pressed:
-                            go_home = True
-                        self._left_b_was_pressed = b_pressed
-        else:
-            # Reset B/Y edge state while squeezing so go_home edge works after release
-            self._right_b_was_pressed = False
-            self._left_b_was_pressed = False
-        
+
+        for hand_key in (
+            ["right"] if self.arm_mode == "right" else
+            ["left"] if self.arm_mode == "left" else
+            ["right", "left"]
+        ):
+            goal = data.get(hand_key)
+            if goal is not None and goal.metadata:
+                buttons = goal.metadata.get("buttons", {}) or {}
+                if hand_key == "right":
+                    b_pressed = bool(
+                        buttons.get("b", False)
+                        or buttons.get("button_b", False)
+                        or buttons.get("B", False)
+                    )
+                    if b_pressed and not self._right_b_was_pressed:
+                        go_home = True
+                    self._right_b_was_pressed = b_pressed
+                else:
+                    b_pressed = bool(
+                        buttons.get("y", False)
+                        or buttons.get("button_y", False)
+                        or buttons.get("Y", False)
+                    )
+                    if b_pressed and not self._left_b_was_pressed:
+                        go_home = True
+                    self._left_b_was_pressed = b_pressed
+
         if go_home:
             should_write = True
-        
+            # Drop teleop so robot can finish go-home without fighting VR deltas.
+            self._left_unsqueeze_active = False
+            self._right_unsqueeze_active = False
+            final_unsqueeze = False
+            self._left_anchor_position = None
+            self._left_anchor_quaternion = None
+            self._right_anchor_position = None
+            self._right_anchor_quaternion = None
+
         # Return action dict with state information for robot side anchor management
         action_dict = {
             "action": action,
             "unsqueeze_active": final_unsqueeze,
-            "anchor_just_set": anchor_just_set,
+            "anchor_just_set": False if go_home else anchor_just_set,
             "go_home": go_home,
         }
         # Per-hand squeeze (dual rel_ee / bimanual robots need independent anchor refresh)
@@ -839,6 +917,50 @@ class Quest3Teleop(BaseTeleopDevice):
         else:
             action_dict["left_unsqueeze_active"] = False
             action_dict["right_unsqueeze_active"] = self._right_unsqueeze_active
+
+        # XLeRobot uses both sticks even while arm side-grips are released.
+        # Keep this opt-in so existing arm-only Quest configurations retain
+        # their original shared-memory write behavior.
+        if self.publish_thumbsticks:
+            action_dict["left_thumbstick"] = self._get_thumbstick(data.get("left"))
+            action_dict["right_thumbstick"] = self._get_thumbstick(data.get("right"))
+            if data.get("left") is not None or data.get("right") is not None:
+                should_write = True
+
+        if self.debug:
+            now = time.time()
+            if not hasattr(self, "_last_diag_log_t") or (now - self._last_diag_log_t) >= 0.5:
+                self._last_diag_log_t = now
+                left_goal = data.get("left") if isinstance(data, dict) else None
+                right_goal = data.get("right") if isinstance(data, dict) else None
+                l_grip_raw = False
+                r_grip_raw = False
+                if left_goal is not None and left_goal.metadata:
+                    l_grip_raw = bool(
+                        left_goal.metadata.get("grip_active", False)
+                        or (left_goal.metadata.get("buttons") or {}).get("squeeze", False)
+                        or (left_goal.metadata.get("buttons") or {}).get("unsqueeze", False)
+                    )
+                if right_goal is not None and right_goal.metadata:
+                    r_grip_raw = bool(
+                        right_goal.metadata.get("grip_active", False)
+                        or (right_goal.metadata.get("buttons") or {}).get("squeeze", False)
+                        or (right_goal.metadata.get("buttons") or {}).get("unsqueeze", False)
+                    )
+                if self.arm_mode == "dual":
+                    lee = float(np.linalg.norm(action[:6]))
+                    ree = float(np.linalg.norm(action[7:13]))
+                    logger.info(
+                        f"[Quest3Diag] hasL={left_goal is not None} hasR={right_goal is not None} "
+                        f"L_grip_raw={l_grip_raw} R_grip_raw={r_grip_raw} "
+                        f"L_unsq={self._left_unsqueeze_active} R_unsq={self._right_unsqueeze_active} "
+                        f"|Lee|={lee:.4f} |Ree|={ree:.4f} go_home={go_home} write={should_write}"
+                    )
+                else:
+                    logger.info(
+                        f"[Quest3Diag] unsqz={final_unsqueeze} |ee|={float(np.linalg.norm(action[:6])):.4f} "
+                        f"go_home={go_home} write={should_write}"
+                    )
 
         if self.gripper_trace and should_write:
             if self.arm_mode == "dual":
@@ -871,11 +993,11 @@ class Quest3Teleop(BaseTeleopDevice):
         # Create shared memory for output
         self.shm = self.create_shm(name=self.name, max_size_mb=self.max_size_mb, is_writer=True)
         
-        # Setup signal handler
+        # Signal: only request loop exit. Do NOT close() here — adb restore must run
+        # in finally without being interrupted by raise KeyboardInterrupt / double-close.
         def cleanup_handler(signum, frame):
-            self.close()
-            raise KeyboardInterrupt
-        
+            self.is_running = False
+
         signal.signal(signal.SIGTERM, cleanup_handler)
         signal.signal(signal.SIGINT, cleanup_handler)
         
@@ -901,8 +1023,18 @@ class Quest3Teleop(BaseTeleopDevice):
             self.close()
     
     def close(self):
-        """Close the teleoperator."""
+        """Close the teleoperator (idempotent)."""
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
         self.is_running = False
+
+        # Stop keep-awake / restore proximity first (must finish before parent kill).
+        if getattr(self, "_keep_awake", None) is not None:
+            try:
+                self._keep_awake.stop()
+            except BaseException as e:
+                logger.warning(f"[Quest3Teleop] keep_awake.stop failed: {e!r}")
         
         # Stop VR monitor
         if self.vr_monitor is not None:
@@ -912,7 +1044,10 @@ class Quest3Teleop(BaseTeleopDevice):
         if self._vr_thread is not None and self._vr_thread.is_alive():
             self._vr_thread.join(timeout=2.0)
         
-        super().close()
+        try:
+            super().close()
+        except Exception as e:
+            logger.warning(f"[Quest3Teleop] super().close failed: {e!r}")
         print("[Quest3Teleop] Closed")
 
 

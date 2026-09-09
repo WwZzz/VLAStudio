@@ -1,0 +1,45 @@
+# EE eval + sequence IK + async chunk prefetch (overlaps infer/IK with playback).
+# chunk_ratio applies to the *post-interp* playback buffer (not raw T=16).
+# min_chunk_duration_s≈2s → densify joints (~interp=4 @ 30Hz): slower but stabler.
+type: deploy.action_manager.ee_seq_to_qpos.EESequenceToQposAsyncManager
+name: ee_seq_to_qpos_async
+args:
+  robot_shm_name: alicia_d
+  chunk_ratio: 0.7
+  prefetch_on_put: false
+  min_chunk_duration_s: 2.0
+  max_align_trim_frac: 0.25
+
+  # Temporal: policy waypoints @ chunk_hz; densify to min_chunk_duration @ playback_hz.
+  chunk_hz: 30
+  playback_hz: 30
+  # Drop first N original policy frames of each new chunk, then min-jerk blend.
+  skip_prefix_steps: 8
+  stitch_steps: 4
+  hold_on_underrun: true
+
+  polish: true
+  ik_eps: 0.05
+  ik_max_iter: 80
+  ik_rotation_weight: 0.1
+  interp_factor: 1
+
+  # Post-IK joint densify: cubic Hermite (C1) + accel soft-cap (deg/s^2).
+  joint_interp: cubic
+  max_joint_accel_deg_s2: 900
+
+  # Post-IK joint denoise (main anti-jitter); lower alpha = smoother.
+  joint_ema_alpha: 0.35
+  joint_deadband_deg: 0.18
+
+  max_ik_step_deg: 10.0
+  max_q0_delta_deg: 20.0
+  max_chunk_dq_deg: 15.0
+  max_fk_err: 0.10
+  max_ik_fails: 6
+  # Consecutive SAFETY HOLD → raise IK iters + retry before holding again.
+  ik_boost_after_holds: 2
+  ik_boost_step: 40
+  ik_max_iter_cap: 400
+  ik_boost_retries: 2
+  clamp_traj: true

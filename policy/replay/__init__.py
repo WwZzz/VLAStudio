@@ -89,6 +89,11 @@ class ReplayPolicy(nn.Module):
             return self._emit_chunk_array()
         if self._on_exhausted == "repeat_last":
             return self._chunks[-1]
+        if self._on_exhausted in ("hold", "hold_last"):
+            # Pad with the final frame only — avoids replaying a moving chunk and
+            # re-solving IK from a drifted pose (major source of EE-replay stutter).
+            last = np.asarray(self._chunks[-1][-1], dtype=np.float32).reshape(1, -1)
+            return np.repeat(last, self.chunk_size, axis=0)
         if self._on_exhausted == "zero":
             return np.zeros((self.chunk_size, self.action_dim), dtype=np.float32)
         raise RuntimeError(

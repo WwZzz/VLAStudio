@@ -1,0 +1,47 @@
+# Quest3 VR Teleoperator - Relative EE (Anchor) Mode for SO101 Plus
+#
+# Control mode: Single right hand with RELATIVE pose (7D actions)
+# Action format: [rel_x, rel_y, rel_z, rel_roll, rel_pitch, rel_yaw, gripper]
+# Compatible with: so101_plus_rel_ee.yaml / so101_plus_sim_rel_ee.yaml
+#
+# Controls:
+#   Squeeze (side) = unfreeze / transmit pose; release freezes
+#   Trigger 0~1   = gripper open amount (needs robot gripper_absolute: true)
+#   B = go_home (no squeeze required; slow interpolate)
+
+type: deploy.teleoperator.quest3.Quest3Teleop
+name: quest3_teleop
+args:
+  name: quest3_teleop
+  max_size_mb: 1
+  fps: 30.0
+  arm_mode: right
+  mode: rel_ee
+  position_scale: 1.0
+  # MUST be >0 for wrist_roll/yaw. 0 zeros all VR orientation before the robot.
+  rotation_scale: 1.0
+  connect_timeout: 180.0
+  gripper_default_closed: true
+  # Invert open↔close so trigger released = closed (robot 0), pressed = open.
+  gripper_invert: true
+  gripper_delta_mode: false
+  gripper_delta_value: 0.25
+  gripper_use_trigger: true
+  gripper_trigger_mode: analog_travel
+  gripper_trigger_analog_scale: 1.0
+  gripper_trigger_analog_deadband: 0.06
+  gripper_a_maps_to_open: false
+  gripper_b_maps_to_close: false
+
+  # Same map as quest3_alicia_rel_ee (det=+1). Previous SO101 matrix had det=-1
+  # (reflection) → wild euler / ik_jump. Quest local after anchor: X/Y/Z as Alicia.
+  # Robot base: X=forward, Y=left, Z=up  →  X=-Q_Z, Y=-Q_X, Z=+Q_Y
+  calibration_transform:
+    - [0, 0, -1]
+    - [-1, 0, 0]
+    - [0, 1, 0]
+
+  debug: false
+  gripper_trace: false
+  keep_screen_awake: true
+  keep_screen_awake_interval: 5.0

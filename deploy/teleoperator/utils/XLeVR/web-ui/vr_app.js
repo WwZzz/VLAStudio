@@ -1,4 +1,13 @@
 // Wait for A-Frame scene to load
+if (typeof AFRAME === 'undefined') {
+  console.error('A-Frame failed to load. Check that aframe.min.js is served from this host.');
+  document.addEventListener('DOMContentLoaded', () => {
+    const banner = document.createElement('div');
+    banner.textContent = 'A-Frame failed to load. Hard-refresh the page (or clear Quest browser cache).';
+    banner.style.cssText = 'position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;background:#111;color:#fff;font:20px sans-serif;padding:24px;text-align:center;';
+    document.body.appendChild(banner);
+  });
+} else {
 
 AFRAME.registerComponent('controller-updater', {
   init: function () {
@@ -617,53 +626,63 @@ AFRAME.registerComponent('controller-updater', {
         rightController.gripActive = this.rightGripDown;
         let rightTriggerAnalog = null;
         
-        // 采集右手柄的摇杆和按钮信息
-        if (this.rightHand && this.rightHand.components && this.rightHand.components['tracked-controls']) {
-            const rightGamepad = this.rightHand.components['tracked-controls'].controller?.gamepad;
-            if (rightGamepad) {
-                const tv = rightGamepad.buttons[0]?.value;
+        // 采集右手柄的摇杆和按钮信息（兼容 oculus-touch / tracked-controls-webxr）
+        if (this.rightHand && this.rightHand.components) {
+            const rightComp =
+                this.rightHand.components['tracked-controls'] ||
+                this.rightHand.components['tracked-controls-webxr'] ||
+                this.rightHand.components['oculus-touch-controls'];
+            const rightGamepad =
+                rightComp?.controller?.gamepad ||
+                rightComp?.el?.components?.['tracked-controls']?.controller?.gamepad ||
+                navigator.getGamepads?.()?.[0];
+            // Prefer gamepad matching this hand if available
+            let gp = rightGamepad;
+            try {
+                const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+                for (const p of pads) {
+                    if (p && (p.id || '').toLowerCase().includes('oculus') && p.hand === 'right') {
+                        gp = p;
+                        break;
+                    }
+                }
+            } catch (e) {}
+            if (gp) {
+                const tv = gp.buttons[0]?.value;
                 if (typeof tv === 'number' && !isNaN(tv)) {
                     rightTriggerAnalog = Math.max(0, Math.min(1, tv));
                 }
                 // 摇杆
                 rightController.thumbstick = {
-                    x: rightGamepad.axes[2] || 0,
-                    y: rightGamepad.axes[3] || 0
+                    x: gp.axes[2] || 0,
+                    y: gp.axes[3] || 0
                 };
-                // 侧边按钮 - Quest3右手: A和B按钮
-                // Note: buttons[3] and buttons[4] may be swapped on some Quest3 controllers
-                // Debug: log all button states to identify correct mapping
-                const btnStates = [];
-                for (let i = 0; i < Math.min(rightGamepad.buttons.length, 10); i++) {
-                    btnStates.push(!!rightGamepad.buttons[i]?.pressed);
-                }
-                // Log when any button is pressed
-                if (btnStates.some(b => b)) {
-                    console.log(`Right buttons state:`, btnStates.map((p, i) => `[${i}]=${p}`).join(', '));
-                }
-                
-                // Try multiple possible indices for B button
-                // Quest3 B button might be at different index
-                const btnA = !!rightGamepad.buttons[4]?.pressed;  // A button (confirmed working)
-                const btnB3 = !!rightGamepad.buttons[3]?.pressed;  // Try index 3
-                const btnB5 = !!rightGamepad.buttons[5]?.pressed;  // Try index 5 (sometimes B is here)
+                const btnA = !!gp.buttons[4]?.pressed;
+                const btnB3 = !!gp.buttons[3]?.pressed;
+                const btnB5 = !!gp.buttons[5]?.pressed;
                 
                 rightController.buttons = {
                     a: btnA,
-                    b: btnB3 || btnB5,  // Try both indices 3 and 5
-                    squeeze: !!rightGamepad.buttons[1]?.pressed,
-                    thumbstick: !!rightGamepad.buttons[2]?.pressed,
-                    menu: !!rightGamepad.buttons[6]?.pressed
+                    b: btnB3 || btnB5,
+                    squeeze: !!gp.buttons[1]?.pressed,
+                    thumbstick: !!gp.buttons[2]?.pressed,
+                    menu: !!gp.buttons[6]?.pressed
                 };
-                
-                // Debug: log which B button index is active
-                if (btnB3 || btnB5) {
-                    console.log(`Right B button: [3]=${btnB3}, [5]=${btnB5}`);
-                }
             }
         }
-        rightController.trigger =
-            rightTriggerAnalog !== null ? rightTriggerAnalog : (this.rightTriggerDown ? 1 : 0);
+        // Analog preferred; also OR with A-Frame triggerup/down so release is never stuck.
+        if (rightTriggerAnalog !== null) {
+            rightController.trigger = rightTriggerAnalog;
+        } else {
+            rightController.trigger = this.rightTriggerDown ? 1 : 0;
+        }
+        // If A-Frame says trigger is up, force open (0) even if analog briefly sticks mid-way.
+        if (!this.rightTriggerDown && rightTriggerAnalog !== null && rightTriggerAnalog < 0.15) {
+            rightController.trigger = 0;
+        }
+        if (!this.rightTriggerDown && rightTriggerAnalog === null) {
+            rightController.trigger = 0;
+        }
     } else {
         console.log('Right hand object not available');
     }
@@ -760,77 +779,99 @@ document.addEventListener('DOMContentLoaded', (event) => {
 });
 
 function addControllerTrackingButton() {
-    if (navigator.xr) {
-        navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
-            if (supported) {
-                // Create Start Controller Tracking button
-                const startButton = document.createElement('button');
-                startButton.id = 'start-tracking-button';
-                startButton.textContent = 'Start Controller Tracking';
-                startButton.style.position = 'fixed';
-                startButton.style.top = '50%';
-                startButton.style.left = '50%';
-                startButton.style.transform = 'translate(-50%, -50%)';
-                startButton.style.padding = '20px 40px';
-                startButton.style.fontSize = '20px';
-                startButton.style.fontWeight = 'bold';
-                startButton.style.backgroundColor = '#4CAF50';
-                startButton.style.color = 'white';
-                startButton.style.border = 'none';
-                startButton.style.borderRadius = '8px';
-                startButton.style.cursor = 'pointer';
-                startButton.style.zIndex = '9999';
-                startButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
-                startButton.style.transition = 'all 0.3s ease';
-
-                // Hover effects
-                startButton.addEventListener('mouseenter', () => {
-                    startButton.style.backgroundColor = '#45a049';
-                    startButton.style.transform = 'translate(-50%, -50%) scale(1.05)';
-                });
-                startButton.addEventListener('mouseleave', () => {
-                    startButton.style.backgroundColor = '#4CAF50';
-                    startButton.style.transform = 'translate(-50%, -50%) scale(1)';
-                });
-
-                startButton.onclick = () => {
-                    console.log('Start Controller Tracking button clicked. Requesting session via A-Frame...');
-                    const sceneEl = document.querySelector('a-scene');
-                    if (sceneEl) {
-                        // Use A-Frame's enterVR to handle session start
-                        sceneEl.enterVR(true).catch((err) => {
-                            console.error('A-Frame failed to enter VR/AR:', err);
-                            alert(`Failed to start AR session via A-Frame: ${err.message}`);
-                        });
-                    } else {
-                         console.error('A-Frame scene not found for enterVR call!');
-                    }
-                };
-
-                document.body.appendChild(startButton);
-                console.log('Official "Start Controller Tracking" button added.');
-
-                // Listen for VR session events to hide/show start button
-                const sceneEl = document.querySelector('a-scene');
-                if (sceneEl) {
-                    sceneEl.addEventListener('enter-vr', () => {
-                        console.log('Entered VR - hiding start button');
-                        startButton.style.display = 'none';
-                    });
-
-                    sceneEl.addEventListener('exit-vr', () => {
-                        console.log('Exited VR - showing start button');
-                        startButton.style.display = 'block';
-                    });
-                }
-
-            } else {
-                console.warn('immersive-ar session not supported by this browser/device.');
-            }
-        }).catch((err) => {
-            console.error('Error checking immersive-ar support:', err);
-        });
-    } else {
+    if (!navigator.xr) {
         console.warn('WebXR not supported by this browser.');
+        return;
     }
-} 
+
+    Promise.all([
+        navigator.xr.isSessionSupported('immersive-vr').catch(() => false),
+        navigator.xr.isSessionSupported('immersive-ar').catch(() => false),
+    ]).then(([vrSupported, arSupported]) => {
+        console.log(`WebXR support: immersive-vr=${vrSupported}, immersive-ar=${arSupported}`);
+        if (!vrSupported && !arSupported) {
+            console.warn('Neither immersive-vr nor immersive-ar is supported.');
+            return;
+        }
+
+        // Hide desktop overlay so it cannot block the Enter VR control (z-index 10000).
+        const desktopInterface = document.getElementById('desktopInterface');
+        if (desktopInterface) desktopInterface.style.display = 'none';
+        const vrContent = document.getElementById('vrContent');
+        if (vrContent) vrContent.style.display = 'block';
+
+        const startButton = document.createElement('button');
+        startButton.id = 'start-tracking-button';
+        startButton.textContent = 'Enter VR / Start Tracking';
+        startButton.style.position = 'fixed';
+        startButton.style.top = '50%';
+        startButton.style.left = '50%';
+        startButton.style.transform = 'translate(-50%, -50%)';
+        startButton.style.padding = '20px 40px';
+        startButton.style.fontSize = '20px';
+        startButton.style.fontWeight = 'bold';
+        startButton.style.backgroundColor = '#4CAF50';
+        startButton.style.color = 'white';
+        startButton.style.border = 'none';
+        startButton.style.borderRadius = '8px';
+        startButton.style.cursor = 'pointer';
+        // Must be above .desktop-interface (z-index 10000)
+        startButton.style.zIndex = '10001';
+        startButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+        startButton.style.transition = 'all 0.3s ease';
+
+        startButton.addEventListener('mouseenter', () => {
+            startButton.style.backgroundColor = '#45a049';
+            startButton.style.transform = 'translate(-50%, -50%) scale(1.05)';
+        });
+        startButton.addEventListener('mouseleave', () => {
+            startButton.style.backgroundColor = '#4CAF50';
+            startButton.style.transform = 'translate(-50%, -50%) scale(1)';
+        });
+
+        startButton.onclick = () => {
+            console.log('Enter VR clicked. Prefer immersive-vr, fall back to immersive-ar...');
+            const sceneEl = document.querySelector('a-scene');
+            if (!sceneEl) {
+                console.error('A-Frame scene not found for enterVR call!');
+                return;
+            }
+
+            const tryEnter = (useAR) => sceneEl.enterVR(!!useAR);
+
+            // Prefer VR: Quest OS updates have been less reliable for immersive-ar / passthrough.
+            const primaryIsAR = !vrSupported && arSupported;
+            tryEnter(primaryIsAR)
+                .catch((err) => {
+                    console.warn(`Primary enterVR(useAR=${primaryIsAR}) failed:`, err);
+                    if (vrSupported && arSupported) {
+                        return tryEnter(!primaryIsAR);
+                    }
+                    throw err;
+                })
+                .catch((err) => {
+                    console.error('A-Frame failed to enter VR/AR:', err);
+                    alert(`Failed to start immersive session: ${err && err.message ? err.message : err}`);
+                });
+        };
+
+        document.body.appendChild(startButton);
+        console.log('Enter VR / Start Tracking button added.');
+
+        const sceneEl = document.querySelector('a-scene');
+        if (sceneEl) {
+            sceneEl.addEventListener('enter-vr', () => {
+                console.log('Entered VR - hiding start button');
+                startButton.style.display = 'none';
+            });
+            sceneEl.addEventListener('exit-vr', () => {
+                console.log('Exited VR - showing start button');
+                startButton.style.display = 'block';
+            });
+        }
+    }).catch((err) => {
+        console.error('Error checking WebXR support:', err);
+    });
+}
+
+} // end AFRAME availability guard

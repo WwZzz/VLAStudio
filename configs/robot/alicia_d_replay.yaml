@@ -1,0 +1,53 @@
+# Alicia-D qpos replay via eval_real + policy.replay
+# (cameras optional for obs sync; actions are absolute joints)
+
+- type: deploy.robot.alicia_d.AliciaD
+  name: alicia_d_replay
+  args:
+    name: alicia_d
+    fps: 100.0
+    control_mode: qpos
+    port: /dev/ttyACM0
+
+    # Track abs setpoints at demo rate (~5°/frame @15–30Hz needs ≥150°/s headroom)
+    speed_deg_s: 300.0
+    gripper_speed_deg_s: 600.0
+
+    ik_end_frame: link6
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+    ik_eps: 0.05
+    ik_max_iter: 200
+    ik_rotation_weight: 0.1
+
+    gripper_absolute: true
+    joint_smooth_alpha: 1.0
+    # Demos are ~4–5°/frame; keep headroom so publish never rejects
+    max_joint_delta_deg: 90.0
+    debug: false
+
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: wrist_camera
+  args:
+    name: wrist_camera
+    index_or_path: /dev/v4l/by-id/usb-TSTC_USB20_WEB_CAMERA_TSTC_USB20_WEB_CAMERA_01.00.00-video-index0
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+    bgr_to_rgb: true
+    horizontal_flip: true
+    vertical_flip: true
+
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: side_camera
+  args:
+    name: side_camera
+    index_or_path: /dev/v4l/by-id/usb-WN-241121-J_WN_Camera-video-index0
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true

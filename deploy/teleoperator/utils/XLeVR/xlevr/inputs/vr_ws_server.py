@@ -74,6 +74,7 @@ class VRWebSocketServer(BaseInputProvider):
         self.clients: Set = set()
         self.server = None
         self.print_only = print_only  # New flag for print-only mode
+        self.latest_client_ip: Optional[str] = None
         
         # Controller states
         self.left_controller = VRControllerState("left")
@@ -138,6 +139,8 @@ class VRWebSocketServer(BaseInputProvider):
     async def websocket_handler(self, websocket, path=None):
         """Handle WebSocket connections from VR controllers."""
         client_address = websocket.remote_address
+        client_ip = client_address[0] if client_address else None
+        self.latest_client_ip = client_ip
         logger.info(f"VR client connected: {client_address}")
         self.clients.add(websocket)
         
@@ -145,7 +148,7 @@ class VRWebSocketServer(BaseInputProvider):
             async for message in websocket:
                 try:
                     data = json.loads(message)
-                    await self.process_controller_data(data)
+                    await self.process_controller_data(data, client_ip=client_ip)
                 except json.JSONDecodeError:
                     logger.warning(f"Received non-JSON message: {message}")
                 except Exception as e:
@@ -168,7 +171,7 @@ class VRWebSocketServer(BaseInputProvider):
             await self.handle_grip_release('right')
             logger.info(f"VR client {client_address} cleanup complete")
     
-    async def process_controller_data(self, data: Dict):
+    async def process_controller_data(self, data: Dict, client_ip: Optional[str] = None):
         """Process incoming VR controller data."""
         # Silent processing - debug output removed for cleaner logs
         
@@ -190,6 +193,7 @@ class VRWebSocketServer(BaseInputProvider):
                     wrist_flex_deg=rot.get('x', 0),   # Pitch rotation
                     metadata={
                         "source": "vr_headset",
+                        "client_ip": client_ip,
                         "relative_position": False,
                         "vr_position": headset_position.tolist(),
                         "rotation": rot,
@@ -557,4 +561,4 @@ class VRWebSocketServer(BaseInputProvider):
             print()
         else:
             # Use the parent class method to send to queue
-            await super().send_goal(goal) 
+            await super().send_goal(goal)

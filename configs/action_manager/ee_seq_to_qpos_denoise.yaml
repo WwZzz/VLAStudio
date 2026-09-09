@@ -1,0 +1,22 @@
+# EE eval with sub-threshold deadband denoise before sequence IK.
+# Suppresses policy/IK jitter at rest; steps above deadband pass through unchanged.
+type: deploy.action_manager.ee_seq_to_qpos.EESequenceToQposManager
+name: ee_seq_to_qpos_denoise
+args:
+  robot_shm_name: alicia_d
+  polish: true
+  ik_eps: 0.05
+  ik_max_iter: 80
+  ik_rotation_weight: 0.1
+  interp_factor: 1
+
+  ee_denoise_enabled: true
+  ee_pos_deadband_m: 0.0008    # 0.8 mm
+  ee_rot_deadband_deg: 0.25
+
+  max_ik_step_deg: 10.0
+  max_q0_delta_deg: 20.0
+  max_chunk_dq_deg: 15.0
+  max_fk_err: 0.10
+  max_ik_fails: 6
+  clamp_traj: true

@@ -1,0 +1,64 @@
+# Alicia-D ACT real eval
+# Camera stack order MUST match ckpt example_data / config camera_names:
+#   image[0] = primary = side_camera
+#   image[1] = wrist   = wrist_camera
+# (local put_carrot_to_cup_* task YAML lists wrist then side — that is NOT
+#  what these HF ACT ckpts were trained with.)
+
+- type: deploy.robot.alicia_d.AliciaD
+  name: alicia_d_act_eval
+  args:
+    name: alicia_d
+    fps: 100.0
+    control_mode: qpos
+    port: /dev/ttyACM0
+
+    speed_deg_s: 300.0
+    gripper_speed_deg_s: 600.0
+
+    ik_end_frame: link6
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+    ik_eps: 0.05
+    ik_max_iter: 200
+    ik_rotation_weight: 0.1
+
+    gripper_absolute: true
+    joint_smooth_alpha: 1.0   # 1.0=关闭 EMA（仅 teleop EE→IK 路径会用）
+    # 推理路径：小指令死区，抑制末端 stop-hunt / 微抖动（大动作仍原样下发）
+    joint_cmd_deadband_deg: 0.15
+    joint_creep_deg: 0.35       # 小步限速阈值；配合较低 creep 速度
+    joint_creep_speed_deg_s: 80.0
+    # Defense-in-depth vs EE-IK thrash: reject any single command jump > this.
+    # (ee_seq_to_qpos also HOLDs/CLAMPs before publish; keep this slightly higher.)
+    max_joint_delta_deg: 25.0
+    debug: false
+
+# cam 0 — primary / side (ckpt camera_0)
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: side_camera
+  args:
+    name: side_camera
+    index_or_path: /dev/v4l/by-id/usb-WN-241121-J_WN_Camera-video-index0
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+# cam 1 — wrist (ckpt camera_1)
+# Must not share USB hub with side_camera (else "Not enough bandwidth", No Data).
+- type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: wrist_camera
+  args:
+    name: wrist_camera
+    index_or_path: /dev/v4l/by-id/usb-TSTC_USB20_WEB_CAMERA_TSTC_USB20_WEB_CAMERA_01.00.00-video-index0
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+    bgr_to_rgb: true
+    horizontal_flip: true
+    vertical_flip: true

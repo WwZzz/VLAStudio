@@ -40,7 +40,7 @@ import argparse
 import time
 from typing import List, Optional, Tuple
 from loguru import logger
-from deploy.base import is_camera_config
+from deploy.base import create_enrich_saved_frame_func, is_camera_config
 from deploy.runtime import KBHit
 from deploy.shm_utils import SharedMemoryChannel, SharedMemoryDataSynchronizer, cleanup_all_shm
 from deploy.utils import (
@@ -76,10 +76,23 @@ def main():
     )
     parser.add_argument("-f", "--frequency", type=float, default=25.0, 
                         help="Target max Hz; actual = min(-f, slowest sensor)")
-    parser.add_argument("-s", "--start-idx", type=int, default=None, 
-                        help="Starting episode index. For HDF5/lerobotv21: can overwrite existing. For lerobotv30: append only.")
+    parser.add_argument(
+        "-s", "--start-idx", "--episode",
+        type=int,
+        default=None,
+        dest="start_idx",
+        help="Starting episode index to continue/overwrite from "
+             "(lerobotv21/HDF5 can overwrite; lerobotv30 append-only). "
+             "Alias: --episode",
+    )
     parser.add_argument("-v", "--visualize", action="store_true", 
                         help="Enable visualization (if robot module provides Visualizer)")
+    parser.add_argument(
+        "--no-record-teleop",
+        action="store_true",
+        help="Run teleop for control only: exclude teleop from sync and saved observations "
+             "(avoids recording FPS being gated by sparse teleop SHM updates).",
+    )
     parser.add_argument(
         "-g", "--gen-config",
         type=str,
@@ -127,6 +140,15 @@ def main():
 
     # Create synchronizer
     valid_channels = [(n, ch) for n, ch in shm_channels if ch is not None]
+    teleop_names = {get_shm_name(cfg) for cfg in teleop_configs}
+    if args.no_record_teleop and teleop_names:
+        excluded = [n for n, _ in valid_channels if n in teleop_names]
+        valid_channels = [(n, ch) for n, ch in valid_channels if n not in teleop_names]
+        if excluded:
+            logger.info(
+                "Not recording teleop (control-only): excluded from sync/save: {}",
+                ", ".join(excluded),
+            )
     if not valid_channels:
         logger.error("No SHM channels connected. Exiting.")
         for p in all_procs:
@@ -139,12 +161,15 @@ def main():
         max_tolerance_s=0.05,
     )
 
-    # Create data saver (it will count existing episodes automatically)
+    # Create data saver (it will count existing episodes automatically).
+    # Per-device enrich_saved_frame hooks run at stream/save time (e.g. AliciaD state_ee FK).
+    enrich_saved_frame = create_enrich_saved_frame_func(all_configs)
     data_saver = create_data_saver(
         format=args.dataset_format,
         output_dir=args.output_dir,
         fps=int(round(args.frequency)),
         task=args.task,
+        enrich_saved_frame=enrich_saved_frame,
     )
     
     # Determine starting episode index
@@ -160,7 +185,11 @@ def main():
     kb = KBHit()
     kb.set_curses_term()
     
-    teleop_name = get_shm_name(teleop_configs[0]) if teleop_configs else None
+    teleop_name = (
+        None
+        if args.no_record_teleop
+        else (get_shm_name(teleop_configs[0]) if teleop_configs else None)
+    )
     device_names_list = [n for n, _ in valid_channels]
 
     try:
@@ -190,7 +219,11 @@ def main():
             recording_start_time = time.perf_counter()
             frame_count = 0
             last_debug_time = recording_start_time
-            debug_interval = 2.0  # Print debug info every 2 seconds
+            debug_interval = 1.0  # Sync bottleneck stats every 1s
+            # Aggregate bottleneck hits over the episode
+            bottleneck_hits: dict[str, int] = {}
+            slow_sync_count = 0  # sync_wait > 50ms
+            sum_sync_ms = 0.0
             
             while not stop_requested():
                 loop_start = time.perf_counter()
@@ -207,16 +240,41 @@ def main():
                 # Add frame using unified interface (non-blocking for streaming savers)
                 data_saver.add_frame(frame)
                 frame_count += 1
+
+                sync_delay_ms = (sync_time - loop_start) * 1000
+                sum_sync_ms += sync_delay_ms
+                stats = getattr(sync, "last_sync_stats", {}) or {}
+                bn = stats.get("bottleneck")
+                if bn:
+                    bottleneck_hits[str(bn)] = bottleneck_hits.get(str(bn), 0) + 1
+                if sync_delay_ms > 50:
+                    slow_sync_count += 1
+                    wait_map = stats.get("wait_ms_per_device") or {}
+                    age_map = stats.get("age_ms") or {}
+                    wait_str = ", ".join(f"{k}={v:.0f}ms" for k, v in sorted(wait_map.items(), key=lambda kv: -kv[1]))
+                    age_str = ", ".join(f"{k}={v:.0f}ms" for k, v in sorted(age_map.items(), key=lambda kv: -kv[1]))
+                    logger.warning(
+                        "[SyncSlow] frame={} sync_wait={:.1f}ms bottleneck={} | wait_share=[{}] | sample_age=[{}]",
+                        frame_count, sync_delay_ms, bn, wait_str or "-", age_str or "-",
+                    )
                 
-                # Debug output: show per-device data freshness
+                # Periodic summary
                 if ref_ts - last_debug_time >= debug_interval:
                     elapsed_since_start = ref_ts - recording_start_time
                     current_fps = frame_count / elapsed_since_start if elapsed_since_start > 0 else 0
-                    
-                    frame_device_names = [k for k in frame.keys() if isinstance(frame.get(k), dict)]
-                    sync_delay_ms = (sync_time - loop_start) * 1000
-                    logger.info("Frame {}: fps={:.1f}, sync_wait={:.1f}ms, devices=[{}]",
-                               frame_count, current_fps, sync_delay_ms, ", ".join(frame_device_names))
+                    avg_sync = sum_sync_ms / frame_count if frame_count else 0
+                    top_bn = sorted(bottleneck_hits.items(), key=lambda kv: -kv[1])[:4]
+                    bn_str = ", ".join(f"{k}:{v}" for k, v in top_bn) or "-"
+                    wait_map = stats.get("wait_ms_per_device") or {}
+                    age_map = stats.get("age_ms") or {}
+                    wait_str = ", ".join(f"{k}={v:.0f}ms" for k, v in sorted(wait_map.items(), key=lambda kv: -kv[1]))
+                    age_str = ", ".join(f"{k}={v:.0f}ms" for k, v in sorted(age_map.items(), key=lambda kv: -kv[1]))
+                    logger.info(
+                        "Frame {}: fps={:.1f}, sync_wait={:.1f}ms (avg={:.1f}ms, slow>50ms={}), "
+                        "bottleneck_hits=[{}], last_wait=[{}], age=[{}]",
+                        frame_count, current_fps, sync_delay_ms, avg_sync, slow_sync_count,
+                        bn_str, wait_str or "-", age_str or "-",
+                    )
                     last_debug_time = ref_ts
                 
                 rate_limiter.sleep(args.frequency)
@@ -231,8 +289,15 @@ def main():
             if frame_count > 0:
                 actual_elapsed = recording_end_time - recording_start_time
                 actual_fps = frame_count / actual_elapsed if actual_elapsed > 0 else 0
-                logger.info("Episode {}: {} frames, {:.2f}s, {:.1f} Hz (target max {} Hz)", 
-                           episode_idx, frame_count, actual_elapsed, actual_fps, args.frequency)
+                avg_sync = sum_sync_ms / frame_count
+                top_bn = sorted(bottleneck_hits.items(), key=lambda kv: -kv[1])
+                bn_str = ", ".join(f"{k}:{v}" for k, v in top_bn) or "-"
+                logger.info(
+                    "Episode {}: {} frames, {:.2f}s, {:.1f} Hz (target max {} Hz); "
+                    "avg_sync_wait={:.1f}ms, slow_frames={}/{}, bottleneck_hits=[{}]",
+                    episode_idx, frame_count, actual_elapsed, actual_fps, args.frequency,
+                    avg_sync, slow_sync_count, frame_count, bn_str,
+                )
 
             # Save or discard
             logger.info("Save? (Enter=SAVE, any key+Enter=DISCARD)")
@@ -273,19 +338,26 @@ def main():
                     ch.destroy()
                 except Exception:
                     pass
-        # Stop all device processes - give them time to close serial ports gracefully
+        # Stop all device processes - give them time to close serial ports / Quest adb restore
         logger.info("Stopping {} device processes...", len(all_procs))
         for p in all_procs:
             if p.is_alive():
-                p.terminate()  # Send SIGTERM
+                p.terminate()  # Send SIGTERM → teleop should restore Quest proximity
         
-        # Wait for all processes to finish gracefully
+        # Wait for all processes to finish gracefully (Quest keep-awake restore needs ~4s)
         for p in all_procs:
-            p.join(timeout=3.0)  # Give more time for serial port cleanup
+            p.join(timeout=8.0)
             if p.is_alive():
                 logger.warning("Device process {} did not exit gracefully, killing...", p.pid)
                 p.kill()
                 p.join(timeout=1.0)
+
+        # Belt-and-suspenders: if teleop was killed mid-adb, restore Quest sleep from parent.
+        try:
+            from deploy.teleoperator.quest_keep_awake import restore_quest_proximity_best_effort
+            restore_quest_proximity_best_effort()
+        except Exception as e:
+            logger.debug("Parent Quest proximity restore skipped: {}", e)
         
         # Finalize data saver (important for LeRobot to close parquet writers)
         if data_saver is not None:
