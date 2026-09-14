@@ -81,8 +81,9 @@ def test_api_arguments_and_validation(tmp_path, monkeypatch):
               overrides={'training.use_cpu': True, 'policy.args.chunk_size': 3}, offline=True)
     assert calls[0][1][-4:] == ['--training.use_cpu', 'true', '--policy.args.chunk_size', '3']
     assert calls[0][2]['offline'] is True
-    with pytest.raises(ValueError, match='simulation.yaml'):
-        vla.load_env(e).evaluate(policy, output_dir=tmp_path / 'eval')
+    evaluation = vla.load_env(e).evaluate(policy, output_dir=tmp_path / 'eval')
+    assert evaluation.output_dir == tmp_path / 'eval'
+    assert calls[-1][0] == 'eval-sim'
     with pytest.raises(ValueError, match='function parameters'):
         vla.train(policy, dataset, c, output_dir='unused', overrides={'output_dir': 'other'})
     with pytest.raises(TypeError, match='Unknown runtime'):

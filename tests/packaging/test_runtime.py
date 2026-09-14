@@ -28,6 +28,20 @@ def test_train_preserves_paths_and_overrides(tmp_path, capsys):
     assert plan["profile"]["python"] == "3.10"
 
 
+def test_eval_merges_checkpoint_and_builtin_environment_runtime(tmp_path, capsys):
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "policy_metadata.json").write_text(json.dumps({
+        "policy_module": "vlastudio.policy.act",
+        "runtime": {"python": "3.10", "requirements": []},
+    }))
+    assert main(["eval-sim", "--dry-run", "-m", str(checkpoint),
+                 "-e", "aloha_transfer", "-bs", "0"]) == 0
+    plan = json.loads(capsys.readouterr().out)
+    assert "dm-control==1.0.34" in plan["profile"]["requirements"]
+    assert plan["args"][-2:] == ["-bs", "0"]
+
+
 def test_config_outside_checkout(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     assert resolve_config("act", "policy").is_file()

@@ -121,6 +121,30 @@ python examples/python/train_policy.py \
 
 加上 `--env /my/env.yaml --eval-runtime /my/simulation-runtime.yaml` 可接续评估。案例源码见 [examples/python](examples/python)。
 
+ACT 在 ALOHA 上训练并接续仿真评估的完整案例：
+
+```bash
+# 两步 GPU 训练 + 5 步真实 MuJoCo rollout，用于验证整条链路
+python examples/_01_train_and_eval_act_on_aloha.py --smoke \
+  --runtime-cache ../cache \
+  --data-cache ../data-cache \
+  --output-dir ../checkpoints/act-aloha-smoke \
+  --eval-output-dir ../results/act-aloha-smoke
+
+# 使用内置 sim_transfer_cube_scripted 数据配置正式训练；首次自动下载数据
+python examples/_01_train_and_eval_act_on_aloha.py \
+  --max-steps 10000 \
+  --runtime-cache ../cache \
+  --data-cache ../data-cache
+
+# 跳过训练，评估已有 checkpoint
+python examples/_01_train_and_eval_act_on_aloha.py \
+  --checkpoint ../checkpoints/act-aloha \
+  --eval-output-dir ../results/act-aloha-eval
+```
+
+内置 `aloha_transfer` 会把 MuJoCo 依赖合并到 policy 环境，因此此案例不要求手写 runtime manifest。`--smoke` 的随机合成数据只能验证训练、保存、加载和 simulator rollout 是否贯通，成功率没有模型质量含义。
+
 ### 对象与返回值
 
 为了兼容不同 Python / Torch 版本，`load_policy`、`load_dataset`、`load_env` 返回轻量**配置句柄**：`vla.Policy`、`vla.Dataset`、`vla.Environment`。真实对象在工作进程中创建。这些函数不会在当前进程加载权重、读取训练样本或启动仿真器。

@@ -43,6 +43,13 @@ class EpisodicDataset(torch.utils.data.Dataset):
         if len(dataset_path_list) == 1:
             # New behavior: dataset_path_list contains a single directory path
             self.dataset_dir = dataset_path_list[0]
+            data_cache = os.environ.get('VLASTUDIO_DATA_CACHE_DIR')
+            if data_cache and not os.path.isabs(self.dataset_dir):
+                # Built-in aliases may use friendly relative locations such as
+                # data/sim_transfer_cube_scripted. Keep them out of the caller's
+                # source tree when an explicit dataset cache was requested.
+                dataset_name = os.path.basename(os.path.normpath(self.dataset_dir))
+                self.dataset_dir = os.path.join(data_cache, 'datasets', dataset_name)
             os.makedirs(self.dataset_dir, exist_ok=True)
             self.dataset_path_list = self._find_all_hdf5(self.dataset_dir)
             self.multi_dataset = False

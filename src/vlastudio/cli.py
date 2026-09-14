@@ -51,7 +51,7 @@ def selected_config(command, args):
         selector.add_argument("-c", "--config", required=True)
         options, _ = selector.parse_known_args(args)
         return read_config(options.config, "device")
-    if command == "serve":
+    if command in ("serve", "eval-sim"):
         selector.add_argument("-m", "--model_name_or_path", default="ckpt/act_sim_transfer_cube_scripted_zscore_example")
         options, _ = selector.parse_known_args(args)
         checkpoint = Path(options.model_name_or_path).expanduser().resolve()
@@ -96,6 +96,12 @@ def main(argv=None):
                         task_args, _ = task_parser.parse_known_args(args)
                         task_config, task_path = read_config(task_args.task, "task")
                         profile = merge_component_runtimes(profile, task_config, task_path)
+                    elif options.command == "eval-sim":
+                        env_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+                        env_parser.add_argument("-e", "--env", default="aloha_transfer")
+                        env_args, _ = env_parser.parse_known_args(args)
+                        env_config, env_path = read_config(env_args.env, "env")
+                        profile = merge_component_runtimes(profile, env_config, env_path)
         finally:
             if previous is None:
                 os.environ.pop("VLASTUDIO_CONFIG_PATH", None)

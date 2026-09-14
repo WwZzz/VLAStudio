@@ -78,8 +78,8 @@ class Environment:
                  device="cuda", action_manager=None, overrides=None, **runtime_options):
         """Evaluate a saved policy using the existing eval_sim.py pipeline.
 
-        A complete simulation runtime_manifest or runtime='current' is required.
-        Custom runtime entrypoints may implement their own evaluation contract.
+        Built-in environments declare their simulator dependencies. A custom
+        environment may supply runtime_manifest or use runtime='current'.
         """
         if not isinstance(policy, Policy) or policy.checkpoint is None:
             raise ValueError("Evaluation requires a Policy with a trained or supplied checkpoint")
@@ -91,9 +91,6 @@ class Environment:
             raise ValueError("Use evaluate() parameters for output, checkpoint, environment and rollout options")
         options = {**{k: v for k, v in policy.runtime_options.items() if k != 'runtime_manifest'},
                    **self.runtime_options, **_normalize_options(runtime_options)}
-        # A training-only environment is not a complete simulator environment.
-        if options.get("runtime", "managed") == "managed" and not options.get("runtime_manifest"):
-            raise ValueError("Provide load_env(..., runtime_manifest='simulation.yaml') or runtime='current'")
         output = _path(output_dir)
         if output.exists() and any(output.iterdir()):
             raise ValueError("Use an empty evaluation output directory to avoid mixing old metrics")

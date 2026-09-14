@@ -8,7 +8,6 @@ import numpy as np
 from loguru import logger
 from vlastudio.data_utils.utils import set_seed
 from tqdm import tqdm
-from tianshou.env import SubprocVectorEnv
 from vlastudio.benchmark.utils import evaluate as default_evaluate, SequentialVectorEnv
 from vlastudio.deploy.action_manager import load_action_manager
 from vlastudio.deploy.inference import start_inference_process, stop_inference_process
@@ -174,7 +173,17 @@ if __name__=='__main__':
                 
                 # Create environment(s)
                 env_fns = [env_fn(env_cfg, env_module.create_env) for _ in range(num_envs)]
-                env = SequentialVectorEnv(env_fns) if use_sequential else SubprocVectorEnv(env_fns)
+                if use_sequential:
+                    env = SequentialVectorEnv(env_fns)
+                else:
+                    try:
+                        from tianshou.env import SubprocVectorEnv
+                    except ImportError as error:
+                        raise ImportError(
+                            "Parallel evaluation requires tianshou. Add it to the environment "
+                            "runtime or use batch_size=0."
+                        ) from error
+                    env = SubprocVectorEnv(env_fns)
                 
                 # Save example batch only for the first rollout
                 save_example_dir = None
