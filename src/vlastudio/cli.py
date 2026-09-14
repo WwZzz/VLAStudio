@@ -12,6 +12,7 @@ from .paths import cache_root, runtime_env
 from .profiles import environment_for, merge_component_runtimes
 from .runtime import prepare, snapshot, execute
 from .worker import ENTRIES
+from .deploy.comm import is_server_address
 
 
 def parse(argv):
@@ -54,6 +55,8 @@ def selected_config(command, args):
     if command in ("serve", "eval-sim"):
         selector.add_argument("-m", "--model_name_or_path", default="ckpt/act_sim_transfer_cube_scripted_zscore_example")
         options, _ = selector.parse_known_args(args)
+        if command == "eval-sim" and is_server_address(options.model_name_or_path):
+            return {"type": "vlastudio.policy.remote"}, Path.cwd()
         checkpoint = Path(options.model_name_or_path).expanduser().resolve()
         metadata_root = checkpoint.parent if checkpoint.name.startswith("checkpoint-") else checkpoint
         metadata = metadata_root / "policy_metadata.json"

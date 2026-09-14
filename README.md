@@ -138,7 +138,7 @@ python examples/train_policy.py \
   --output-dir /my/checkpoints/run1
 ```
 
-加上 `--env /my/env.yaml --eval-runtime /my/simulation-runtime.yaml` 可接续评估。所有案例都直接放在 [examples](examples) 下。
+加上 `--env /my/env.yaml --eval-runtime /my/simulation-runtime.yaml` 可接续评估。所有案例都位于 [examples](examples) 下。
 
 ACT 在 ALOHA 上训练并接续仿真评估的最小案例只有五行公开 API：
 
@@ -148,6 +148,9 @@ python examples/_01_train_and_eval_act_on_aloha.py
 
 脚本直接使用内置的 `sim_transfer_cube_scripted`、`act`、`default` 和
 `aloha_transfer` 配置。修改这五行即可替换数据集、policy、训练配置、保存路径或评估环境。
+
+Policy 与仿真器依赖冲突时，使用 [远程推理案例](examples/02_remote_inference/README.md)：
+Policy 进程调用 `vla.serve(...)`，独立的仿真进程通过 TCP、HTTP(S) 或 SHM 地址评估。
 
 ### 对象与返回值
 
@@ -200,6 +203,9 @@ policy = vla.load_policy("act", checkpoint="/my/checkpoints/run1")
 bench = vla.load_env("aloha_transfer", runtime="current")
 evaluation = bench.evaluate(policy, output_dir="./results/new-run", device="cuda")
 ```
+
+如果两套依赖无法共存，用 `vla.connect_policy("host:port")` 连接单独的
+`vla.serve(...)` 进程。此时仿真进程只解析远程客户端和 env 的运行环境。
 
 输出目录须为空或不存在，避免混入旧指标。返回值的 `output_dir` 是绝对路径，`metrics` 是按相对 JSON 文件名组织的字典；视频保留在输出目录。环境的相机、动作空间、归一化须与训练配置匹配。
 

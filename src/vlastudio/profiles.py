@@ -6,6 +6,11 @@ from .configuration import read_config
 
 TORCH = ["torch==2.4.0", "torchvision==0.19.0", "numpy==1.26.4", "transformers==4.45.2", "accelerate==1.0.1", "loguru==0.7.3", "h5py==3.12.1", "pillow==11.3.0", "opencv-python==4.9.0.80", "einops==0.8.1", "scipy==1.14.1", "timm==1.0.15", "torchdata==0.9.0", "matplotlib==3.9.4", "imageio==2.37.0", "imageio-ffmpeg==0.6.0", "websockets==13.1", "psutil==6.1.1", "tensorboardX==2.6.4"]
 BUILTINS = {name: {"python": "3.10", "requirements": TORCH} for name in ("policy.act", "policy.mlp")}
+REMOTE_EVAL = ["torch==2.4.0", "numpy==1.26.4", "pillow==11.3.0",
+               "opencv-python==4.9.0.80", "imageio==2.37.0",
+               "imageio-ffmpeg==0.6.0", "tqdm==4.67.1", "requests==2.32.5",
+               "psutil==6.1.1"]
+BUILTINS["policy.remote"] = {"python": "3.10", "requirements": REMOTE_EVAL}
 
 
 def environment_for(config, path, manifest=None):

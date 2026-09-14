@@ -57,6 +57,12 @@ class Policy:
 
 
 @dataclass(frozen=True)
+class RemotePolicy:
+    """A policy server address consumed by an evaluation worker."""
+    address: str
+
+
+@dataclass(frozen=True)
 class TrainingResult:
     checkpoint: Path
     policy: Policy
@@ -81,20 +87,29 @@ class Environment:
         Built-in environments declare their simulator dependencies. A custom
         environment may supply runtime_manifest or use runtime='current'.
         """
-        if not isinstance(policy, Policy) or policy.checkpoint is None:
-            raise ValueError("Evaluation requires a Policy with a trained or supplied checkpoint")
+        if isinstance(policy, str):
+            policy = connect_policy(policy)
+        if isinstance(policy, RemotePolicy):
+            model = policy.address
+            policy_options = {}
+        elif isinstance(policy, Policy) and policy.checkpoint is not None:
+            model = str(policy.checkpoint)
+            policy_options = {k: v for k, v in policy.runtime_options.items()
+                              if k != 'runtime_manifest'}
+        else:
+            raise ValueError("Evaluation requires a Policy checkpoint, RemotePolicy, or server address")
         if num_rollout <= 0 or batch_size < 0:
             raise ValueError("num_rollout must be positive and batch_size nonnegative")
         reserved = {'o', 'output_dir', 'm', 'model_name_or_path', 'e', 'env',
                     'n', 'num_rollout', 'bs', 'batch_size', 'device', 'am', 'action_manager'}
         if reserved.intersection(overrides or {}):
             raise ValueError("Use evaluate() parameters for output, checkpoint, environment and rollout options")
-        options = {**{k: v for k, v in policy.runtime_options.items() if k != 'runtime_manifest'},
-                   **self.runtime_options, **_normalize_options(runtime_options)}
+        options = {**policy_options, **self.runtime_options,
+                   **_normalize_options(runtime_options)}
         output = _path(output_dir)
         if output.exists() and any(output.iterdir()):
             raise ValueError("Use an empty evaluation output directory to avoid mixing old metrics")
-        args = ["-m", str(policy.checkpoint), "-e", str(self.config_path),
+        args = ["-m", model, "-e", str(self.config_path),
                 "-o", str(output), "-n", str(num_rollout), "-bs", str(batch_size), "--device", device]
         if action_manager is not None:
             args.extend(["-am", str(_config(action_manager, "action_manager"))])
@@ -125,11 +140,47 @@ def load_policy(config="act", *, checkpoint=None, **runtime_options):
     return Policy(_config(config, "policy"), _path(checkpoint) if checkpoint else None, options)
 
 
+def connect_policy(address):
+    """Create a remote policy handle for TCP, HTTP(S), or shared memory."""
+    from .deploy.comm import is_server_address
+    value = str(address)
+    if not is_server_address(value):
+        raise ValueError(
+            "Policy server address must be host:port, http(s)://host:port, or shm://name"
+        )
+    return RemotePolicy(value)
+
+
 def load_env(config, **runtime_options):
     """Describe a simulation benchmark that runs in the current Python environment."""
     options = _normalize_options(runtime_options)
     options.setdefault("runtime", "managed" if options.get("runtime_manifest") else "current")
     return Environment(_config(config, "env"), options)
+
+
+def serve(policy, *, address="0.0.0.0", port=None, device="cuda",
+          dataset_id="", chunk_size=-1, **runtime_options):
+    """Serve a local policy checkpoint until interrupted.
+
+    address accepts a TCP bind host, host:port, http(s)://host:port, or shm://name.
+    """
+    if not isinstance(policy, Policy) or policy.checkpoint is None:
+        raise ValueError("serve() requires a Policy with a supplied or trained checkpoint")
+    from .deploy.comm import is_http_address, is_server_address, is_shm_address, parse_server_address
+    bind = str(address)
+    if is_server_address(bind) and not is_http_address(bind) and not is_shm_address(bind):
+        bind, address_port = parse_server_address(bind)
+        if port is not None and port != address_port:
+            raise ValueError("port conflicts with the port included in address")
+        port = address_port
+    args = ["-m", str(policy.checkpoint), "--host", bind, "--device", str(device),
+            "--dataset_id", str(dataset_id), "--chunk_size", str(chunk_size)]
+    if port is not None:
+        if not 1 <= int(port) <= 65535:
+            raise ValueError("port must be between 1 and 65535")
+        args.extend(["--port", str(port)])
+    options = {**policy.runtime_options, **_normalize_options(runtime_options)}
+    _run("serve", args, options)
 
 
 def _normalize_options(options):
