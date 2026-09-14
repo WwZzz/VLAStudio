@@ -144,6 +144,7 @@ python examples/_01_train_and_eval_act_on_aloha.py \
 ```
 
 内置 `aloha_transfer` 会把 MuJoCo 依赖合并到 policy 环境，因此此案例不要求手写 runtime manifest。`--smoke` 的随机合成数据只能验证训练、保存、加载和 simulator rollout 是否贯通，成功率没有模型质量含义。
+案例默认通过阿里云 PyPI 镜像创建隔离环境；可用 `--package-index URL` 更换镜像，或传入空字符串恢复 uv 的默认索引。
 
 ### 对象与返回值
 

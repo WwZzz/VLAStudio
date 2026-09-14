@@ -22,6 +22,11 @@ def parse_args():
     parser.add_argument("--env", default="aloha_transfer", help="Built-in env alias or YAML")
     parser.add_argument("--runtime-cache", type=Path, default=Path("~/.cache/vlastudio").expanduser())
     parser.add_argument("--data-cache", type=Path, default=Path("~/.cache/vlastudio/data").expanduser())
+    parser.add_argument(
+        "--package-index",
+        default=os.environ.get("UV_DEFAULT_INDEX", "https://mirrors.aliyun.com/pypi/simple"),
+        help="Package index used when VLAStudio creates policy environments",
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("checkpoints/act_aloha_transfer"))
     parser.add_argument("--eval-output-dir", type=Path, default=Path("results/act_aloha_transfer"))
     parser.add_argument("--checkpoint", type=Path,
@@ -70,6 +75,9 @@ def make_smoke_task(data_cache: Path) -> Path:
 
 def main():
     args = parse_args()
+    if args.package_index:
+        os.environ["UV_DEFAULT_INDEX"] = args.package_index
+        os.environ["PIP_INDEX_URL"] = args.package_index
     if args.device.startswith("cuda"):
         os.environ.setdefault("MUJOCO_GL", "egl")
 
