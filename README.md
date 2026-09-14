@@ -31,6 +31,28 @@ python -m pip install /path/to/vlastudio-0.2.0.dev0-py3-none-any.whl
 
 ## 用 Python 组织训练和评估
 
+内置数据集和 policy 可以直接用别名，不需要自己写 YAML：
+
+```python
+import vlastudio as vla
+
+dataset = vla.load_dataset("sim_transfer_cube_scripted")
+dataset = vla.load_dataset("rlbench.reach_target", cache_dir="/datasets/vla-cache")
+policy = vla.load_policy("act")
+# 无参数时分别默认 sim_transfer_cube_scripted 和 act
+dataset = vla.load_dataset()
+policy = vla.load_policy()
+# 同时支持用户自己的配置
+dataset = vla.load_dataset("/my/configs/task.yaml", cache_dir="/datasets/custom-cache")
+policy = vla.load_policy("/my/configs/policy.yaml")
+```
+
+点分别名 `rlbench.reach_target` 映射到包内 `configs/task/rlbench/reach_target.yaml`；其他内置名称遵循相同规则。别名只是配置入口，原始数据仍遵循配置中的路径或远程数据集 ID；例如 `sim_transfer_cube_scripted` 默认读取本地 `data/sim_transfer_cube_scripted`，不会凭别名自动生成或下载数据。
+
+`load_dataset(..., cache_dir=...)` 只控制数据缓存，优先于训练中的 `data_cache_dir` 和全局默认值，不移动原始数据，也不改变依赖环境和 checkpoint 目录。目录下 `huggingface/` 用于 HF Datasets 缓存，`lerobot/` 用于 LeRobot 默认下载位置，`normalize/` 用于统计量，`tasks/` 用于已启用的预处理缓存。显式数据源 `root` 仍由数据集配置决定，自定义数据集应遵守这些环境设置。指定缓存路径不会自动启用预处理缓存，启用仍需 task 的 `cache` 设置。
+
+不指定时，沿用运行时默认数据缓存 `<cache_dir>/data`；现有 HF Datasets / LeRobot 环境变量和 task 显式 `cache.root` 保留。显式数据缓存参数或 `VLASTUDIO_DATA_CACHE_DIR` 会覆盖这些缓存位置。等价 CLI 参数是 `--data-cache-dir`。`load_policy(..., cache_dir=...)` 控制依赖环境的缓存根目录，模型下载缓存使用 `model_cache_dir`。
+
 ```python
 import vlastudio as vla
 

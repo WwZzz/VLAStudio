@@ -21,6 +21,7 @@ def parse(argv):
     parser.add_argument("--runtime-manifest", help="Environment YAML, resolved from the current directory")
     parser.add_argument("--cache-dir")
     parser.add_argument("--model-cache-dir")
+    parser.add_argument("--data-cache-dir", help="Dataset caches, separate from model and environment caches")
     parser.add_argument("--plugin-path", action="append", default=[])
     parser.add_argument("--config-path", action="append", default=[])
     parser.add_argument("--offline", action="store_true")
@@ -66,7 +67,7 @@ def main(argv=None):
     options, args = parse(sys.argv[1:] if argv is None else argv)
     try:
         cache = cache_root(options.cache_dir)
-        env = runtime_env(cache, options.model_cache_dir)
+        env = runtime_env(cache, options.model_cache_dir, options.data_cache_dir)
         for option, variable in ((options.plugin_path, "VLASTUDIO_PLUGIN_PATH"), (options.config_path, "VLASTUDIO_CONFIG_PATH")):
             if option:
                 paths = [str(Path(x).expanduser().resolve()) for x in option]

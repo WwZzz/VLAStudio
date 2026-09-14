@@ -171,11 +171,16 @@ def is_task_cache_enabled(task_config: Mapping[str, Any]) -> bool:
 
 
 def resolve_cache_root(task_config: Mapping[str, Any]) -> Path:
-    """Resolve ``cache.root`` or the default ``$HF_HOME/ilstd_cache``."""
+    """Resolve an explicit data cache, task setting, or runtime/legacy default."""
     cache_config = get_task_cache_config(task_config) or {}
     configured = cache_config.get("root")
-    if configured:
+    explicit_data = os.environ.get("VLASTUDIO_DATA_CACHE_DIR")
+    if explicit_data:
+        root = Path(os.path.expandvars(os.path.expanduser(explicit_data))) / "tasks"
+    elif configured:
         root = Path(os.path.expandvars(os.path.expanduser(str(configured))))
+    elif os.environ.get("VLASTUDIO_CACHE_DIR") and os.environ.get("ILSTD_CACHE"):
+        root = Path(os.environ["ILSTD_CACHE"]) / "tasks"
     else:
         hf_home = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
         root = Path(os.path.expandvars(os.path.expanduser(hf_home))) / "ilstd_cache"

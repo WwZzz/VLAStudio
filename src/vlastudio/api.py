@@ -45,6 +45,7 @@ def _run(command, args, options):
 class Dataset:
     """A task configuration, including dataset mixtures and normalization metadata."""
     config_path: Path
+    cache_dir: Path | None = None
 
 
 @dataclass
@@ -107,12 +108,16 @@ class Environment:
         return EvaluationResult(output, metrics)
 
 
-def load_dataset(config):
-    """Describe a dataset/task YAML or built-in task name; defer data I/O to train."""
-    return Dataset(_config(config, "task"))
+def load_dataset(config="sim_transfer_cube_scripted", *, cache_dir=None):
+    """Select a task alias or custom YAML, with an optional dataset-only cache.
+
+    Examples: 'sim_transfer_cube_scripted', 'rlbench.reach_target', '/my/task.yaml'.
+    None defers to the runtime's default data cache; no directories are created here.
+    """
+    return Dataset(_config(config, "task"), _path(cache_dir) if cache_dir is not None else None)
 
 
-def load_policy(config, *, checkpoint=None, **runtime_options):
+def load_policy(config="act", *, checkpoint=None, **runtime_options):
     """Describe a policy using the same selector as train.py --policy.
 
     checkpoint is for evaluation. To initialize training weights use the policy
@@ -129,12 +134,12 @@ def load_env(config, **runtime_options):
 
 def _normalize_options(options):
     allowed = {"runtime", "runtime_manifest", "cache_dir", "model_cache_dir",
-               "plugin_path", "config_path", "offline"}
+               "plugin_path", "config_path", "offline", "data_cache_dir"}
     unknown = options.keys() - allowed
     if unknown:
         raise TypeError(f"Unknown runtime options: {sorted(unknown)}")
     result = dict(options)
-    for key in ("runtime_manifest", "cache_dir", "model_cache_dir"):
+    for key in ("runtime_manifest", "cache_dir", "model_cache_dir", "data_cache_dir"):
         if result.get(key) is not None:
             result[key] = str(_path(result[key]))
     for key in ("plugin_path", "config_path"):
@@ -161,6 +166,8 @@ def train(policy, dataset, training_config_path="default", *, output_dir,
             "-c", str(_config(training_config_path, "training")), "-o", str(output),
             *_overrides(overrides)]
     options = {**policy.runtime_options, **_normalize_options(runtime_options)}
+    if dataset.cache_dir is not None:
+        options["data_cache_dir"] = str(dataset.cache_dir)
     _run("train", args, options)
     if not output.is_dir():
         raise TaskError(f"Training exited successfully but did not create {output}")

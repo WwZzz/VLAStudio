@@ -49,6 +49,12 @@ user settings, platform user cache. `settings.json` in the platform VLAStudio co
 `--model-cache-dir` overrides HF_HOME; otherwise existing HF_HOME/TORCH_HOME are respected. OpenPI assets default to
 `models/openpi` under the cache root, with `OPENPI_DATA_HOME` respected when set.
 Explicit dataset cache paths in task configs retain their existing behavior.
+`--data-cache-dir` (or Python `load_dataset(..., cache_dir=...)`) selects a separate
+data cache. `VLASTUDIO_DATA_CACHE_DIR` is its environment-variable equivalent.
+Explicit data-cache selection overrides task `cache.root` and the default HF
+Datasets/LeRobot cache locations; without it existing explicit locations are kept.
+Task preprocessing defaults to `data/tasks` within the runtime cache and is still
+enabled only by the task's `cache` setting. Local dataset source paths are unchanged.
 Checkpoint outputs are not cache files and are never cleaned by the runtime manager.
 
 `--plugin-path` and `--config-path` may be repeated. Installed config files are a

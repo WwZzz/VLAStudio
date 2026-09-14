@@ -10,6 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output-dir', required=True)
     parser.add_argument('--cache-dir', default=None)
+    parser.add_argument('--data-cache-dir', default=None)
     parser.add_argument('--gpu', action='store_true')
     args = parser.parse_args()
     fixtures = Path(__file__).resolve().parents[1] / 'extensions'
@@ -19,7 +20,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='vlastudio-example-') as directory:
         task_path = Path(directory) / 'task.yaml'
         task_path.write_text(yaml.safe_dump(task), encoding='utf-8')
-        dataset = vla.load_dataset(task_path)
+        dataset = vla.load_dataset(task_path, cache_dir=args.data_cache_dir)
         policy = vla.load_policy(fixtures / 'policy_mlp.yaml', cache_dir=args.cache_dir)
         result = vla.train(
             policy, dataset, fixtures / 'training_mlp.yaml', output_dir=args.output_dir,

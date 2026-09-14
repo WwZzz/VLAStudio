@@ -24,10 +24,19 @@ def cache_root(value=None):
     return Path(value or os.environ.get("VLASTUDIO_CACHE_DIR") or os.environ.get("ILSTD_CACHE") or user_settings().get("cache_dir") or user_cache_dir("vlastudio")).expanduser().resolve()
 
 
-def runtime_env(cache, model_cache=None):
+def runtime_env(cache, model_cache=None, data_cache=None):
     env = os.environ.copy()
     env["VLASTUDIO_CACHE_DIR"] = str(cache)
-    env["ILSTD_CACHE"] = str(cache / "data")
+    explicit_data = data_cache or env.get("VLASTUDIO_DATA_CACHE_DIR")
+    data = Path(explicit_data).expanduser().resolve() if explicit_data else cache / "data"
+    env["ILSTD_CACHE"] = str(data)
+    if explicit_data:
+        env["VLASTUDIO_DATA_CACHE_DIR"] = str(data)
+    for variable, suffix in (("HF_DATASETS_CACHE", "huggingface"), ("HF_LEROBOT_HOME", "lerobot")):
+        if explicit_data:
+            env[variable] = str(data / suffix)
+        else:
+            env.setdefault(variable, str(data / suffix))
     env.setdefault("UV_CACHE_DIR", str(cache / "uv"))
     env.setdefault("UV_PYTHON_INSTALL_DIR", str(cache / "python"))
     # CUDA wheels can take longer than uv's default cache-lock timeout to download.
