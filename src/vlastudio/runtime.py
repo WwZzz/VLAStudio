@@ -12,7 +12,7 @@ import subprocess
 import sys
 from filelock import FileLock
 
-CORE = ["PyYAML==6.0.2", "platformdirs==4.3.6", "filelock==3.18.0"]
+CORE = ["PyYAML==6.0.2", "platformdirs==4.3.6", "filelock==3.18.0", "loguru==0.7.3"]
 
 
 def _glibcxx_version(path):
@@ -110,7 +110,7 @@ def prepare(profile, cache, env, offline=False):
             lock.write_text(profile["lock"], encoding="utf-8")
             run([*uv, "pip", "sync", "--python", python, lock], env)
             # Supplied locks must include the lightweight runtime dependencies.
-            run([python, "-c", "import yaml, platformdirs, filelock"], env)
+            run([python, "-c", "import yaml, platformdirs, filelock, loguru"], env)
         else:
             extra = []
             if profile.get("overrides"):

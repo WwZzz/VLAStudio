@@ -34,6 +34,10 @@ Install the required extras first, for example `pip install ".[act,aloha]"`.
 Passing a runtime manifest or `runtime="managed"` opts a Python API call into the
 environment manager explicitly.
 
+VLAStudio's shared worker dependencies are part of every managed environment.
+Component profiles declare only their additional packages. A supplied complete
+lock must contain the shared dependencies and is validated before its worker starts.
+
 Built-in initial recipes: ACT/MLP (Python 3.10), OpenPI (Python 3.11, Linux/glibc >= 2.31), OpenVLA
 (Python 3.10, Linux). OpenPI uses pinned upstream commits and installs its required
 Transformers overlay only into its own environment. Other policies must declare

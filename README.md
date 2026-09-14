@@ -48,6 +48,8 @@ export VLASTUDIO_CACHE=/path/to/persistent-cache
 
 基础安装只提供轻量入口。使用 `vlastudio` 命令时，启动器按配置创建环境、安装依赖并复用；使用 Python API 时则直接使用当前 Python 环境，不自动安装。GPU 驱动、系统库、仿真资源和硬件 SDK 的系统部分需要主机或容器支持。
 
+`PyYAML`、`platformdirs`、`filelock` 和 `loguru` 属于 VLAStudio 公共运行时，基础包和每个托管环境都会安装。policy、dataset、仿真与 device 的 profile 只声明各自增加的依赖；使用完整 lock 文件时，环境准备阶段会先校验公共运行时，缺失时不会启动任务。
+
 | Policy 实现 | 初始运行环境 | 平台 |
 | --- | --- | --- |
 | ACT / MLP | Python 3.10，Torch 2.4 | Windows / Linux x86-64 有锁文件 |
