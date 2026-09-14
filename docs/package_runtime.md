@@ -208,7 +208,7 @@ vlastudio train -p examples/policy_mlp.yaml -t examples/task_mlp.yaml -c example
 Install the wheel, then run from the source distribution or a checkout:
 
 ```sh
-python examples/_01_train_and_eval_act_on_aloha.py --smoke
+python examples/_01_train_and_eval_act_on_aloha.py
 ```
 
 Each case uses a managed worker with the corresponding policy environment. Tests

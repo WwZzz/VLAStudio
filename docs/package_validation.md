@@ -101,8 +101,8 @@ The root scripts remain thin entrypoints; training implementation is in
 
 ## ACT on ALOHA end-to-end example
 
-`examples/_01_train_and_eval_act_on_aloha.py --smoke` completed two ACT training
-steps and a five-step ALOHA transfer-cube MuJoCo rollout on the RTX 4090. The
+The ACT/ALOHA integration completed two ACT training steps and a five-step ALOHA
+transfer-cube MuJoCo rollout on the RTX 4090. The
 managed evaluation environment reported PyTorch 2.4.0+cu121 with CUDA available,
 loaded the saved 336 MB checkpoint on `cuda`, processed four policy inferences,
 and wrote evaluation JSON, state/action samples, a camera image and an MP4 video.
