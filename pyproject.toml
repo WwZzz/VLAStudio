@@ -35,5 +35,5 @@ exclude = ["**/.venv/**", "**/__pycache__/**", "**/.git/**", "**/.ipynb_checkpoi
 "collect_data.py" = "vlastudio/_legacy/collect_data.py"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/configs", "/policy", "/data_utils", "/benchmark", "/deploy", "/utils", "/train.py", "/start_policy_server.py", "/eval_real.py", "/eval_sim.py", "/collect_data.py", "/README.md", "/LICENSE", "/pyproject.toml", "/tests/packaging", "/tests/gpu", "/examples/extensions", "/docs/package_runtime.md", "/docs/package_validation.md", "/docs/gpu_validation.json", "/requirements-legacy.txt", "/uv.lock"]
+include = ["/src", "/configs", "/policy", "/data_utils", "/benchmark", "/deploy", "/utils", "/train.py", "/start_policy_server.py", "/eval_real.py", "/eval_sim.py", "/collect_data.py", "/README.md", "/README.legacy.md", "/LICENSE", "/pyproject.toml", "/tests/packaging", "/tests/gpu", "/examples/extensions", "/examples/python", "/docs/package_runtime.md", "/docs/package_validation.md", "/docs/gpu_validation.json", "/requirements-legacy.txt", "/uv.lock"]
 exclude = ["**/.venv/**", "**/__pycache__/**", "**/.git/**"]

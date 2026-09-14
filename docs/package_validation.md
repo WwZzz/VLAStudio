@@ -67,3 +67,24 @@ this first version; use task dispatch or existing policy-server clients.
 This is a development package, not a PyPI release. Install the built wheel or the
 branch to try it. Reproduction instructions are in `package_runtime.md` and
 `tests/gpu/run_smoke.py`.
+
+## Python orchestration API (2026-09-14)
+
+The follow-up package adds `load_dataset`, `load_policy`, `train` and `load_env`
+configuration handles, with `bench.evaluate(policy)` dispatch. All public arguments
+and the training result use the name `policy`.
+
+- 34 packaging/API tests pass, including real subprocess execution with a custom
+  test entrypoint, checkpoint handoff, evaluation JSON retrieval, failure propagation,
+  and argument forwarding. Environment preparation is mocked in that subprocess
+  contract test; its synthetic metrics are not simulator measurements.
+- Wheel and sdist build successfully. The wheel contains the public API; the sdist
+  includes the Python examples and preserved legacy README.
+- The installed wheel's `examples/python/train_mlp.py --gpu` completed two actual
+  training steps on the existing RTX 4090 instance through the managed environment.
+  Reported training loss: 0.32710614800453186. Checkpoint and trainer state were saved
+  under `api-gpu-checkpoints` in the dedicated validation directory.
+
+This follow-up does not claim real simulator evaluation coverage. Managed evaluation
+requires a complete policy-plus-simulator manifest; the Python API does not expose
+live Torch objects in the calling process.

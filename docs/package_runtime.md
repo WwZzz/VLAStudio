@@ -175,9 +175,14 @@ code = vlastudio.run("train", ["-p", "my_policy.yaml", "-o", "/results/run"],
                     cache_dir="/scratch/vlastudio")
 ```
 
-The initial Python API exposes task dispatch and component construction. A managed
-`Policy.load().predict()` proxy is not part of this first implementation; use
-`vlastudio serve` and the existing communication client interfaces for inference.
+The Python API also exposes `load_dataset`, `load_policy`, `train` and `load_env`.
+These return configuration handles and dispatch training/evaluation to workers;
+they do not expose tensors in the caller. `train(policy, dataset, config,
+output_dir=...)` updates `policy.checkpoint` after success; `bench.evaluate(policy,
+output_dir=...)` evaluates saved artifacts. Managed evaluation needs a complete
+simulation runtime manifest. See the [Python quick start](../README.md#用-python-组织训练和评估)
+and [runnable scripts](../examples/python). For direct inference use
+`vlastudio serve` and the existing communication client interfaces.
 
 From a checkout, the real CPU smoke example is:
 
