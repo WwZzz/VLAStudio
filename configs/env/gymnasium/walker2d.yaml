@@ -1,0 +1,26 @@
+# Walker2d-v5 environment configuration
+# MuJoCo locomotion task: make a 2D bipedal robot walk forward
+
+type: benchmark.gymnasium.GymnasiumEnv
+name: walker2d
+
+# Environment settings
+task: Walker2d-v5
+render_mode: null  # Set to 'rgb_array' for video recording, 'human' for visualization
+use_camera: false
+max_episode_steps: 1000  # Default for Walker2d
+
+# Dimensions (explicit specification)
+state_dim: 17   # qpos: 8, qvel: 9, excluding x-position
+action_dim: 6   # torques for 6 joints
+
+# Control settings
+ctrl_space: joint
+ctrl_type: abs
+
+# Task description
+raw_lang: "Make the walker walk forward as fast as possible"
+
+# Notes:
+# - Action range: [-1, 1] (normalized)
+# - Reward: forward velocity - 0.001 * control_cost + healthy_reward

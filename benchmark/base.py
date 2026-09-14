@@ -222,6 +222,8 @@ class MetaPolicy:
                         sample['image'] = normed_mobs.image  # (cameras, C, H, W)
                 else:
                     sample['image'] = normed_mobs.image
+            else:
+                sample['image'] = None  # Explicitly set to None when no image
             
             # State: use specified control space (already normalized)
             sample['state'] = normed_mobs.state[i] if len(normed_mobs.state.shape) > 1 else normed_mobs.state

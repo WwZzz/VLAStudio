@@ -1,0 +1,26 @@
+# Hopper-v5 environment configuration
+# MuJoCo locomotion task: make a 2D one-legged robot hop forward
+
+type: benchmark.gymnasium.GymnasiumEnv
+name: hopper
+
+# Environment settings
+task: Hopper-v5
+render_mode: null  # Set to 'rgb_array' for video recording, 'human' for visualization
+use_camera: false
+max_episode_steps: 1000  # Default for Hopper
+
+# Dimensions (explicit specification)
+state_dim: 11   # qpos: 5, qvel: 6, excluding x-position
+action_dim: 3   # torques for 3 joints
+
+# Control settings
+ctrl_space: joint
+ctrl_type: abs
+
+# Task description
+raw_lang: "Make the hopper hop forward as fast as possible"
+
+# Notes:
+# - Action range: [-1, 1] (normalized)
+# - Reward: forward velocity - 0.001 * control_cost + healthy_reward

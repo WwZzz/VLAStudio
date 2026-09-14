@@ -1,0 +1,32 @@
+# TD3 Algorithm Configuration
+# Twin Delayed Deep Deterministic Policy Gradient
+
+type: td3
+
+# Network architecture
+hidden_dims: [256, 256]
+
+# Discount factor (gamma)
+discount: 0.99
+
+# Soft update coefficient for target networks
+tau: 0.005
+
+# Learning rates
+actor_lr: 0.0003
+critic_lr: 0.0003
+
+# Target policy smoothing
+policy_noise: 0.2    # Noise added to target policy during critic update
+noise_clip: 0.5      # Range to clip target policy noise
+
+# Delayed policy updates
+policy_freq: 2       # Update policy every N critic updates
+
+# Exploration noise
+expl_noise: 0.1      # Gaussian noise scale for exploration
+
+# Control settings
+ctrl_space: joint       # Control space: 'ee' (end-effector) or 'joint'
+ctrl_type: absolute     # Control type: 'delta' or 'absolute'
+

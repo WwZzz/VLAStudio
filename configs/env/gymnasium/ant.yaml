@@ -1,0 +1,26 @@
+# Ant-v5 environment configuration
+# MuJoCo locomotion task: make a 3D ant robot run forward
+
+type: benchmark.gymnasium.GymnasiumEnv
+name: ant
+
+# Environment settings
+task: Ant-v5
+render_mode: null  # Set to 'rgb_array' for video recording, 'human' for visualization
+use_camera: false
+max_episode_steps: 1000  # Default for Ant
+
+# Dimensions (explicit specification)
+state_dim: 27   # qpos: 13, qvel: 14, excluding x,y position
+action_dim: 8   # torques for 8 joints
+
+# Control settings
+ctrl_space: joint
+ctrl_type: abs
+
+# Task description
+raw_lang: "Make the ant walk forward as fast as possible"
+
+# Notes:
+# - Action range: [-1, 1] (normalized)
+# - Reward: forward velocity - 0.5 * control_cost + healthy_reward

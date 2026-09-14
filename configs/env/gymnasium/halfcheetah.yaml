@@ -1,0 +1,26 @@
+# HalfCheetah-v5 environment configuration
+# MuJoCo locomotion task: make a 2D cheetah robot run as fast as possible
+
+type: benchmark.gymnasium.GymnasiumEnv
+name: halfcheetah
+
+# Environment settings
+task: HalfCheetah-v5
+render_mode: null  # Set to 'rgb_array' for video recording, 'human' for visualization
+use_camera: false
+max_episode_steps: 1000  # Default for HalfCheetah
+
+# Dimensions (explicit specification)
+state_dim: 17   # qpos: 9, qvel: 8, excluding x-position
+action_dim: 6   # torques for 6 joints
+
+# Control settings
+ctrl_space: joint
+ctrl_type: abs
+
+# Task description
+raw_lang: "Make the cheetah run as fast as possible"
+
+# Notes:
+# - Action range: [-1, 1] (normalized)
+# - Reward: forward velocity - 0.1 * control_cost
