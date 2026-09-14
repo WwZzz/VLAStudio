@@ -1,4 +1,4 @@
-"""Configuration handles for training and evaluation in isolated workers.
+"""Configuration handles for training and evaluation workers.
 
 These are deliberately not torch modules or iterable datasets. They can be
 created in a lightweight Python process without importing policy dependencies.
@@ -120,13 +120,16 @@ def load_policy(config="act", *, checkpoint=None, **runtime_options):
     checkpoint is for evaluation. To initialize training weights use the policy
     config's pretrained_weight_path; to resume use training overrides.
     """
-    return Policy(_config(config, "policy"), _path(checkpoint) if checkpoint else None,
-                  _normalize_options(runtime_options))
+    options = _normalize_options(runtime_options)
+    options.setdefault("runtime", "managed" if options.get("runtime_manifest") else "current")
+    return Policy(_config(config, "policy"), _path(checkpoint) if checkpoint else None, options)
 
 
 def load_env(config, **runtime_options):
-    """Describe a simulation benchmark and its complete dependency environment."""
-    return Environment(_config(config, "env"), _normalize_options(runtime_options))
+    """Describe a simulation benchmark that runs in the current Python environment."""
+    options = _normalize_options(runtime_options)
+    options.setdefault("runtime", "managed" if options.get("runtime_manifest") else "current")
+    return Environment(_config(config, "env"), options)
 
 
 def _normalize_options(options):
@@ -151,7 +154,8 @@ def train(policy, dataset, training_config_path="default", *, output_dir,
     """Train synchronously, update policy.checkpoint on success and return artifacts.
 
     Uses the original policy-specific processors, collators, cache and trainer.
-    Runtime dependencies are installed in a cached worker, never in this process.
+    Python API calls use the current environment by default. Pass runtime="managed"
+    explicitly to opt into the CLI-style environment manager.
     """
     if not isinstance(policy, Policy) or not isinstance(dataset, Dataset):
         raise TypeError("Use load_policy() and load_dataset() handles with managed train()")

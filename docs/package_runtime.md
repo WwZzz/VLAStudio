@@ -28,6 +28,12 @@ patches. The application snapshot has a separate content hash, so code changes d
 not reinstall model dependencies. User-site packages and the parent's site-packages
 are not added to a managed worker. Explicit local plugin paths are supported.
 
+This default applies to the `vlastudio` CLI. Python API handles default to
+`runtime="current"`, so `python script.py` never creates or modifies an environment.
+Install the required extras first, for example `pip install ".[act,aloha]"`.
+Passing a runtime manifest or `runtime="managed"` opts a Python API call into the
+environment manager explicitly.
+
 Built-in initial recipes: ACT/MLP (Python 3.10), OpenPI (Python 3.11, Linux/glibc >= 2.31), OpenVLA
 (Python 3.10, Linux). OpenPI uses pinned upstream commits and installs its required
 Transformers overlay only into its own environment. Other policies must declare

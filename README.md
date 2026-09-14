@@ -46,7 +46,7 @@ python -m pip install /path/to/vlastudio-0.2.0.dev0-py3-none-any.whl
 export VLASTUDIO_CACHE=/path/to/persistent-cache
 ```
 
-安装的只是轻量入口。`import vlastudio` 不导入 Torch / TensorFlow，也不触发下载。首次训练时，启动器按配置创建环境、安装依赖，后续复用。GPU 驱动、系统库、仿真资源和硬件 SDK 的系统部分需要主机或容器支持。
+基础安装只提供轻量入口。使用 `vlastudio` 命令时，启动器按配置创建环境、安装依赖并复用；使用 Python API 时则直接使用当前 Python 环境，不自动安装。GPU 驱动、系统库、仿真资源和硬件 SDK 的系统部分需要主机或容器支持。
 
 | Policy 实现 | 初始运行环境 | 平台 |
 | --- | --- | --- |
@@ -58,6 +58,19 @@ export VLASTUDIO_CACHE=/path/to/persistent-cache
 `--policy` 仍接收配置名称或 YAML 路径；例如 OpenPI 的内置配置使用 `pi0`，不是将 `--policy` 改成固定模型枚举。
 
 ## 用 Python 组织训练和评估
+
+Python 脚本需要先安装其使用的组件。例如 ACT 训练和 ALOHA 仿真需要：
+
+```bash
+python -m pip install -e ".[act,aloha]"
+```
+
+如果希望完全自动管理环境，请使用 CLI：
+
+```bash
+vlastudio train -p act -t sim_transfer_cube_scripted -c default -o checkpoints/act_aloha
+vlastudio eval-sim -m checkpoints/act_aloha -e aloha_transfer -o results/act_aloha
+```
 
 内置数据集和 policy 可以直接用别名，不需要自己写 YAML：
 
@@ -75,7 +88,7 @@ dataset = vla.load_dataset("/my/configs/task.yaml", cache_dir="/datasets/custom-
 policy = vla.load_policy("/my/configs/policy.yaml")
 ```
 
-点分别名 `rlbench.reach_target` 映射到包内 `configs/task/rlbench/reach_target.yaml`；其他内置名称遵循相同规则。别名只是配置入口，原始数据仍遵循配置中的路径或远程数据集 ID；例如 `sim_transfer_cube_scripted` 默认读取本地 `data/sim_transfer_cube_scripted`，不会凭别名自动生成或下载数据。
+点分别名 `rlbench.reach_target` 映射到包内 `configs/task/rlbench/reach_target.yaml`；其他内置名称遵循相同规则。别名只是配置入口，原始数据仍遵循配置中的路径或远程数据集 ID；`sim_transfer_cube_scripted` 在缓存为空时会下载内置配置指定的公开数据集。
 
 `load_dataset(..., cache_dir=...)` 只控制数据缓存，优先于训练中的 `data_cache_dir` 和全局默认值，不移动原始数据，也不改变依赖环境和 checkpoint 目录。目录下 `huggingface/` 用于 HF Datasets 缓存，`lerobot/` 用于 LeRobot 默认下载位置，`normalize/` 用于统计量，`tasks/` 用于已启用的预处理缓存。显式数据源 `root` 仍由数据集配置决定，自定义数据集应遵守这些环境设置。指定缓存路径不会自动启用预处理缓存，启用仍需 task 的 `cache` 设置。
 
@@ -136,7 +149,7 @@ python examples/_01_train_and_eval_act_on_aloha.py
 
 ### 对象与返回值
 
-为了兼容不同 Python / Torch 版本，`load_policy`、`load_dataset`、`load_env` 返回轻量**配置句柄**：`vla.Policy`、`vla.Dataset`、`vla.Environment`。真实对象在工作进程中创建。这些函数不会在当前进程加载权重、读取训练样本或启动仿真器。
+`load_policy`、`load_dataset`、`load_env` 返回轻量配置句柄：`vla.Policy`、`vla.Dataset`、`vla.Environment`。真实对象在当前 Python 环境的工作进程中创建；缺少依赖时会直接报错，不会修改当前环境。
 
 `policy` 不是 `torch.nn.Module`，不能直接调用 `.parameters()`；`dataset` 也不是可迭代的 PyTorch Dataset。`load_dataset` 接收现有 **task 配置**，包含数据集列表、维度和归一化信息，而不只是数据文件路径。此接口用于 Python 实验编排。
 
