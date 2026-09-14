@@ -187,6 +187,7 @@ six==1.17.0
 soupsieve==2.9.2
 svgwrite==1.4.3
 sympy==1.14.0
+tensorboardX==2.6.4
 tensorstore==0.1.74
 termcolor==3.3.0
 timm==1.0.15

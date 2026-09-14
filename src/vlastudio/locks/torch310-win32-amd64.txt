@@ -26,6 +26,7 @@ packaging==26.3
 pillow==11.3.0
 platformdirs==4.3.6
 psutil==6.1.1
+protobuf==5.29.6
 pyparsing==3.3.2
 python-dateutil==2.9.0.post0
 pyyaml==6.0.2
@@ -35,6 +36,7 @@ safetensors==0.8.0
 scipy==1.14.1
 six==1.17.0
 sympy==1.14.0
+tensorboardX==2.6.4
 timm==1.0.15
 tokenizers==0.20.3
 torch==2.4.0
