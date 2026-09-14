@@ -1,5 +1,6 @@
 ckpt/
 ckpt
+/checkpoints/
 results/
 hub/
 assets/robot/
