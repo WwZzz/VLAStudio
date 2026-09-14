@@ -1,39 +1,34 @@
-"""
-Dataset modules for IL-Studio.
+"""Dataset classes, imported only when the selected dataset needs them."""
+from importlib import import_module
 
-This package contains individual dataset implementations that inherit from the base EpisodicDataset class.
-Each dataset is implemented in its own file for better modularity and extensibility.
-"""
 
-from .base import EpisodicDataset
-from .aloha_sim import AlohaSimDataset
-from .aloha_sii import AlohaSIIDataset
-from .aloha_sii_v2 import AlohaSIIv2Dataset
-from .robomimic_dataset import RobomimicDataset
-from .koch_dataset import KochDataset
-from .d4rl import D4RLDataset
-try:
-    from .lerobot_wrapper import WrappedLerobotDataset
-except ImportError:
-    WrappedLerobotDataset = None
-from .rlbench_dataset import RLBenchDataset
-# LeRobot standalone wrappers (no lerobot dependency)
-from .lerobotv20_wrapper import WrappedLerobotV20Dataset
-from .lerobotv21_wrapper import WrappedLerobotV21Dataset
-from .lerobotv30_wrapper import WrappedLerobotV30Dataset
+_EXPORTS = {
+    "EpisodicDataset": (".base", "EpisodicDataset"),
+    "AlohaSimDataset": (".aloha_sim", "AlohaSimDataset"),
+    "AlohaSIIDataset": (".aloha_sii", "AlohaSIIDataset"),
+    "AlohaSIIv2Dataset": (".aloha_sii_v2", "AlohaSIIv2Dataset"),
+    "RobomimicDataset": (".robomimic_dataset", "RobomimicDataset"),
+    "KochDataset": (".koch_dataset", "KochDataset"),
+    "D4RLDataset": (".d4rl", "D4RLDataset"),
+    "WrappedLerobotDataset": (".lerobot_wrapper", "WrappedLerobotDataset"),
+    "RLBenchDataset": (".rlbench_dataset", "RLBenchDataset"),
+    "WrappedLerobotV20Dataset": (".lerobotv20_wrapper", "WrappedLerobotV20Dataset"),
+    "WrappedLerobotV21Dataset": (".lerobotv21_wrapper", "WrappedLerobotV21Dataset"),
+    "WrappedLerobotV30Dataset": (".lerobotv30_wrapper", "WrappedLerobotV30Dataset"),
+}
 
-__all__ = [
-    'EpisodicDataset',
-    'AlohaSimDataset', 
-    'AlohaSIIDataset',
-    'AlohaSIIv2Dataset',
-    'RobomimicDataset',
-    'KochDataset',
-    'D4RLDataset',
-    "WrappedLerobotDataset",
-    "RLBenchDataset",
-    # LeRobot standalone wrappers
-    "WrappedLerobotV20Dataset",
-    "WrappedLerobotV21Dataset",
-    "WrappedLerobotV30Dataset",
-]
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name):
+    try:
+        module_name, attribute = _EXPORTS[name]
+    except KeyError as error:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from error
+    value = getattr(import_module(module_name, __name__), attribute)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(set(globals()) | set(__all__))
