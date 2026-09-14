@@ -98,3 +98,17 @@ runtime-profile compatibility and the existing API contracts. GPU smoke checks f
 MLP, ACT, the full MLP training entrypoint and OpenVLA passed again after migration.
 The root scripts remain thin entrypoints; training implementation is in
 `vlastudio.entrypoints.train`, keeping the public `vlastudio.train` function distinct.
+
+## ACT on ALOHA end-to-end example
+
+`examples/_01_train_and_eval_act_on_aloha.py --smoke` completed two ACT training
+steps and a five-step ALOHA transfer-cube MuJoCo rollout on the RTX 4090. The
+managed evaluation environment reported PyTorch 2.4.0+cu121 with CUDA available,
+loaded the saved 336 MB checkpoint on `cuda`, processed four policy inferences,
+and wrote evaluation JSON, state/action samples, a camera image and an MP4 video.
+The random smoke policy scored 0/1, as expected for an execution check.
+
+The ALOHA runtime pins `dm-control==1.0.34` with `mujoco==3.3.6`; allowing the
+resolver to select MuJoCo 3.13.0 failed because its model fields are incompatible
+with that dm-control release. The example defaults environment creation to the
+Aliyun PyPI mirror and exposes `--package-index` for callers to replace it.
