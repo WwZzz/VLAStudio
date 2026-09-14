@@ -37,37 +37,18 @@ def parse_args():
 
 
 def make_smoke_task(data_cache: Path) -> Path:
-    """Create 50 tiny episodes so AlohaSimDataset stays fully offline."""
-    import h5py
-    import numpy as np
+    """Create a task config whose synthetic Dataset loads inside the ACT worker."""
     import yaml
 
-    root = data_cache.resolve() / "datasets" / "sim_transfer_cube_scripted_smoke"
-    root.mkdir(parents=True, exist_ok=True)
-    rng = np.random.default_rng(42)
-    for episode in range(50):
-        path = root / f"episode_{episode}.hdf5"
-        if path.is_file():
-            continue
-        with h5py.File(path, "w") as handle:
-            handle.create_dataset("action", data=rng.normal(size=(2, 14)).astype("float32"))
-            handle.create_dataset("observations/qpos", data=rng.normal(size=(2, 14)).astype("float32"))
-            handle.create_dataset(
-                "observations/images/top",
-                data=rng.integers(0, 256, size=(2, 64, 64, 3), dtype="uint8"),
-            )
+    implementation = Path(__file__).resolve().parent / "_support" / "aloha_smoke_dataset.py"
     task = {
         "name": "sim_transfer_cube_scripted_smoke",
         "datasets": [{
-            "type": "vlastudio.data_utils.datasets.AlohaSimDataset",
+            "type": f"{implementation}:AlohaSmokeDataset",
             "name": "sim_transfer_cube_scripted_smoke",
             "args": {
-                "dataset_path_list": [str(root)],
-                "camera_names": ["primary"],
+                "size": 8,
                 "chunk_size": 50,
-                "ctrl_space": "joint",
-                "ctrl_type": "abs",
-                "preload_data": False,
             },
         }],
         "meta": {
