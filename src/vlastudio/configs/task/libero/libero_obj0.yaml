@@ -1,0 +1,20 @@
+datasets:
+- type: vlastudio.data_utils.datasets.WrappedLerobotDataset
+  name: libero_object_task0
+  args:
+    dataset_path_list:
+    - HuggingFaceVLA/libero
+    chunk_size: 50
+    ctrl_space: ee
+    ctrl_type: delta
+    camera_names: 
+      - observation.images.image
+      - observation.images.image2
+    episode_filter:
+      task_index: [24]
+
+meta:
+  action_dim: 7
+  state_dim: 8
+  action_normalize: zscore
+  state_normalize: zscore

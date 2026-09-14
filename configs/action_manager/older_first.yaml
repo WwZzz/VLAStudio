@@ -1,4 +1,0 @@
-type: deploy.action_manager.older_first.OlderFirstManager
-name: older_first
-args:
-  coef: 1.0

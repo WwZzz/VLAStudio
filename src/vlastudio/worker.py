@@ -1,7 +1,8 @@
 """Runs legacy entry points only after the selected environment is ready."""
 import runpy
 import sys
-from .paths import legacy_root
+from .paths import package_root
+from .compat import enable_legacy_imports
 
 ENTRIES = {"device": None, "train": "train.py", "serve": "start_policy_server.py", "eval-real": "eval_real.py", "eval-sim": "eval_sim.py", "collect": "collect_data.py"}
 
@@ -12,9 +13,8 @@ def main():
     if argv[0] == "--entrypoint":
         entrypoint, argv = argv[1], argv[2:]
     command, *args = argv
-    root = legacy_root()
-    # Compatibility imports stay confined to the explicitly launched worker.
-    sys.path.insert(0, str(root))
+    root = package_root()
+    enable_legacy_imports()
     if entrypoint:
         from .extensions import resolve
         result = resolve(entrypoint)(command, args)
@@ -37,8 +37,8 @@ def main():
         finally:
             device.close()
         return
-    sys.argv = [str(root / ENTRIES[command]), *args]
-    runpy.run_path(sys.argv[0], run_name="__main__")
+    sys.argv = [str(root / 'entrypoints' / ENTRIES[command]), *args]
+    runpy.run_module('vlastudio.entrypoints.' + ENTRIES[command][:-3], run_name="__main__")
 
 
 if __name__ == "__main__":

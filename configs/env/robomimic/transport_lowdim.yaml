@@ -1,9 +1,0 @@
-type: benchmark.robomimic.RobomimicEnv
-name: TwoArmTransport_Panda
-args:
-  task: TwoArmTransport_Panda
-  max_timesteps: 800
-  ctrl_space: ee
-  use_low_dim: true
-  camera_ids:
-  - 0

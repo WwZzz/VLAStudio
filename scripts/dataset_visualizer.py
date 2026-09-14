@@ -36,8 +36,8 @@ import matplotlib.pyplot as plt
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-from configs.loader import ConfigLoader
-from data_utils.utils import _create_dataset_from_config, is_map_data
+from vlastudio.configs.loader import ConfigLoader
+from vlastudio.data_utils.utils import _create_dataset_from_config, is_map_data
 from torch.utils.data import DataLoader, Subset
 
 

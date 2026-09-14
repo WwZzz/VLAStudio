@@ -1,4 +1,0 @@
-type: deploy.action_manager.temporal_agg.TemporalAggManager
-name: temporal_agg
-args:
-  coef: 0.1

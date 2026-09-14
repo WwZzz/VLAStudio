@@ -1,0 +1,8 @@
+# InferWithFPSManager: triggers inference at minimum FPS rate
+# fps: minimum inference frequency (inferences per second)
+#   fps=10 → at least every 100ms
+#   fps=50 → at least every 20ms
+type: vlastudio.deploy.action_manager.infer_w_fps.InferWithFPSManager
+name: infer_w_fps
+args:
+  fps: 1

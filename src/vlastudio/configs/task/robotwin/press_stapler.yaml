@@ -1,0 +1,21 @@
+# Dataset configuration for RoboTwin task on aloha-agilex (auto-generated)
+datasets:
+  - type: vlastudio.data_utils.datasets.robotwin_dataset.RoboTwinDataset
+    name: robotwin_press_stapler_aloha_agilex
+    args:
+      dataset_path: press_stapler/aloha-agilex_clean_50  # HF: RoboTwin2.0/dataset/press_stapler/aloha-agilex_clean_50
+      image_size: [480, 640]        # [H, W]
+      chunk_size: 16                # Action chunk length for policies like Diffusion Policy
+      camera_names:                 # Camera selection
+        - head_camera               # Front/overhead camera
+        - left_camera               # Left wrist camera
+        - right_camera              # Right wrist camera
+      ctrl_space: joint             # Joint position control
+      ctrl_type: abs                # Absolute control
+      preload_data: false           # Set to true to load all data into RAM
+
+meta:
+  action_dim: 14
+  state_dim: 14
+  action_normalize: zscore
+  state_normalize: zscore

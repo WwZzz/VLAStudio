@@ -1,0 +1,20 @@
+datasets:
+- type: vlastudio.data_utils.datasets.noematrix_dataset.NoematrixDataset
+  name: sort_lego
+  args:
+    dataset_path_list:
+    - /mnt/model/.cache/huggingface/hub/lerobot/flexiv/sort_lego_0107
+    chunk_size: 1
+    ctrl_space: ee
+    ctrl_type: abs
+    state_key: state
+    action_key: actions
+    state_type: raw
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+  name: robomind_franka_fr3_dual-right_slide_close_drawer
+  args:
+    dataset_path_list:
+    - /inspire/dataset/robomind/lerobot/benchmark1_1_release/franka_fr3_dual/right_slide_close_drawer
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+meta:
+  action_dim: 16
+  state_dim: 16
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

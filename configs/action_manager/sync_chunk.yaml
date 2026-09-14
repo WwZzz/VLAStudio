@@ -1,3 +1,0 @@
-type: deploy.action_manager.sync_chunk.SyncChunkManager
-name: sync_chunk
-args: {}

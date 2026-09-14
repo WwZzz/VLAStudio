@@ -1,0 +1,28 @@
+name: tabletop_sim_shoes_table
+
+datasets:
+- type: vlastudio.data_utils.datasets.lerobotv30_wrapper.WrappedLerobotV30Dataset
+  name: tabletop_sim_shoes_table
+  args:
+    dataset_path_list:
+    - jellyho/aloha_shoes_table
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+    state_key: observation.state.joint_pos
+    action_key: action.joint_pos
+    camera_names:
+    - observation.images.agentview
+    - observation.images.wrist_left
+    - observation.images.wrist_right
+    image_size: [640, 480]
+    local_only: false
+    download_videos: true
+
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size: [640, 480]
+  action_normalize: zscore
+  state_normalize: zscore
+

@@ -1,0 +1,12 @@
+type: vlastudio.deploy.robot.sim_pybullet.AbsJointRobot
+name: husky
+args:
+  name: husky
+  max_size_mb: 64
+  fps: 240.0
+  control_shm_name: null
+  robot_urdf_path: husky/husky.urdf
+  initial_joint_positions: [0.0, 0.0, 0.0, 0.0]
+  gripper_joint_indices: []
+  gripper_width: 0.0
+  use_gui: true

@@ -1,6 +1,0 @@
-type: deploy.teleoperator.bi_so101_leader.BiSO101Leader
-name: bi_so101_leader
-args:
-  left_arm_port: /dev/so101_left_leader
-  right_arm_port: /dev/so101_right_leader
-  robot_id: bi_so101_leader

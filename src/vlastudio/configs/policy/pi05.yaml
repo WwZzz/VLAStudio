@@ -1,0 +1,16 @@
+type: vlastudio.policy.openpi
+name: openpi
+args:
+  pytorch_training_precision: bfloat16
+  action_dim: 7
+  state_dim: 8
+  max_action_dim: 32
+  chunk_size: 16
+  max_token_len: 180
+  paligemma_variant: gemma_2b
+  action_expert_variant: gemma_300m
+  pi05: true
+  discrete_state_input: true
+  pytorch_weight_path: ~/.cache/openpi/openpi-assets/checkpoints/pi05_base_torch
+  lora_module: []
+trainer_class: Trainer

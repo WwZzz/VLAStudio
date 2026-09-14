@@ -1,0 +1,120 @@
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_0
+  args:
+    task: libero_goal_0
+    max_timesteps: 300
+    ctrl_space: ee
+    image_size:
+    - 256
+    - 256
+    use_openvla_gripper: False
+    use_wrist: True
+
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_1
+  args:
+    task: libero_goal_1
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_2
+  args:
+    task: libero_goal_2
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_3
+  args:
+    task: libero_goal_3
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+
+    
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_4
+  args:
+    task: libero_goal_4
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_5
+  args:
+    task: libero_goal_5
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_6
+  args:
+    task: libero_goal_6
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+    camera_ids:
+    - 0
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_7
+  args:
+    task: libero_goal_7
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+ 
+
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_8
+  args:
+    task: libero_goal_8
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256
+
+    
+- type: vlastudio.benchmark.libero.LiberoEnv
+  name: libero_goal_9
+  args:
+    task: libero_goal_9
+    max_timesteps: 300
+    ctrl_space: ee
+    use_wrist: True
+    image_size:
+    - 256
+    - 256

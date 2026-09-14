@@ -1,0 +1,39 @@
+name: sim_transfer_cube_scripted
+
+# dataset list
+datasets:
+- type: vlastudio.data_utils.datasets.AlohaSimDataset
+  name: sim_transfer_cube_scripted
+  args:
+    dataset_path_list:
+    - data/sim_transfer_cube_scripted
+    camera_names:
+    - primary
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+    preload_data: true
+
+# Task metadata
+meta:
+  action_dim: 20
+  state_dim: 20
+  image_size: [640, 480]
+  action_normalize: zscore
+  state_normalize: zscore
+
+transforms:
+- type: vlastudio.data_utils.transform.PadStatesAndActionsTransform
+  args:
+    target_action_dim: 20
+    target_state_dim: 20
+    pad_mode: constant
+    pad_value: 0.0
+- type: vlastudio.data_utils.transform.ImageToFloat
+- type: vlastudio.data_utils.transform.ImageColorJitterTransform
+  args:
+    brightness: 0.3
+    contrast: 0.4
+    saturation: 0.4
+    hue: 0.1
+- type: vlastudio.data_utils.transform.ImageToUint8

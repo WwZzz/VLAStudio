@@ -1,0 +1,2 @@
+type: vlastudio.deploy.action_manager.base.BasicActionManager
+name: basic

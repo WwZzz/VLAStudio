@@ -25,7 +25,9 @@ def step(model, inputs):
 
 def mlp():
     import torch
-    from policy.mlp import MLPPolicy, MLPPolicyConfig
+    from vlastudio.policy.mlp import MLPPolicy, MLPPolicyConfig
+    import importlib
+    assert importlib.import_module('policy.mlp').MLPPolicy is MLPPolicy
     model = MLPPolicy(MLPPolicyConfig(state_dim=2, action_dim=2, hidden_dim=32)).cuda()
     state = torch.randn(2, 2, device="cuda")
     loss = step(model, dict(state=state, action=torch.randn(2, 1, 2, device="cuda"),
@@ -41,7 +43,7 @@ def mlp():
 
 def act():
     import torch
-    from policy.act import ACTPolicy, ACTPolicyConfig
+    from vlastudio.policy.act import ACTPolicy, ACTPolicyConfig
     model = ACTPolicy(ACTPolicyConfig(state_dim=2, action_dim=2, chunk_size=2,
         camera_names=["primary"], hidden_dim=64, dim_feedforward=128,
         enc_layers=1, dec_layers=1, nheads=4)).cuda()
@@ -59,7 +61,7 @@ def act():
 def openpi():
     import torch
     from types import SimpleNamespace
-    from policy.openpi import load_model
+    from vlastudio.policy.openpi import load_model
     from openpi.models.model import Observation
     model = load_model(SimpleNamespace(is_training=True, model_args={
         "chunk_size": 2, "max_token_len": 8, "action_dim": 2,
@@ -91,8 +93,8 @@ def openvla():
     from tokenizers import Tokenizer
     from tokenizers.models import WordLevel
     from transformers import PreTrainedTokenizerFast
-    from policy.openvla import load_model
-    from policy.openvla.modeling import (OpenVLAConfig,
+    from vlastudio.policy.openvla import load_model
+    from vlastudio.policy.openvla.modeling import (OpenVLAConfig,
         OpenVLAForActionPrediction, PrismaticImageProcessor, PrismaticProcessor)
     # Use the actual save/load and multimodal model path without downloading 7B weights.
     # Small language/vision dimensions keep this integration fixture inexpensive.
@@ -152,7 +154,7 @@ def train_mlp():
     try:
         sys.argv = ["train.py", "-p", str(examples / "policy_mlp.yaml"),
                     "-t", "gpu-task.yaml", "-c", "gpu-training.yaml", "-o", str(destination)]
-        runpy.run_path(str(legacy_root() / "train.py"), run_name="__main__")
+        runpy.run_path(str(legacy_root() / "entrypoints/train.py"), run_name="__main__")
     finally:
         sys.argv = previous
     state = json.loads((destination / "trainer_state.json").read_text())

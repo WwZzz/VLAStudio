@@ -10,9 +10,9 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from loguru import logger
 
-from data_utils.task_cache import TaskCacheManager
-from data_utils.utils import set_seed
-from policy.policy_loader import (
+from vlastudio.data_utils.task_cache import TaskCacheManager
+from vlastudio.data_utils.utils import set_seed
+from vlastudio.policy.policy_loader import (
     get_policy_data_collator,
     get_policy_data_processor,
     load_policy_model_for_training,

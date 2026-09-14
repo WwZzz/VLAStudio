@@ -1,0 +1,25 @@
+# CALVIN Environment Configuration for ILStudio
+# Task D: Test tasks with novel objects/configurations
+#
+# CALVIN is different from other benchmarks:
+# - Each evaluation is a sequence of 5 subtasks
+# - Each environment instance represents one sequence
+# - Success is measured by number of subtasks completed (0-5)
+#
+# For eval_sim.py:
+# - Use --num_rollout to set number of sequences to evaluate
+# - Each rollout evaluates one complete sequence
+# - Results show both binary success (≥1 subtask) and CALVIN metrics
+
+type: vlastudio.benchmark.calvin.CalvinEnv
+name: calvin_task_d
+args:
+  task: task_D  # Available: task_A, task_B, task_C, task_D
+  show_gui: False
+  num_sequences: 1  # Total number of evaluation sequences available
+  sequence_idx: -1  # -1 = auto-allocate different sequence per env instance
+  max_timesteps: 1800  # 360 steps per subtask × 5 subtasks
+  ctrl_space: ee  # End-effector control
+  ctrl_type: delta  # Delta/relative control
+  use_wrist: False  # Whether to include wrist/gripper camera (will be resized to match static camera)
+

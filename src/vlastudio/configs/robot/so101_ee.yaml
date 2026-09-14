@@ -1,0 +1,100 @@
+# SO101 Follower Robot - Delta EE Control Mode
+# 
+# Control mode: delta_ee (7D delta actions with IK)
+# Action format: [dx, dy, dz, d_roll, d_pitch, d_yaw, d_gripper]
+#
+# This mode uses Inverse Kinematics to convert end-effector delta
+# commands to joint positions. The robot receives normalized joint
+# positions internally.
+#
+# Important: The kinematics computation is done in radians internally,
+# then converted to normalized space for the actual robot control.
+#
+# Joint limits (in radians) - can be overridden:
+#   shoulder_pan:  [-2.1, 2.1]     (Rotation)
+#   shoulder_lift: [-3.1, 0.0]     (Pitch)
+#   elbow_flex:    [0.0, 3.1]      (Elbow)
+#   wrist_flex:    [-1.375, 1.475] (Wrist_Pitch)
+#   wrist_roll:    [-1.57, 3.1]    (Wrist_Roll)
+#   gripper:       [-0.15, 1.5]    (Jaw)
+#
+# joint_signs: Use -1 to reverse a joint's direction, 1 for normal
+
+- type: vlastudio.deploy.robot.so101.So101FollowerWithCamera
+  name: so101_left_arm
+  args:
+    name: so101_follower
+    max_size_mb: 64
+    fps: 100.0
+    # control_shm_name: slider_6dof    # Receives 7D delta actions from slider teleop
+    com: /dev/so101_left_arm
+    robot_id: so101_left_arm
+    control_mode: delta_ee           # 7D delta EE control with IK
+    
+    # Action scaling (1.0 = no scaling, input is used directly)
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    
+    # Joint direction signs (1=normal, -1=reversed)
+    # Adjust if joints move in opposite direction from expected
+    joint_signs: [1, 1, 1, 1, 1, 1]
+    
+    # Delta action direction signs (7D: dx, dy, dz, droll, dpitch, dyaw, dgripper)
+    # Use -1 to reverse a direction, 1 for normal
+    # Default: [1, 1, 1, 1, 1, 1, 1]
+    delta_signs: [1, 1, 1, 1, 1, 1, 1] 
+
+    # =========== SAFETY SETTINGS (IMPORTANT!) ===========
+    # Enable safety validation before sending actions to real robot
+    safety_check: true      # Set to false ONLY after thorough testing
+    max_joint_delta: 0.15   # Max allowed joint change per step (radians, ~8.6 degrees)
+    ik_tolerance: 0.05      # Max allowed FK-IK round-trip error (radians, ~2.9 degrees)
+    # 
+    # Safety checks performed:
+    # 1. FK-IK consistency: qpos -> FK -> gpos -> IK -> qpos_recovered must match
+    # 2. Joint delta limit: |target_qpos - current_qpos| must be < max_joint_delta
+    #
+    # If safety check fails, actions are BLOCKED and robot stays in place.
+    # =====================================================
+    
+    # Deadzone threshold: actions smaller than this are treated as zero
+    # Note: Must be smaller than teleop trans_scale, otherwise movement is ignored!
+    zero_threshold: 0.001
+    
+    # Debug mode: print qpos/gpos values each step
+    debug: true
+    
+    # Joint limits (in radians) - uncomment to override defaults
+    # qlimit_min: [-2.1, -3.1, 0.0, -1.375, -1.57, -0.15]
+    # qlimit_max: [2.1, 0.0, 3.1, 1.475, 3.1, 1.5]
+    
+    # Note: End-effector pose (gpos) limits are NOT enforced.
+    # Only joint position (qpos) limits are checked.
+    # If IK fails (unreachable pose), the action is skipped.
+
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: head_camera
+  args:
+    name: head_camera
+    index_or_path: /dev/head_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    horizontal_flip: true
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: left_wrist_camera
+  args:
+    name: left_wrist_camera
+    index_or_path: /dev/left_camera
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+

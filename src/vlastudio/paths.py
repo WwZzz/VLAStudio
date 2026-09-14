@@ -5,9 +5,13 @@ from pathlib import Path
 from platformdirs import user_cache_dir, user_config_dir
 
 
+def package_root():
+    return Path(__file__).resolve().parent
+
+
 def legacy_root():
-    bundled = Path(__file__).parent / "_legacy"
-    return bundled if bundled.is_dir() else Path(__file__).resolve().parents[2]
+    """Compatibility name for tools written before the source-layout migration."""
+    return package_root()
 
 
 def user_settings():

@@ -1,0 +1,31 @@
+# RoboTwin Shake Bottle Task - 3 Camera Configuration
+#
+# For testing with RoboTwin's native ACT model (3 cameras)
+#
+# Usage:
+#   1. Start policy server:
+#      source .venv/bin/activate && python start_policy_server.py -m ckpt/robotwin_act_shake_bottle
+#   2. Run evaluation:
+#      source benchmark/robotwin/.venv/bin/activate
+#      python eval_sim.py -e robotwin_shake_bottle_3cam -o results/robotwin_act -bs 0
+
+type: vlastudio.benchmark.robotwin.RoboTwinEnv
+name: robotwin_shake_bottle_3cam
+args:
+  task: shake_bottle  # Task class name (matches Python file)
+  task_config: demo_clean     # 'demo_clean' or 'demo_randomized'
+  max_timesteps: 700         # Maximum steps per episode (RoboTwin default for this task)
+  ctrl_space: ee            # 'qpos' or 'ee'
+  ctrl_type: abs              # Only 'abs' supported by RoboTwin
+  seed: 0
+
+  # Camera Configuration - 3 cameras matching RoboTwin native training
+  camera_names:
+    - head_camera             # Fixed overhead camera (cam_high)
+    - left_camera             # Left arm wrist camera (cam_left_wrist)
+    - right_camera            # Right arm wrist camera (cam_right_wrist)
+  image_size: [480, 640]      # [H, W] for cameras (RoboTwin default)
+
+  # Motion Planner Configuration
+  use_planner: true          # false: Fast inference (recommended for policy eval)
+

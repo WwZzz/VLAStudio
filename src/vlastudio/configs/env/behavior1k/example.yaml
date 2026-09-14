@@ -1,0 +1,30 @@
+# BEHAVIOR-1K Task Evaluation Configuration
+# Use with: python eval_sim.py -e behavior1k.example -m <model_path> --batch_size 0 -n 1
+#
+# This uses official OmniGibson eval.py settings with R1Pro robot.
+# Only need to specify task name - configs are auto-generated.
+
+- type: vlastudio.benchmark.behavior1k.Behavior1kEnv
+  name: behavior1k_eval
+  args:
+    # Task name - must be one of the 50 BEHAVIOR-1K tasks
+    # Examples: assembling_gift_baskets, cleaning_up_the_kitchen_only, etc.
+    task: assembling_gift_baskets
+    
+    # Task instance ID (0-199 for training, specific IDs for test)
+    instance_id: 0
+    
+    # Max timesteps per episode (reduced for testing)
+    max_timesteps: 1000
+    
+    # Control settings (ee for end-effector control, matches default policy)
+    ctrl_space: ee
+    ctrl_type: delta
+    
+    # Image settings (for observation conversion)
+    image_size:
+      - 256
+      - 256
+    
+    # Headless mode for server evaluation
+    headless: true

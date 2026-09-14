@@ -1,9 +1,0 @@
-type: benchmark.robomimic.RobomimicEnv
-name: NutAssemblySquare_Panda
-args:
-  task: NutAssemblySquare_Panda
-  max_timesteps: 400
-  ctrl_space: ee
-  use_low_dim: true
-  camera_ids:
-  - 0

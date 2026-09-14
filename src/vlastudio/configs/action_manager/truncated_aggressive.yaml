@@ -1,0 +1,6 @@
+type: vlastudio.deploy.action_manager.truncated.TruncatedManager
+name: truncated_aggressive
+args:
+  start_ratio: 0.05
+  end_ratio: 0.25
+  older_coef: 1.0

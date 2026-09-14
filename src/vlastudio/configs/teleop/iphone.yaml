@@ -1,0 +1,10 @@
+type: vlastudio.deploy.teleoperator.iphone.IPhonePhyphox
+name: iphone_teleop
+args:
+  name: iphone_teleop
+  max_size_mb: 1
+  fps: 25.0
+  phyphox_ip: 172.20.10.1
+  phyphox_port: 80
+  calib_samples: 150
+  dt: 0.5

@@ -1,0 +1,36 @@
+# ACT Policy Configuration for Tabletop-Sim (14-dim bimanual ALOHA, 3 cameras)
+type: vlastudio.policy.act
+name: act_tabletop_sim
+
+args:
+  backbone: resnet18
+  dilation: false
+  position_embedding: sine
+  lr_backbone: 1.0e-05
+
+  # Camera configuration — matches configs/env/tabletop_sim/*.yaml
+  camera_names:
+    - agentview
+    - wrist_left
+    - wrist_right
+
+  enc_layers: 4
+  dec_layers: 7
+  dim_feedforward: 3200
+  hidden_dim: 512
+  dropout: 0.1
+  nheads: 8
+  pre_norm: false
+  masks: false
+
+  # Action chunking
+  chunk_size: 50
+  num_queries: 50
+  prediction_len: 50
+
+  # Bimanual ALOHA: 14 = 2 * (6 joints + 1 gripper)
+  state_dim: 14
+  action_dim: 14
+
+  history_len: 1
+  kl_weight: 10

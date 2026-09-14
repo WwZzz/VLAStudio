@@ -21,19 +21,6 @@ dev = ["pytest>=8", "build>=1", "hatchling"]
 packages = ["src/vlastudio"]
 exclude = ["**/.venv/**", "**/__pycache__/**", "**/.git/**", "**/.ipynb_checkpoints/**"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"configs" = "vlastudio/_legacy/configs"
-"policy" = "vlastudio/_legacy/policy"
-"data_utils" = "vlastudio/_legacy/data_utils"
-"benchmark" = "vlastudio/_legacy/benchmark"
-"deploy" = "vlastudio/_legacy/deploy"
-"utils" = "vlastudio/_legacy/utils"
-"train.py" = "vlastudio/_legacy/train.py"
-"start_policy_server.py" = "vlastudio/_legacy/start_policy_server.py"
-"eval_real.py" = "vlastudio/_legacy/eval_real.py"
-"eval_sim.py" = "vlastudio/_legacy/eval_sim.py"
-"collect_data.py" = "vlastudio/_legacy/collect_data.py"
-
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/configs", "/policy", "/data_utils", "/benchmark", "/deploy", "/utils", "/train.py", "/start_policy_server.py", "/eval_real.py", "/eval_sim.py", "/collect_data.py", "/README.md", "/README.legacy.md", "/LICENSE", "/pyproject.toml", "/tests/packaging", "/tests/gpu", "/examples/extensions", "/examples/python", "/docs/package_runtime.md", "/docs/package_validation.md", "/docs/gpu_validation.json", "/requirements-legacy.txt", "/uv.lock"]
+include = ["/src", "/train.py", "/start_policy_server.py", "/eval_real.py", "/eval_sim.py", "/collect_data.py", "/README.md", "/README.legacy.md", "/LICENSE", "/pyproject.toml", "/tests/packaging", "/tests/gpu", "/examples/extensions", "/examples/python", "/docs/package_runtime.md", "/docs/package_validation.md", "/docs/gpu_validation.json", "/requirements-legacy.txt", "/uv.lock"]
 exclude = ["**/.venv/**", "**/__pycache__/**", "**/.git/**"]

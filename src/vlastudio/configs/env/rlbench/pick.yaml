@@ -1,0 +1,25 @@
+# RLBench PickAndLift Task Configuration
+#
+# IMPORTANT: RLBench does NOT support parallel execution (SubprocVectorEnv)
+# because CoppeliaSim cannot be safely run in multiple processes.
+#
+# Usage:
+#   python eval_sim.py -e rlbench.pick -m <model> --batch_size 0
+#
+# The --batch_size 0 flag forces sequential execution mode.
+
+type: vlastudio.benchmark.rlbench.RLBenchEnv
+name: rlbench_pick_and_lift
+args:
+  task: PickAndLift
+  max_timesteps: 400  # Maximum steps per episode (more complex task)
+  ctrl_space: ee  # end-effector control
+  ctrl_type: abs
+
+  camera_names:
+    - front
+    - wrist
+    - overhead
+  image_size: [256, 256]
+  headless: true
+

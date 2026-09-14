@@ -1,0 +1,370 @@
+datasets:
+- robomind_tienkung_gello_1rgb_all:
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-clean_table_2_241211
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/clean_table_2_241211
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-clean_table_3_241210
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/clean_table_3_241210
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-clean_table_3_241211
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/clean_table_3_241211
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-close_cabinet_drawer
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/close_cabinet_drawer
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-close_the_drawer_under_the_combination_cabinet
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/close_the_drawer_under_the_combination_cabinet
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-close_trash_bin
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/close_trash_bin
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_had_place_the_cup_on_the_left_side_of_the_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_had_place_the_cup_on_the_left_side_of_the_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_had_put_red_apple_in_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_had_put_red_apple_in_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_lift_pot_lid_and_place_it_to_the_left_of_the_pot
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_lift_pot_lid_and_place_it_to_the_left_of_the_pot
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_pick_up_tennis_ball_and_place_it_in_box
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_pick_up_tennis_ball_and_place_it_in_box
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_place_marker_in_pen_holder
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/left_hand_place_marker_in_pen_holder
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_place_the_yellow_square_on_the_pink_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_place_the_yellow_square_on_the_pink_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_put_the_brown_hippopotamus_in_the_blue_box
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_put_the_brown_hippopotamus_in_the_blue_box
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_put_the_pear_in_the_bowl
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_put_the_pear_in_the_bowl
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_put_the_red_chili_pepper_on_the_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_put_the_red_chili_pepper_on_the_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_put_the_white_car_in_the_blue_box
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_put_the_white_car_in_the_blue_box
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-left_hand_put_the_white_doll_in_the_blue_box
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/left_hand_put_the_white_doll_in_the_blue_box
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-lift_pot_lid_and_place_it_to_the_right_of_the_pot
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/lift_pot_lid_and_place_it_to_the_right_of_the_pot
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-open_the_drawer_under_the_combination_cabinet
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/open_the_drawer_under_the_combination_cabinet
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-open_the_lid_with_left_hand_and_place_it_on_the_left_side_of_the_pot
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/open_the_lid_with_left_hand_and_place_it_on_the_left_side_of_the_pot
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-open_trash_bin
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/open_trash_bin
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-pick_up_tennis_ball_and_place_it_in_box
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/pick_up_tennis_ball_and_place_it_in_box
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_bread_plate_1128
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_bread_plate_1128
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_bread_plate_241202
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_bread_plate_241202
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_bread_plate_241203
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_bread_plate_241203
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_bread_plate_241204_pro5
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_bread_plate_241204_pro5
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_bread_plate_241205_pro3
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_bread_plate_241205_pro3
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_bread_table_1128
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_bread_table_1128
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_paper_cup_dustbin_241212
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_paper_cup_dustbin_241212
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_plate_table_241211
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_plate_table_241211
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_plate_table_241211_12
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_plate_table_241211_12
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_plate_table_241212
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_plate_table_241212
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-place_yellow_banana_on_plastic_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/place_yellow_banana_on_plastic_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-press_down_toaster
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/press_down_toaster
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-put_the_orange_into_the_box_with_left_hand
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/put_the_orange_into_the_box_with_left_hand
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-put_the_pear_in_right_hand_on_the_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/put_the_pear_in_right_hand_on_the_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-put_the_potato_in_the_blue_pot
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/put_the_potato_in_the_blue_pot
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-put_the_water_cup_in_front_of_the_bread_machine
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/put_the_water_cup_in_front_of_the_bread_machine
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-right_hand_pick_cup_in_the_box
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/right_hand_pick_cup_in_the_box
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-right_hand_put_red_pepper_on_the_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/right_hand_put_red_pepper_on_the_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-right_hand_put_starfruit_on_the_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/right_hand_put_starfruit_on_the_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-right_hand_put_yellow_pepper_on_the_plate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/right_hand_put_yellow_pepper_on_the_plate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-rotate_green_pot_handle
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/rotate_green_pot_handle
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-the_lemon_in_the_right_hand_is_placed_in_the_trash_can
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/the_lemon_in_the_right_hand_is_placed_in_the_trash_can
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_tienkung_gello_1rgb-upright_white_cup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/tienkung_gello_1rgb/upright_white_cup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+meta:
+  action_dim: 16
+  state_dim: 16
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

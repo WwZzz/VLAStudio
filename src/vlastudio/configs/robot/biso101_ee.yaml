@@ -1,0 +1,103 @@
+# Bimanual SO101 Follower Robot - Delta EE Control Mode
+# 
+# Control mode: delta_ee (14D delta actions with IK, 7D per arm)
+# Action format: [left_dx, left_dy, left_dz, left_droll, left_dpitch, left_dyaw, left_dgripper,
+#                 right_dx, right_dy, right_dz, right_droll, right_dpitch, right_dyaw, right_dgripper]
+#
+# This mode uses Inverse Kinematics to convert end-effector delta
+# commands to joint positions. Each arm is processed independently.
+#
+# Joint limits (in radians) - shared for both arms:
+#   shoulder_pan:  [-2.1, 2.1]     (Rotation)
+#   shoulder_lift: [-3.1, 0.0]     (Pitch)
+#   elbow_flex:    [0.0, 3.1]      (Elbow)
+#   wrist_flex:    [-1.375, 1.475] (Wrist_Pitch)
+#   wrist_roll:    [-1.57, 3.1]    (Wrist_Roll)
+#   gripper:       [-0.15, 1.5]    (Jaw)
+#
+# joint_signs: Use -1 to reverse a joint's direction, 1 for normal
+# left_delta_signs / right_delta_signs: Use -1 to reverse input direction
+
+- type: vlastudio.deploy.robot.bi_so101_follower.BiSo101Follower
+  name: bi_so101_follower
+  args:
+    name: bi_so101_follower
+    max_size_mb: 64
+    fps: 100.0
+    # control_shm_name: auto-filled by collect_data.py from teleop device name
+    left_arm_port: /dev/so101_left_arm
+    right_arm_port: /dev/so101_right_arm
+    robot_id: bi_so101_follower
+    
+    # Use same arm IDs as single-arm configs to share calibration
+    left_arm_id: so101_left_arm
+    right_arm_id: so101_right_arm
+    
+    control_mode: delta_ee           # 14D delta EE control with IK (7D per arm)
+    
+    # Action scaling (adjust for comfortable control speed)
+    # Action scaling (1.0 = no scaling, input is used directly)
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    
+    # Joint direction signs (1=normal, -1=reversed)
+    # Shared for both arms
+    joint_signs: [1, 1, 1, 1, 1, 1]
+    
+    # Delta action direction signs for each arm (7D: dx, dy, dz, droll, dpitch, dyaw, dgripper)
+    # Use -1 to reverse a direction, 1 for normal
+    left_delta_signs: [1, 1, 1, 1, 1, 1, 1]   # Left arm: Y reversed
+    right_delta_signs: [1, 1, 1, 1, 1, 1, 1]   # Right arm: default
+    
+    # =========== SAFETY SETTINGS (IMPORTANT!) ===========
+    # Enable safety validation before sending actions to real robot
+    safety_check: true      # Set to false ONLY after thorough testing
+    max_joint_delta: 0.15   # Max allowed joint change per step (radians, ~8.6 degrees)
+    home_qpos: [-4.094430099594248, -97.98319327731093, 100.0, 71.20756338633433, -53.69841681806385, 2.9277813923227063, -4.309392265193367, -96.13282891971417, 100.0, 70.41685342895562, -55.01171569903671, 3.3159947984395317]
+    ik_tolerance: 0.05      # Max allowed FK-IK round-trip error (radians, ~2.9 degrees)
+    # =====================================================
+    
+    # Deadzone threshold: actions smaller than this are treated as zero
+    # Note: Must be smaller than teleop trans_scale, otherwise movement is ignored!
+    zero_threshold: 0.001
+    
+    # Debug mode: print qpos/gpos values each step
+    debug: false
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: head_camera
+  args:
+    name: head_camera
+    index_or_path: /dev/head_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true
+    horizontal_flip: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: left_wrist_camera
+  args:
+    name: left_wrist_camera
+    index_or_path: /dev/left_camera
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: right_wrist_camera
+  args:
+    name: right_wrist_camera
+    index_or_path: /dev/right_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true

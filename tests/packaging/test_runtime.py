@@ -144,10 +144,10 @@ def test_dataset_plugin_not_prefixed():
     node = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "_import_class_from_path")
     # Supply the public compatibility import without loading the data subsystem.
     import types
-    compat = types.ModuleType("utils.extensions")
+    compat = types.ModuleType("vlastudio.utils.extensions")
     compat.resolve = resolve
-    previous = sys.modules.get("utils.extensions")
-    sys.modules["utils.extensions"] = compat
+    previous = sys.modules.get("vlastudio.utils.extensions")
+    sys.modules["vlastudio.utils.extensions"] = compat
     register("dataset", "test_mapping", dict)
     try:
         scope = {}
@@ -155,9 +155,9 @@ def test_dataset_plugin_not_prefixed():
         assert scope["_import_class_from_path"]("@dataset/test_mapping") is dict
     finally:
         if previous is None:
-            sys.modules.pop("utils.extensions", None)
+            sys.modules.pop("vlastudio.utils.extensions", None)
         else:
-            sys.modules["utils.extensions"] = previous
+            sys.modules["vlastudio.utils.extensions"] = previous
 
 
 def test_sigterm_forwarded_to_worker(tmp_path, monkeypatch):

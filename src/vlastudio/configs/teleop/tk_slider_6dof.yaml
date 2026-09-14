@@ -1,0 +1,41 @@
+# Tkinter Slider Teleoperator for 6DOF + Gripper Control
+#
+# Outputs 7D delta action: [dx, dy, dz, d_roll, d_pitch, d_yaw, d_gripper]
+# Use with so101_follower_delta_ee.yaml or so101_sim.yaml (delta_ee mode)
+#
+# Slider assignments:
+#   0: dx      - X translation delta
+#   1: dy      - Y translation delta  
+#   2: dz      - Z translation delta (up/down)
+#   3: d_roll  - Roll rotation delta
+#   4: d_pitch - Pitch rotation delta
+#   5: d_yaw   - Yaw rotation delta
+#   6: d_gripper - Gripper delta (open/close)
+#
+# Note: Slider values are NOT scaled here. The robot's position_scale,
+# rotation_scale, and gripper_scale parameters handle the scaling.
+# Set slider to 0 to stop movement in that direction.
+
+type: vlastudio.deploy.teleoperator.tk_slider.SliderTeleop
+name: slider_6dof
+args:
+  name: slider_6dof
+  max_size_mb: 1
+  fps: 30.0
+  action_dim: 7
+  slider_labels:
+    - "X (+ = forward)"
+    - "Y (+ = right)"
+    - "Z (+ = up)"
+    - "Roll (+ = CCW)"
+    - "Pitch (+ = up)"
+    - "Yaw (+ = CCW)"
+    - "Gripper (+ = open)"
+  slider_ranges:
+    - [-1.0, 1.0]   # dx: X translation
+    - [-1.0, 1.0]   # dy: Y translation
+    - [-1.0, 1.0]   # dz: Z translation (up/down)
+    - [-1.0, 1.0]   # d_roll: Roll rotation
+    - [-1.0, 1.0]   # d_pitch: Pitch rotation
+    - [-1.0, 1.0]   # d_yaw: Yaw rotation
+    - [-1.0, 1.0]   # d_gripper: Gripper (negative=close, positive=open)

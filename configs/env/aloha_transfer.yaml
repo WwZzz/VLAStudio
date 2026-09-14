@@ -1,9 +1,0 @@
-type: benchmark.aloha.AlohaSimEnv
-name: aloha_transfer
-args:
-  task: sim_transfer_cube_scripted
-  max_timesteps: 400
-  ctrl_space: joint
-  ctrl_type: abs
-  camera_ids: [0]
-  image_size: [640, 480]

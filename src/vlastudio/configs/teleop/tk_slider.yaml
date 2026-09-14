@@ -1,0 +1,17 @@
+type: vlastudio.deploy.teleoperator.tk_slider.SliderTeleop
+name: slider_teleop
+args:
+  name: slider_teleop
+  max_size_mb: 1
+  fps: 100.0
+  action_dim: 9
+  slider_ranges:
+    - [-2.0, 2.0]
+    - [-2.0, 2.0]
+    - [-2.0, 2.0]
+    - [-2.0, 2.0]
+    - [-2.0, 2.0]
+    - [-2.0, 2.0]
+    - [-2.0, 2.0]
+    - [0.0, 0.04]
+    - [0.0, 0.04]

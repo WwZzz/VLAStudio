@@ -20,7 +20,7 @@ import json
 import sys
 from pathlib import Path
 
-import configs  # noqa: F401 — suppress TF logs etc., keep first side effects
+from vlastudio import configs  # noqa: F401 — suppress TF logs etc., keep first side effects
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -31,10 +31,10 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from data_utils.data_loader import WrappedDataset, get_dataloader, is_iter_data, is_map_data
-from data_utils.dataset_wrappers import wrap_dataset_with_normalizers
-from data_utils.normalize import load_normalizer_from_meta
-from data_utils.utils import (
+from vlastudio.data_utils.data_loader import WrappedDataset, get_dataloader, is_iter_data, is_map_data
+from vlastudio.data_utils.dataset_wrappers import wrap_dataset_with_normalizers
+from vlastudio.data_utils.normalize import load_normalizer_from_meta
+from vlastudio.data_utils.utils import (
     _apply_transforms_to_datasets,
     _create_vqa_dataset_from_config,
     _maybe_assign_weights_to_datasets,
@@ -43,15 +43,15 @@ from data_utils.utils import (
     _wrap_vqa_datasets,
     set_seed,
 )
-from policy.policy_loader import (
+from vlastudio.policy.policy_loader import (
     get_policy_data_collator,
     get_policy_data_processor,
     load_policy_model_for_training,
 )
-from policy.utils import is_server_address
+from vlastudio.policy.utils import is_server_address
 from train import load_all_configs
 
-from configs.loader import ConfigLoader
+from vlastudio.configs.loader import ConfigLoader
 
 # Fixed for eval: only supplies TrainingArguments / dataloader defaults (not user-facing).
 _EVAL_TRAINING_CONFIG = "default"

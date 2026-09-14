@@ -1,0 +1,53 @@
+# Alicia-D Robot Configuration - Delta EE Control Mode
+# 全局优化 IK（与 rel_ee 同一路径）
+
+- type: vlastudio.deploy.robot.alicia_d.AliciaD
+  name: alicia_d_ee
+  args:
+    name: alicia_d
+    port: /dev/ttyACM0
+    fps: 200.0
+    control_mode: delta_ee
+
+    speed_deg_s: 439.0
+    gripper_speed_deg_s: 483.4
+
+    ik_end_frame: link6
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+
+    ik_eps: 0.0001
+    ik_max_iter: 200
+    ik_rotation_weight: 0.7
+
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: -1.0
+
+    max_joint_delta_deg: 30.0
+    debug: false
+
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: wrist_camera
+  args:
+    name: wrist_camera
+    index_or_path: /dev/video4
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: side_camera
+  args:
+    name: side_camera
+    index_or_path: /dev/video2
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true

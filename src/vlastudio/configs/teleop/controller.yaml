@@ -1,0 +1,12 @@
+# Teleoperation Controller Configuration
+# This file contains the default settings for the teleoperation controller
+
+type: vlastudio.deploy.teleoperator.keyboard.KeyboardTeleop
+name: keyboard_controller
+args:
+  name: keyboard_controller
+  max_size_mb: 1
+  fps: 30.0
+  action_dim: 7
+  gripper_index: -1
+  delta_scale: 1.0

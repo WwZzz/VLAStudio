@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.lerobotv20_wrapper.WrappedLerobotV20Dataset
+  name: lerobot_berkeley_mvp
+  args:
+    dataset_path_list:
+    - lerobot/berkeley_mvp
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: delta
+meta:
+  action_dim: 8
+  state_dim: 15
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

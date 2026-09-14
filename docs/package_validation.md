@@ -88,3 +88,13 @@ and the training result use the name `policy`.
 This follow-up does not claim real simulator evaluation coverage. Managed evaluation
 requires a complete policy-plus-simulator manifest; the Python API does not expose
 live Torch objects in the calling process.
+
+## Native package layout
+
+Implementations and built-in configs now live directly under `src/vlastudio`.
+The wheel has no `_legacy` directory or forced copy of root-level implementations.
+The 40 packaging tests cover native layout, namespace/legacy alias identity,
+runtime-profile compatibility and the existing API contracts. GPU smoke checks for
+MLP, ACT, the full MLP training entrypoint and OpenVLA passed again after migration.
+The root scripts remain thin entrypoints; training implementation is in
+`vlastudio.entrypoints.train`, keeping the public `vlastudio.train` function distinct.

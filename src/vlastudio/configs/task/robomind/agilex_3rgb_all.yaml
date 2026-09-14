@@ -1,0 +1,554 @@
+datasets:
+- robomind_agilex_3rgb_all:
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-10_packplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/10_packplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-10_packplate_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/10_packplate_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-11_brushcup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/11_brushcup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-11_brushcup_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/11_brushcup_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-12_packcup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/12_packcup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-13_packbowl
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/13_packbowl
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-14_steamcorn
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/14_steamcorn
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-15_steamegg
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/15_steamegg
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-15_steamegg_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/15_steamegg_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-16_steampotato
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/16_steampotato
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-16_steampotato_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/16_steampotato_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-17_packtable
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/17_packtable
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-18_makebread
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/18_makebread
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-18_makebread_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/18_makebread_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-19_takebread
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/19_takebread
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-19_takebread_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/19_takebread_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-1_potatooven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/1_potatooven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-1_potatooven_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/1_potatooven_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-20_takecorn
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/20_takecorn
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-20_takecorn_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/20_takecorn_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-21_takeegg
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/21_takeegg
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-22_takepotato
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/22_takepotato
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-26_cleanplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/26_cleanplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-27_carrotgreenplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/27_carrotgreenplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-28_packtable_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/28_packtable_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-29_steampumpkin
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/29_steampumpkin
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-2_cornoven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/2_cornoven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-30_takepumpkin
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/30_takepumpkin
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-31_unpackbowl
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/31_unpackbowl
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-32_unpackcup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/32_unpackcup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-33_putlemon
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/33_putlemon
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-35_putcarrot
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/35_putcarrot
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-36_putpepper
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/36_putpepper
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-37_putegg
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/37_putegg
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-38_putcorn
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/38_putcorn
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-39_puttomato
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/39_puttomato
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-3_eggplantOven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/3_eggplantOven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-3_eggplantoven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/3_eggplantoven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-3_eggplantoven_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/3_eggplantoven_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-40_putavocado
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/40_putavocado
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-41_putplum
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/41_putplum
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-42_putkiwifruite
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/42_putkiwifruite
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-43_packplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/43_packplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-44_putbluebowlongreenplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/44_putbluebowlongreenplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-45_putgreenbowlonblueplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/45_putgreenbowlonblueplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-46_putredbowlonwhiteplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/46_putredbowlonwhiteplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-48_putpotatogreenplatefromsteam_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/48_putpotatogreenplatefromsteam_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-4_potatobowloven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/4_potatobowloven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-4_potatobowloven_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/4_potatobowloven_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-50_pourtea
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/50_pourtea
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-51_breadoven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/51_breadoven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-52_holdercup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/52_holdercup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-53_stackcup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/53_stackcup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-54_placecup
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/54_placecup
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-55_pumpkinbowloven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/55_pumpkinbowloven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-56_placeplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/56_placeplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-57_potatolittleoven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/57_potatolittleoven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-58_pumpkinlittleoven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/58_pumpkinlittleoven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-59_steamedbreadlittleoven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/59_steamedbreadlittleoven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-5_eggoven_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/5_eggoven_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-6_applebowloven
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/6_applebowloven
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-6_applebowloven_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/6_applebowloven_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-7_applegreenplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/7_applegreenplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-7_applegreenplate_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/7_applegreenplate_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-8_appleblueplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/8_appleblueplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-8_appleblueplate_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/8_appleblueplate_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-9_appleyellowplate
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_1_release/agilex_3rgb/9_appleyellowplate
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+  - type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+    name: robomind_agilex_3rgb-9_appleyellowplate_2
+    args:
+      dataset_path_list:
+      - /inspire/dataset/robomind/lerobot/benchmark1_0_release/agilex_3rgb/9_appleyellowplate_2
+      chunk_size: 50
+      ctrl_space: joint
+      ctrl_type: abs
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

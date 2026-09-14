@@ -1,0 +1,12 @@
+type: vlastudio.deploy.robot.sim_pybullet.AbsJointRobot
+name: mini_cheetah
+args:
+  name: mini_cheetah
+  max_size_mb: 64
+  fps: 240.0
+  control_shm_name: null
+  robot_urdf_path: mini_cheetah/mini_cheetah.urdf
+  initial_joint_positions: [0.0, 0.67, -1.3, 0.0, 0.67, -1.3, 0.0, 0.67, -1.3, 0.0, 0.67, -1.3]
+  gripper_joint_indices: []
+  gripper_width: 0.0
+  use_gui: true

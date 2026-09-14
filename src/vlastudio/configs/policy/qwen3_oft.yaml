@@ -1,0 +1,55 @@
+type: vlastudio.policy.qwen_oft
+name: qwen_oft
+args:
+  # VLM Model Configuration
+  # Supports both Qwen2.5-VL and Qwen3-VL
+  # Examples:
+  #   - Qwen/Qwen2.5-VL-3B-Instruct
+  #   - Qwen/Qwen2.5-VL-7B-Instruct
+  #   - Qwen/Qwen3-VL-4B-Instruct
+  vlm_model_name_or_path: Qwen/Qwen3-VL-4B-Instruct
+  
+  # Qwen version: 'qwen2.5' or 'qwen3' (auto-detected if null)
+  qwen_version: null
+  
+  # Policy Dimensions
+  action_dim: 7
+  state_dim: 7
+  chunk_size: 16
+  
+  # Action Head Configuration
+  action_hidden_dim: null  # Auto-set from VLM hidden size
+  action_head_hidden_mult: 2  # Hidden dim multiplier (hidden_dim = action_hidden_dim * multiplier)
+  action_head_num_blocks: 2  # Number of MLP ResNet blocks
+  
+  # Action Token
+  action_token: "🔍"  # Special token for action prediction
+  
+  # LoRA Configuration
+  lora_enable: false
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.1
+  lora_bias: none
+  lora_module: vit,llm  # Modules to apply LoRA: vit, llm, or both
+  
+  # Training Configuration
+  bits: 16
+  bf16: true
+  fp16: false
+  gradient_checkpointing: true
+  freeze_backbone: false
+  freeze_vision_tower: false
+  lora_lr: 1e-4
+
+# Model Class Configuration
+config_class: QwenOFTConfig
+model_class: QwenOFTForPolicy
+
+# Data Processing
+data_processor: get_data_processor
+data_collator: get_data_collator
+
+# Trainer
+trainer_class: Trainer
+

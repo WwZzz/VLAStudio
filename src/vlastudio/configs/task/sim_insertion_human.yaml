@@ -1,0 +1,19 @@
+datasets:
+- type: vlastudio.data_utils.datasets.AlohaSimDataset
+  name: sim_insertion_human
+  args:
+    dataset_path_list:
+    - data/sim_insertion_human
+    camera_names:
+    - primary
+    chunk_size: 100
+    ctrl_space: joint
+    ctrl_type: abs
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size:
+  - 640
+  - 480
+  action_normalize: zscore
+  state_normalize: zscore

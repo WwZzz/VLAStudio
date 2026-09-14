@@ -1,0 +1,59 @@
+type: vlastudio.policy.xvla
+name: xvla_lora
+args:
+  pretrained_weight_path: lerobot/xvla-base
+  base_vlm_model_name_or_path: microsoft/Florence-2-large
+  n_obs_steps: 1
+  chunk_size: 50
+  n_action_steps: 50
+  dtype: bfloat16
+  tokenizer_name: facebook/bart-large
+  tokenizer_max_length: 64
+  tokenizer_padding_side: right
+  pad_language_to: max_length
+  action_mode: auto
+  num_denoising_steps: 10
+  use_proprio: true
+  camera_names:
+    - primary
+  num_image_views: 1
+  empty_cameras: 0
+  resize_imgs_with_padding:
+    - 256
+    - 256
+  domain_id: 0
+  state_dim: 14
+  action_dim: 14
+  freeze_vision_encoder: true
+  freeze_language_encoder: true
+  train_policy_transformer: false
+  train_soft_prompts: true
+
+  # LoRA configuration
+  lora_module:
+    - vlm
+    - transformer
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  lora_bias: none
+  lora_modules_to_save: []
+    # - model.transformer
+
+  optimizer_lr: 0.0001
+  optimizer_betas:
+    - 0.9
+    - 0.99
+  optimizer_eps: 1.0e-8
+  optimizer_weight_decay: 0.0
+  optimizer_grad_clip_norm: 10.0
+  optimizer_soft_prompt_lr_scale: 1.0
+  optimizer_soft_prompt_warmup_lr_scale: null
+  scheduler_warmup_steps: 1000
+  scheduler_decay_steps: 30000
+  scheduler_decay_lr: 2.5e-6
+config_class: XVLAConfig
+model_class: XVLAPolicy
+data_processor: get_data_processor
+data_collator: get_data_collator
+trainer_class: Trainer

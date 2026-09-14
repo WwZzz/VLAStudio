@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.lerobotv20_wrapper.WrappedLerobotV20Dataset
+  name: lerobot_nyu_rot_dataset
+  args:
+    dataset_path_list:
+    - lerobot/nyu_rot_dataset
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: delta
+meta:
+  action_dim: 7
+  state_dim: 7
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

@@ -12,6 +12,8 @@ def environment_for(config, path, manifest=None):
     declaration = manifest or config.get("runtime")
     if not declaration:
         module = config.get("type") or config.get("module_path")
+        if module and module.startswith('vlastudio.'):
+            module = module[len('vlastudio.'):]
         if module not in BUILTINS:
             raise ValueError(f"No managed runtime for {module!r}. Declare runtime in the config, use --runtime-manifest, or --runtime current.")
         declaration = copy.deepcopy(BUILTINS[module])

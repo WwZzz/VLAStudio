@@ -1,0 +1,17 @@
+# Alicia-D Robot Configuration
+# 6-DOF robot arm with gripper (qpos 模式不用 IK；切 delta_ee/rel_ee 时用全局 IK)
+
+type: vlastudio.deploy.robot.alicia_d.AliciaD
+args:
+  name: alicia_d
+  fps: 200.0
+  control_mode: qpos
+
+  speed_deg_s: 50.0
+  gripper_speed_deg_s: 483.4
+
+  position_scale: 1.0
+  rotation_scale: 1.0
+  gripper_scale: 1.0
+
+  debug: false

@@ -1,0 +1,24 @@
+# RLBench TakeUmbrellaOutOfUmbrellaStand Task Configuration
+#
+# IMPORTANT: RLBench does NOT support parallel execution (SubprocVectorEnv)
+# because CoppeliaSim cannot be safely run in multiple processes.
+#
+# Usage:
+#   python eval_sim.py -e rlbench.ee.take_umbrella_out_of_umbrella_stand -m <model> --batch_size 0
+#
+# The --batch_size 0 flag forces sequential execution mode.
+
+type: vlastudio.benchmark.rlbench.RLBenchEnv
+name: rlbench_take_umbrella_out_of_umbrella_stand
+args:
+  task: TakeUmbrellaOutOfUmbrellaStand
+  max_timesteps: 200  # Maximum steps per episode
+  ctrl_space: ee  # 'joint' or 'ee'
+  ctrl_type: abs     # 'abs' or 'delta'
+
+  camera_names:
+    - front
+    - wrist
+  image_size: [256, 256]
+  headless: true
+

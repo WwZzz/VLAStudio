@@ -1,0 +1,15 @@
+datasets:
+- type: vlastudio.data_utils.datasets.droid.DroidDataset
+  name: droid_100
+  args:
+    dataset_dir: /inspire/hdd/project/robot-action/public/data/droid/
+    name: droid_100
+    chunk_size: 16
+    version: 1.0.0
+    filter_dict_path: null
+meta:
+  action_dim: 8
+  state_dim: 8
+  image_size: 
+    - 256
+    - 256

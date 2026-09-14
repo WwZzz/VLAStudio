@@ -1,0 +1,5 @@
+type: vlastudio.benchmark.simplerenv.SimplerEnv
+name: simplerenv_widowx_spoon
+args:
+  task: widowx_spoon_on_towel
+  max_timesteps: 200

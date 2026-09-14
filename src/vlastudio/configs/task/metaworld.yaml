@@ -1,0 +1,18 @@
+datasets:
+- type: vlastudio.data_utils.datasets.WrappedLerobotDataset
+  name: lerobot_metaworld
+  args:
+    dataset_path_list:
+    - lerobot/metaworld_mt50
+    chunk_size: 50
+    ctrl_space: ee
+    ctrl_type: abs
+    tolerance_s: 10.0
+meta:
+  action_dim: 4
+  state_dim: 4
+  image_size:
+  - 480
+  - 480
+  action_normalize: zscore
+  state_normalize: zscore

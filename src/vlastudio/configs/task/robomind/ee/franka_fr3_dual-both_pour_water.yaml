@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+  name: robomind_franka_fr3_dual-both_pour_water_ee
+  args:
+    dataset_path_list:
+    - /inspire/dataset/robomind/lerobot/benchmark1_1_release/franka_fr3_dual/both_pour_water
+    chunk_size: 50
+    ctrl_space: ee
+    ctrl_type: abs
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

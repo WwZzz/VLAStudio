@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+  name: robomind_tienkung_gello_1rgb-put_the_pear_in_right_hand_on_the_plate
+  args:
+    dataset_path_list:
+    - /inspire/dataset/robomind/lerobot/benchmark1_1_release/tienkung_gello_1rgb/put_the_pear_in_right_hand_on_the_plate
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+meta:
+  action_dim: 16
+  state_dim: 16
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

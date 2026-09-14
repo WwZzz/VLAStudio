@@ -1,9 +1,0 @@
-type: deploy.teleoperator.koch_leader.KochLeader
-name: koch_leader
-args:
-  name: koch_leader
-  max_size_mb: 1
-  fps: 100.0
-  com: /dev/ttyACM0
-  robot_id: koch_leader
-  elbow_drive_mode: 0

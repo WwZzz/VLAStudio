@@ -1,0 +1,86 @@
+# Visualizers: ``type`` must be a class subclassing ``BaseVisualizer``; such rows are not devices. Use -v.
+# One CameraVisualizer can list multiple ``shm_names`` (one window). Use multiple entries for separate windows.
+ 
+- type: vlastudio.deploy.visualizer.camera_visualizer.CameraVisualizer
+  name: biso101_cameras
+  args:
+    shm_names:
+      # - top_camera
+      - head_camera
+      - left_wrist_camera
+      - right_wrist_camera
+    fps: 30
+    scale: 0.5
+
+# - type: vlastudio.deploy.visualizer.lowdim_visualizer.LowDimVisualizer
+#   name: biso101_lowdim
+#   args:
+#     shm_entries:
+#       - [bi_so101_leader, action]
+#       - [bi_so101_follower, qpos]
+#       - [policy_control_shm, action]
+#     dim: 12
+#     fps: 60
+#     time_window_s: 12
+
+- type: vlastudio.deploy.robot.bi_so101_follower.BiSo101Follower
+  name: bi_so101_follower
+  args:
+    control_shm_name: bi_so101_leader
+    left_arm_port: /dev/so101_left_arm
+    right_arm_port: /dev/so101_right_arm
+    robot_id: bi_so101_follower
+    # Use same arm IDs as single-arm configs to share calibration
+    # This avoids re-calibration when switching between single and bimanual configs
+    left_arm_id: so101_left_arm     # Same as so101_follower.yaml's robot_id
+    right_arm_id: so101_right_arm    # Unique ID for right arm
+    home_qpos: [-4.094430099594248, -97.98319327731093, 100.0, 71.20756338633433, -53.69841681806385, 2.9277813923227063, -4.309392265193367, -96.13282891971417, 100.0, 70.41685342895562, -55.01171569903671, 3.3159947984395317]
+
+# - type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+#   name: top_camera
+#   args:
+#     name: top_camera
+#     index_or_path: /dev/top_camera
+#     width: 640
+#     height: 480
+#     fps: 30
+#     max_size_mb: 10
+#     fourcc: MJPG
+#     bgr_to_rgb: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: head_camera
+  args:
+    name: head_camera
+    index_or_path: /dev/head_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    horizontal_flip: true
+    bgr_to_rgb: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: left_wrist_camera
+  args:
+    name: left_wrist_camera
+    index_or_path: /dev/left_camera
+    width: 640
+    height: 480
+    max_size_mb: 10
+    fps: 30
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: right_wrist_camera
+  args:
+    name: right_wrist_camera
+    index_or_path: /dev/right_camera
+    width: 640
+    height: 480
+    fps: 30
+    max_size_mb: 10
+    fourcc: MJPG
+    bgr_to_rgb: true    

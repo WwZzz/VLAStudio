@@ -1,8 +1,0 @@
-type: deploy.teleoperator.so101_leader.So101Leader
-name: so101_leader
-args:
-  name: so101_leader
-  max_size_mb: 1
-  fps: 10.0
-  com: COM3
-  robot_id: so101_leader

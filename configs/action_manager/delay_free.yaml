@@ -1,6 +1,0 @@
-type: deploy.action_manager.delay_free.DelayFreeManager
-name: delay_free
-args:
-  # duration: time duration for each action step (in seconds)
-  # Used to calculate how many actions to skip based on delay time
-  duration: 0.05

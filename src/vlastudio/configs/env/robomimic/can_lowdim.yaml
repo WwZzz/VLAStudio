@@ -1,0 +1,9 @@
+type: vlastudio.benchmark.robomimic.RobomimicEnv
+name: PickPlaceCan_Panda
+args:
+  task: PickPlaceCan_Panda
+  max_timesteps: 400
+  ctrl_space: ee
+  use_low_dim: true
+  camera_ids:
+  - 0

@@ -1,8 +1,0 @@
-type: policy.octo
-name: octo
-args:
-  action_dim: 14
-  state_dim: 14
-  chunk_size: 50
-  jax_checkpoint: hf://rail-berkeley/octo-small-1.5
-  use_wrist: false

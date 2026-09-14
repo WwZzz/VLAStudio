@@ -1,8 +1,8 @@
 [submodule "policy/openpi/openpi"]
-	path = policy/openpi/openpi
+	path = src/vlastudio/policy/openpi/openpi
 	url = https://github.com/Physical-Intelligence/openpi.git
 [submodule "policy/octo/octo_pytorch"]
-	path = policy/octo/octo_pytorch
+	path = src/vlastudio/policy/octo/octo_pytorch
 	url = https://github.com/emb-ai/octo-pytorch.git
 [submodule "third_party/libero"]
 	path = third_party/libero
@@ -11,14 +11,14 @@
 	path = third_party/lerobot
 	url = https://github.com/WwZzz/lerobot.git
 [submodule "benchmark/calvin/calvin_env_10"]
-	path = benchmark/calvin/calvin_env_10
+	path = src/vlastudio/benchmark/calvin/calvin_env_10
 	url = https://github.com/WwZzz/calvin_env_10.git
 [submodule "benchmark/robotwin/RoboTwin"]
-	path = benchmark/robotwin/RoboTwin
+	path = src/vlastudio/benchmark/robotwin/RoboTwin
 	url = https://github.com/WwZzz/RoboTwin.git
 [submodule "policy/openvla_oft/openvla-oft"]
-	path = policy/openvla_oft/openvla-oft
+	path = src/vlastudio/policy/openvla_oft/openvla-oft
 	url = https://github.com/WwZzz/openvla-oft.git
 [submodule "benchmark/bigym/bigym"]
-	path = benchmark/bigym/bigym
+	path = src/vlastudio/benchmark/bigym/bigym
 	url = https://github.com/NeuracoreAI/bigym

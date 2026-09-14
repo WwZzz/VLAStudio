@@ -1,0 +1,10 @@
+# AsyncChunkRatioManager: prefetch inference once per chunk when this fraction
+# of steps has already been emitted (before the current select_action get()).
+# Example: chunk_ratio=0.7 → after 70% of the chunk, trigger async inference
+# for the next chunk while finishing the remaining 30%.
+# On put: if current_step>0, the new chunk is truncated from the left so the
+# first kept step's action is closest (L2) to the last emitted action.
+type: vlastudio.deploy.action_manager.async_chunk_ratio.AsyncChunkRatioManager
+name: async_chunk_ratio
+args:
+  chunk_ratio: 0.9

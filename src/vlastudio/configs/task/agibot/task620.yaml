@@ -1,0 +1,26 @@
+datasets:
+- type: vlastudio.data_utils.datasets.WrappedLerobotDataset
+  name: agibot_beta_task620
+  args:
+    dataset_path_list:
+    - /inspire/hdd/project/robot-action/public/data/agibot_beta/agibotworld/task_620
+    chunk_size: 1
+    ctrl_space: ee
+    ctrl_type: joint
+    camera_names:
+    - observation.images.head
+    # - observation.images.hand_left_fisheye
+    # - observation.images.hand_right_fisheye
+    action_key: actions.joint.position
+    state_key: observation.states.joint.position
+    video_backend: pyav
+    tolerance_s: 1e-2
+
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

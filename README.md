@@ -4,6 +4,29 @@
 
 推荐使用 Python 脚本组织实验，同时保留 `vlastudio train` 和原来的 `python train.py`。不同 policy 的依赖由独立、可复用的 Python 环境管理。
 
+## 源码布局
+
+```text
+vlastudio/
+├── src/vlastudio/
+│   ├── policy/          # 策略实现与 Trainer
+│   ├── benchmark/       # 仿真与评估环境
+│   ├── data_utils/      # 数据集、处理与缓存
+│   ├── deploy/          # robot、device、action manager 与通信
+│   ├── configs/         # 内置配置与别名
+│   ├── utils/
+│   ├── api.py           # 公开 Python API
+│   ├── cli.py
+│   └── entrypoints/     # 训练、评估、采集入口实现
+├── examples/python/
+├── tests/
+├── docs/
+├── pyproject.toml
+└── train.py             # 兼容旧命令的薄入口
+```
+
+源码与安装包使用同一布局，例如 `vlastudio.policy`、`vlastudio.benchmark`。旧配置里的 `policy.act` 等引用仍可解析；新内置配置使用完整包路径。源码开发先 `pip install -e .`，普通安装用 `pip install .`。
+
 > 当前版本为 `0.2.0.dev0`，尚未发布到 PyPI。请从本分支或 wheel 安装；当前不应直接用 `pip install vlastudio` 获取此开发版本。
 
 ## 安装
@@ -112,11 +135,11 @@ python examples/python/train_policy.py \
 
 | 配置 | 内容 | 文档 |
 | --- | --- | --- |
-| policy | 实现模块、架构、初始化权重、运行环境 | [configs](configs/README.md) |
-| task | 数据集、参数、维度、归一化与缓存 | [data_utils](data_utils/README.md) |
-| training | batch size、步数、学习率、保存策略 | [training](configs/training/README.md) |
-| env | 仿真任务、相机、控制参数 | [benchmark](benchmark) |
-| action manager | 动作分块、同步与执行策略 | [action manager](configs/action_manager/README.md) |
+| policy | 实现模块、架构、初始化权重、运行环境 | [configs](src/vlastudio/configs/README.md) |
+| task | 数据集、参数、维度、归一化与缓存 | [data_utils](src/vlastudio/data_utils/README.md) |
+| training | batch size、步数、学习率、保存策略 | [training](src/vlastudio/configs/training/README.md) |
+| env | 仿真任务、相机、控制参数 | [benchmark](src/vlastudio/benchmark) |
+| action manager | 动作分块、同步与执行策略 | [action manager](src/vlastudio/configs/action_manager/README.md) |
 
 `load_*` 支持现有配置名称、YAML 路径和 `@config/name`。配置路径在调用时解析；配置内部的数据或 Python 文件相对路径仍遵循原有调用目录语义。可复用脚本建议用绝对路径。设置 `VLASTUDIO_CONFIG_PATH` 可以添加配置搜索根目录。
 

@@ -1,0 +1,143 @@
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: basketball-v3
+  args:
+    task: basketball-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: bin-picking-v3
+  args:
+    task: bin-picking-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: box-close-v3
+  args:
+    task: box-close-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: coffee-pull-v3
+  args:
+    task: coffee-pull-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: coffee-push-v3
+  args:
+    task: coffee-push-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: hammer-v3
+  args:
+    task: hammer-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: peg-insert-side-v3
+  args:
+    task: peg-insert-side-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: push-wall-v3
+  args:
+    task: push-wall-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: soccer-v3
+  args:
+    task: soccer-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: sweep-v3
+  args:
+    task: sweep-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+
+- type: vlastudio.benchmark.metaworld.MetaworldEnv
+  name: sweep-into-v3
+  args:
+    task: sweep-into-v3
+    max_timesteps: 128
+    ctrl_space: ee
+    ctrl_type: abs
+    use_camera: true
+    camera_name: corner4
+    image_size:
+    - 480
+    - 480
+

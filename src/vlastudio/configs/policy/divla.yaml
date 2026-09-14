@@ -1,0 +1,16 @@
+type: vlastudio.policy.divla
+name: divla
+args:
+  action_dim: 14
+  state_dim: 14
+  horizon: 100
+  vision_encoder: clip
+  language_model: qwen2vl
+  fusion_method: cross_attention
+  use_reasoning: false
+  reasoning_tokens: 10
+config_class: DiVLAConfig
+model_class: DiVLAPolicy
+data_processor: get_data_processor
+data_collator: get_data_collator
+trainer_class: Trainer

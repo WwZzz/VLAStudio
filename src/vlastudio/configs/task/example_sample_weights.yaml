@@ -1,0 +1,37 @@
+name: sim_transfer_cube_scripted
+
+# 数据集列表
+datasets:
+- type: vlastudio.data_utils.datasets.AlohaSimDataset
+  name: sim_transfer_cube_scripted
+  args:
+    dataset_path_list:
+    - data/sim_transfer_cube_scripted
+    camera_names:
+    - primary
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+    preload_data: true
+- type: vlastudio.data_utils.datasets.AlohaSimDataset
+  name: sim_transfer_cube_human
+  args:
+    dataset_path_list:
+    - data/sim_transfer_cube_human
+    camera_names:
+    - primary
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+
+# Task metadata
+meta:
+  action_dim: 14
+  state_dim: 14
+  image_size: [640, 480]
+  action_normalize: zscore
+  state_normalize: zscore
+
+sample_weights:
+  sim_transfer_cube_scripted: 1.0 # name: weight
+  sim_transfer_cube_human: 10.0

@@ -10,11 +10,8 @@ import threading
 import subprocess
 import sys
 from filelock import FileLock
-from .paths import legacy_root
 
 CORE = ["PyYAML==6.0.2", "platformdirs==4.3.6", "filelock==3.18.0"]
-LEGACY_DIRS = ("configs", "policy", "data_utils", "benchmark", "deploy", "utils")
-LEGACY_FILES = ("train.py", "start_policy_server.py", "eval_real.py", "eval_sim.py", "collect_data.py")
 
 
 def uv_command():
@@ -40,14 +37,7 @@ def files_under(root):
 def snapshot(cache):
     """Copy only application files, never the parent environment's site-packages."""
     package = Path(__file__).parent
-    entries = [(f, Path("vlastudio") / f.relative_to(package)) for f in files_under(package) if "_legacy" not in f.relative_to(package).parts]
-    root = legacy_root()
-    for name in LEGACY_DIRS + LEGACY_FILES:
-        source = root / name
-        if source.is_file():
-            entries.append((source, Path("vlastudio/_legacy") / name))
-        elif source.is_dir():
-            entries += [(f, Path("vlastudio/_legacy") / f.relative_to(root)) for f in files_under(source)]
+    entries = [(f, Path("vlastudio") / f.relative_to(package)) for f in files_under(package)]
     digest = hashlib.sha256()
     for source, target in entries:
         digest.update(str(target).encode())

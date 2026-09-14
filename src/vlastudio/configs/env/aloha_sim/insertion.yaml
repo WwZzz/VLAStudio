@@ -1,0 +1,9 @@
+type: vlastudio.benchmark.aloha.AlohaSimEnv
+name: aloha_insertion
+args:
+  task: sim_insertion_scripted
+  max_timesteps: 400
+  ctrl_space: joint
+  ctrl_type: abs
+  camera_ids: [0]
+  image_size: [640, 480]

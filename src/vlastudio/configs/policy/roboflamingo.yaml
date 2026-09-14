@@ -1,0 +1,99 @@
+type: vlastudio.policy.roboflamingo
+name: roboflamingo
+args:
+  # ==========================================================================
+  # OpenFlamingo Model (Auto-Download)
+  # ==========================================================================
+  # Specify model name for automatic download from Hugging Face:
+  #   - "3b" or "openflamingo-3b-instruct": 3B model with instruction tuning (recommended)
+  #   - "3b-base" or "openflamingo-3b": 3B base model
+  #   - "4b" or "openflamingo-4b-instruct": 4B model with instruction tuning
+  #   - "4b-base" or "openflamingo-4b": 4B base model
+  #   - "9b" or "openflamingo-9b": 9B model
+  openflamingo_model: 3b  # Auto-downloads checkpoint and sets correct LLM config
+  
+  # Optional: Custom cache directory for downloaded models
+  # cache_dir: /path/to/cache
+  
+  # ==========================================================================
+  # Manual Configuration (Optional - overrides auto-download settings)
+  # ==========================================================================
+  # Use preset LLM configurations:
+  #   - mpt_3b: MPT 1B with RedPajama (cross_attn_every_n_layers=1)
+  #   - mpt_dolly_3b: MPT 1B with Dolly instruction tuning (recommended)
+  #   - mpt_4b: RedPajama 3B (cross_attn_every_n_layers=2)
+  #   - mpt_9b: MPT 7B (cross_attn_every_n_layers=4)
+  # llm_name: mpt_dolly_3b
+  
+  # Or specify paths directly (overrides auto-download):
+  # lang_encoder_path: /path/to/mpt-1b-redpajama-200b-dolly
+  # tokenizer_path: /path/to/mpt-1b-redpajama-200b-dolly
+  # cross_attn_every_n_layers: 1
+  # openflamingo_checkpoint: /path/to/checkpoint.pt
+  
+  # ==========================================================================
+  # Vision Encoder Configuration
+  # ==========================================================================
+  clip_vision_encoder_path: ViT-L-14
+  clip_vision_encoder_pretrained: openai
+  
+  # Decoder layers attribute name (auto-detected if not specified)
+  # For MPT models: transformer.blocks
+  # For GPT-NeoX/RedPajama: gpt_neox.layers
+  # For LLaMA: model.layers
+  # decoder_layers_attr_name: transformer.blocks
+  
+  # ==========================================================================
+  # Policy Dimensions
+  # ==========================================================================
+  action_dim: 6           # Action dimension (arm only, gripper is separate)
+  state_dim: 7            # State dimension (arm pos + gripper)
+  window_size: 12         # Number of frames in context window
+  
+  # ==========================================================================
+  # Action Decoder Configuration
+  # ==========================================================================
+  decoder_type: lstm      # Options: lstm, fc
+  decoder_hidden_size: 1024
+  decoder_num_layers: 4
+  multi_step_action: 1    # Number of action steps to predict
+  pooling: max            # Options: max, avg
+  
+  # ==========================================================================
+  # Multi-View and Fusion Settings
+  # ==========================================================================
+  use_gripper: true       # Use gripper camera view
+  fusion_mode: post       # Options: post, pre, two_way
+  sep_resampler: false    # Use separate Perceiver Resampler for gripper
+  use_state: false        # Use robot state as additional input
+  
+  # ==========================================================================
+  # Training Settings
+  # ==========================================================================
+  freeze_vision: true     # Freeze CLIP vision encoder
+  freeze_embed: false     # Freeze LLM embeddings
+  
+  # Data augmentation
+  rgb_pad: 10             # Random shift padding for RGB images
+  gripper_pad: 4          # Random shift padding for gripper images
+  
+  # ==========================================================================
+  # Precision Settings
+  # ==========================================================================
+  bits: 16
+  bf16: false
+  fp16: true
+
+# ==========================================================================
+# Model Class Configuration
+# ==========================================================================
+config_class: RoboFlamingoConfig
+model_class: RoboFlamingoForPolicy
+
+# Data Processing
+data_processor: get_data_processor
+data_collator: get_data_collator
+
+# Trainer
+trainer_class: Trainer
+

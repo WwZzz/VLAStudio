@@ -1,0 +1,18 @@
+datasets:
+- type: vlastudio.data_utils.datasets.WrappedLerobotDataset
+  name: lerobot_bridge_data_v2
+  args:
+    dataset_path_list:
+    - Jackie1/bridge_data_v2_convert_to_lerobot
+    chunk_size: 64
+    ctrl_space: ee
+    ctrl_type: abs
+    video_backend: pyav
+meta:
+  action_dim: 7
+  state_dim: 7
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

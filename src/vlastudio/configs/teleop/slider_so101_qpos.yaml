@@ -1,0 +1,39 @@
+# Slider teleop for SO101 simulation — qpos mode (6D, lerobot normalized)
+#
+# Action: [Rotation, Pitch, Elbow, Wrist_Pitch, Wrist_Roll, Jaw]
+#   - Joints 0–4: normalized [-100, 100] → mapped to qlimits in So101SimRobot
+#   - Jaw (5): normalized [0, 100] → gripper opening in radians
+#
+# Use with: configs/robot/so101_sim_qpos.yaml (qpos_input_unit: normalized)
+# Run:
+#   python collect_data.py -r configs/robot/so101_sim_qpos.yaml -t configs/teleop/slider_so101_qpos.yaml --visualize
+
+type: vlastudio.deploy.teleoperator.tk_slider.SliderTeleop
+name: slider_so101_qpos
+args:
+  name: slider_so101_qpos
+  max_size_mb: 1
+  fps: 100.0
+  action_dim: 6
+  # Matches DEFAULT_INIT_QPOS + default qlimits + joint_signs [-1,1,1,1,1,1] in So101SimRobot
+  initial_values:
+    - 0.0      # Rotation (norm): ~0 rad after sign
+    - -100.0   # Pitch: shoulder_lift at lower limit (~-3.1 rad)
+    - 100.0    # Elbow: at upper limit (~3.1 rad)
+    - -3.5     # Wrist_Pitch: ~0 rad
+    - -100.0   # Wrist_Roll: at lower limit (~-1.57 rad)
+    - 0.0      # Jaw: ~closed (~qmin)
+  slider_ranges:
+    - [-100.0, 100.0]   # Rotation (shoulder_pan)
+    - [-100.0, 100.0]   # Pitch (shoulder_lift)
+    - [-100.0, 100.0]   # Elbow (elbow_flex)
+    - [-100.0, 100.0]   # Wrist_Pitch
+    - [-100.0, 100.0]   # Wrist_Roll
+    - [0.0, 100.0]      # Jaw / gripper (RANGE_0_100)
+  slider_labels:
+    - "Rotation (pan)"
+    - "Pitch (lift)"
+    - "Elbow"
+    - "Wrist pitch"
+    - "Wrist roll"
+    - "Gripper (jaw)"

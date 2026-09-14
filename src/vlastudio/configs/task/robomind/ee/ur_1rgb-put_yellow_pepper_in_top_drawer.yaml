@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+  name: robomind_ur_1rgb-put_yellow_pepper_in_top_drawer_ee
+  args:
+    dataset_path_list:
+    - /inspire/dataset/robomind/lerobot/benchmark1_0_release/ur_1rgb/put_yellow_pepper_in_top_drawer
+    chunk_size: 50
+    ctrl_space: ee
+    ctrl_type: abs
+meta:
+  action_dim: 7
+  state_dim: 7
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

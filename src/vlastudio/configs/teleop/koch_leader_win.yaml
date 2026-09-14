@@ -1,0 +1,9 @@
+type: vlastudio.deploy.teleoperator.koch_leader.KochLeader
+name: koch_leader
+args:
+  name: koch_leader
+  max_size_mb: 1
+  fps: 10.0
+  com: COM3
+  robot_id: koch_leader
+  elbow_drive_mode: 1

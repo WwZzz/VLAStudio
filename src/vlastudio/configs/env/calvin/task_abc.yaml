@@ -1,0 +1,39 @@
+# CALVIN Environment Configurations for Tasks A, B, C
+# Multiple task suites for different evaluation scenarios
+
+# Task A: Training tasks
+- type: vlastudio.benchmark.calvin.CalvinEnv
+  name: calvin_task_a
+  args:
+    task: task_A
+    show_gui: False
+    num_sequences: 1
+    sequence_idx: -1
+    max_timesteps: 1800
+    ctrl_space: ee
+    ctrl_type: delta
+
+# Task B: Validation tasks
+- type: vlastudio.benchmark.calvin.CalvinEnv
+  name: calvin_task_b
+  args:
+    task: task_B
+    show_gui: False
+    num_sequences: 1
+    sequence_idx: -1
+    max_timesteps: 1800
+    ctrl_space: ee
+    ctrl_type: delta
+
+# Task C: Test tasks (unseen combinations)
+- type: vlastudio.benchmark.calvin.CalvinEnv
+  name: calvin_task_c
+  args:
+    task: task_C
+    show_gui: False
+    num_sequences: 1
+    sequence_idx: -1
+    max_timesteps: 1800
+    ctrl_space: ee
+    ctrl_type: delta
+

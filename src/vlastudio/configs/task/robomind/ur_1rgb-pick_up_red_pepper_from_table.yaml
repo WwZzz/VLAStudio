@@ -1,0 +1,17 @@
+datasets:
+- type: vlastudio.data_utils.datasets.robomind_dataset.RoboMindDataset
+  name: robomind_ur_1rgb-pick_up_red_pepper_from_table
+  args:
+    dataset_path_list:
+    - /inspire/dataset/robomind/lerobot/benchmark1_1_release/ur_1rgb/pick_up_red_pepper_from_table
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: abs
+meta:
+  action_dim: 7
+  state_dim: 7
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

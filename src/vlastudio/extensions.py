@@ -46,6 +46,8 @@ def register(kind, name, target):
 def resolve(reference, kind=None, module=False):
     if not isinstance(reference, str):
         return reference
+    from .compat import canonical
+    reference = canonical(reference)
     if reference.startswith("@"):
         group, name = reference[1:].split("/", 1)
         if group not in KINDS or (kind and group != kind):

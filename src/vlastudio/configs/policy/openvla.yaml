@@ -1,0 +1,40 @@
+type: vlastudio.policy.openvla
+name: openvla
+args:
+  pretrained_weight_path: openvla/openvla-7b
+  lora_enable: true
+  lora_module: all
+  lora_task_type: CAUSAL_LM
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.1
+  lora_bias: none
+  lora_lr: 0.0001
+  use_quantization: false
+  bits: 4
+  double_quant: true
+  quant_type: nf4
+  using_ema: false
+  cache_dir: null
+  flash_attn: true
+  freeze_vision_tower: false
+  freeze_backbone: false
+  tune_mm_mlp_adapter: false
+  llm_loss_weight: 1.0
+  load_pretrain: false
+  lazy_preprocess: false
+  select_seg_token_mask: false
+  is_multimodal: true
+  image_aspect_ratio: square
+  skip_mirrored_data: false
+  history_images_length: 1
+  camera_names:
+  - primary
+  history_len: 1
+  prediction_len: 1
+  chunk_size: 100
+  action_dim: 4
+  state_dim: 4
+  max_length: 256
+  training_mode: lora
+trainer_class: Trainer

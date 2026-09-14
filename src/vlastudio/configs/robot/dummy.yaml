@@ -1,0 +1,29 @@
+type: vlastudio.deploy.robot.dummy_robot.DummyRobot
+name: dummy_robot
+args:
+  name: dummy_robot
+  max_size_mb: 64
+  fps: 30.0
+  control_shm_name: null
+  obs_config:
+    image:
+      primary:
+        shape: [640, 480, 3]
+        dtype: uint8
+      wrist_left:
+        shape: [640, 480, 3]
+        dtype: uint8
+      wrist_right:
+        shape: [640, 480, 3]
+        dtype: uint8
+    qpos:
+      shape: [14]
+      dtype: float32
+    qvel:
+      shape: [14]
+      dtype: float32
+  action_config:
+    shape: [14]
+    dtype: float32
+  ctrl_type: abs
+  ctrl_space: joint

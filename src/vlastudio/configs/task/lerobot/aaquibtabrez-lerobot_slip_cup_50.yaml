@@ -1,0 +1,21 @@
+datasets:
+- type: vlastudio.data_utils.datasets.lerobotv21_wrapper.WrappedLerobotV21Dataset
+  name: aaquibtabrez_lerobot_slip_cup_50
+  args:
+    dataset_path_list:
+    - aaquibtabrez/lerobot_slip_cup_50
+    chunk_size: 50
+    ctrl_space: joint
+    ctrl_type: delta
+    state_key: 
+      - joint_position
+      - gripper_position
+    action_key: actions
+meta:
+  action_dim: 8
+  state_dim: 8
+  image_size:
+  - 256
+  - 256
+  action_normalize: zscore
+  state_normalize: zscore

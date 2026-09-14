@@ -1,0 +1,26 @@
+# SO101 Simulation Robot - Delta End-Effector Control Mode
+#
+# Control mode: delta_ee (7D delta actions)
+# Action format: [dx, dy, dz, d_roll, d_pitch, d_yaw, d_gripper]
+# Units: position in meters, rotation in radians (scaling done on controller side)
+# Uses Inverse Kinematics to convert EE deltas to joint positions
+#
+# Visualization: Use --visualize flag with collect_data.py to enable MuJoCo viewer
+
+type: vlastudio.deploy.robot.so101_sim.So101SimRobot
+name: so101_sim
+args:
+  name: so101_sim
+  max_size_mb: 64
+  fps: 50.0
+  scene_name: empty
+  enable_viewer: true
+  camera_names: [frontview]
+  camera_width: 640
+  camera_height: 480
+  # control_shm_name will be auto-filled from teleop if not specified
+  control_mode: delta_ee  # 7D delta EE control (default)
+  # No scaling on robot side - controllers output actual deltas in meters/radians
+  position_scale: 1.0
+  rotation_scale: 1.0
+  gripper_scale: 1.0

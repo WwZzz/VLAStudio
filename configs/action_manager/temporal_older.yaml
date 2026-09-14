@@ -1,5 +1,0 @@
-type: deploy.action_manager.temporal_older.TemporalOlderManager
-name: temporal_older
-args:
-  coef: 0.1
-  older_coef: 0.75

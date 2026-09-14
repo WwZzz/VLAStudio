@@ -153,12 +153,15 @@ stack, and intentionally runs only inside the selected environment. See
 
 ## Packaging architecture
 
-The public package is under `src/vlastudio`. The wheel contains legacy implementations
-under `vlastudio/_legacy`, with no top-level `policy`, `utils`, or `configs` distributions.
-Only the worker (or an explicit interface import) activates compatibility imports.
-This preserves serialized module/config names and avoids rewriting model code in
-this packaging change. Git submodule contents and hardware-specific installations
-are not silently downloaded into the wheel; profiles/plugins own those dependencies.
+All implementations live under `src/vlastudio`: `policy`, `benchmark`, `data_utils`,
+`deploy`, `utils`, and built-in `configs`. The wheel uses that same layout without
+copying files into an `_legacy` tree. Internal imports use the `vlastudio` namespace.
+Root training/evaluation scripts are thin compatibility entrypoints only.
+The extension resolver accepts historical config module references; task workers
+also enable aliases for old serialized module names. Aliases point to the same
+canonical modules, so class identity is preserved. Merely importing `vlastudio`
+does not install these global import aliases or import ML libraries.
+Git submodules remain optional; profiles/plugins own their installation.
 
 The previous development dependency list is preserved in `requirements-legacy.txt`.
 The root uv.lock now covers the lightweight package and its development tools.

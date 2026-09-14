@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 import yaml
-from .paths import legacy_root
+from .paths import package_root
 from .extensions import resolve
 
 
@@ -17,7 +17,7 @@ def resolve_config(value, category, base_dir=None):
         return path.with_suffix(".yaml").resolve()
     roots = [Path.cwd() / "configs"]
     roots += [Path(x).expanduser() for x in os.environ.get("VLASTUDIO_CONFIG_PATH", "").split(os.pathsep) if x]
-    roots.append(legacy_root() / "configs")
+    roots.append(package_root() / "configs")
     candidates = [r / category for r in roots[:-1]]
     if base_dir:
         candidates.append(Path(base_dir))
