@@ -1,7 +1,7 @@
 """
 Observation Format
 ===============================================================================================================
-sim_transfer_cube_scripted\sim_insertion_scripted
+sim_transfer_cube_scripted / sim_insertion_scripted
 ---------------------------------------------------------------------------------------------------------------
 obs [dict] = {
     'qpos': ndarray:(14,),

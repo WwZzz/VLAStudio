@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import signal
 import threading
@@ -12,6 +13,36 @@ import sys
 from filelock import FileLock
 
 CORE = ["PyYAML==6.0.2", "platformdirs==4.3.6", "filelock==3.18.0"]
+
+
+def _glibcxx_version(path):
+    try:
+        versions = re.findall(rb"GLIBCXX_(\d+)\.(\d+)\.(\d+)", Path(path).read_bytes())
+    except OSError:
+        return None
+    return max((tuple(map(int, version)) for version in versions), default=None)
+
+
+def _configure_headless_graphics(command, python, env):
+    if (command != "eval-sim" or not sys.platform.startswith("linux")
+            or env.get("DISPLAY") or env.get("WAYLAND_DISPLAY")):
+        return
+    env.setdefault("MUJOCO_GL", "egl")
+    if env.get("LD_PRELOAD"):
+        return
+
+    # Conda Python can prefer its own older C++ runtime via RPATH. Mesa's EGL
+    # driver then fails to load even though the host provides a compatible one.
+    bundled = Path(python).resolve().parent.parent / "lib" / "libstdc++.so.6"
+    machine = {"AMD64": "x86_64", "arm64": "aarch64"}.get(platform.machine(), platform.machine())
+    candidates = [Path(root) / f"{machine}-linux-gnu" / "libstdc++.so.6"
+                  for root in ("/usr/lib", "/lib")]
+    bundled_version = _glibcxx_version(bundled)
+    for candidate in candidates:
+        system_version = _glibcxx_version(candidate)
+        if bundled_version and system_version and system_version > bundled_version:
+            env["LD_PRELOAD"] = str(candidate)
+            break
 
 
 def uv_command():
@@ -109,6 +140,7 @@ def execute(command, args, python, app, env, entrypoint=None, isolated=True):
     paths = [str(app), os.getcwd()]
     paths += [x for x in env.get("VLASTUDIO_PLUGIN_PATH", "").split(os.pathsep) if x]
     child_env = dict(env)
+    _configure_headless_graphics(command, python, child_env)
     child_env["PYTHONPATH"] = os.pathsep.join(paths)
     if isolated:
         child_env["PYTHONNOUSERSITE"] = "1"
