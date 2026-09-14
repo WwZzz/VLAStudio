@@ -41,6 +41,8 @@ def make_smoke_task(data_cache: Path) -> Path:
     import yaml
 
     implementation = Path(__file__).resolve().parent / "_support" / "aloha_smoke_dataset.py"
+    dataset_dir = data_cache.resolve() / "datasets" / "sim_transfer_cube_scripted_smoke"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
     task = {
         "name": "sim_transfer_cube_scripted_smoke",
         "datasets": [{
@@ -49,6 +51,7 @@ def make_smoke_task(data_cache: Path) -> Path:
             "args": {
                 "size": 8,
                 "chunk_size": 50,
+                "dataset_dir": str(dataset_dir),
             },
         }],
         "meta": {

@@ -1,14 +1,21 @@
 """Synthetic ALOHA-shaped data loaded only inside the managed ACT environment."""
+from pathlib import Path
+
 import numpy as np
 import torch
 
 
 class AlohaSmokeDataset:
-    def __init__(self, size=8, chunk_size=50):
+    def __init__(self, size=8, chunk_size=50, dataset_dir=None):
         self.size = int(size)
         self.chunk_size = int(chunk_size)
+        self.dataset_dir = str(Path(dataset_dir or ".").expanduser().resolve())
+        Path(self.dataset_dir).mkdir(parents=True, exist_ok=True)
         self.ctrl_space = "joint"
         self.ctrl_type = "abs"
+
+    def get_dataset_dir(self):
+        return self.dataset_dir
 
     def __len__(self):
         return self.size
