@@ -65,8 +65,8 @@ an existing environment. A managed `Policy.load().predict()` Python proxy is out
 this first version; use task dispatch or existing policy-server clients.
 
 This is a development package, not a PyPI release. Install the built wheel or the
-branch to try it. Reproduction instructions are in `package_runtime.md` and
-`tests/gpu/run_smoke.py`.
+branch to try it. Reproduction instructions are in `package_runtime.md` and the
+runnable scripts under `examples/`.
 
 ## Python orchestration API (2026-09-14)
 
@@ -80,7 +80,7 @@ and the training result use the name `policy`.
   contract test; its synthetic metrics are not simulator measurements.
 - Wheel and sdist build successfully. The wheel contains the public API; the sdist
   includes the Python examples and preserved legacy README.
-- The installed wheel's `examples/python/train_mlp.py --gpu` completed two actual
+- The installed wheel's `examples/train_mlp.py --gpu` completed two actual
   training steps on the existing RTX 4090 instance through the managed environment.
   Reported training loss: 0.32710614800453186. Checkpoint and trainer state were saved
   under `api-gpu-checkpoints` in the dedicated validation directory.

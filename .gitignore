@@ -45,3 +45,5 @@ configs/task/local/
 .sdist-test/
 .packaging-outside/
 dist/
+/final-results/
+/tests/

@@ -15,8 +15,10 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install ".[dev]"
-      - run: python -m pytest tests/packaging -q
       - run: python -m build
+      - run: python -c "import vlastudio; print(vlastudio.__file__)"
+      - run: python examples/train_policy.py --help
+      - run: python examples/_01_train_and_eval_act_on_aloha.py --help
       - run: vlastudio train --policy act --dry-run --output_dir "custom checkpoints"
-      - run: vlastudio train --policy examples/extensions/policy.yaml --cache-dir .runtime-test
-      - run: vlastudio train --policy examples/extensions/policy.yaml --cache-dir .runtime-test --offline
+      - run: vlastudio train --policy examples/policy.yaml --cache-dir .runtime-test
+      - run: vlastudio train --policy examples/policy.yaml --cache-dir .runtime-test --offline

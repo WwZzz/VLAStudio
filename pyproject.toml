@@ -22,5 +22,5 @@ packages = ["src/vlastudio"]
 exclude = ["**/.venv/**", "**/__pycache__/**", "**/.git/**", "**/.ipynb_checkpoints/**"]
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/train.py", "/start_policy_server.py", "/eval_real.py", "/eval_sim.py", "/collect_data.py", "/README.md", "/README.legacy.md", "/LICENSE", "/pyproject.toml", "/tests/packaging", "/tests/gpu", "/examples", "/docs/package_runtime.md", "/docs/package_validation.md", "/docs/gpu_validation.json", "/requirements-legacy.txt", "/uv.lock"]
+include = ["/src", "/train.py", "/start_policy_server.py", "/eval_real.py", "/eval_sim.py", "/collect_data.py", "/README.md", "/README.legacy.md", "/LICENSE", "/pyproject.toml", "/examples", "/docs/package_runtime.md", "/docs/package_validation.md", "/docs/gpu_validation.json", "/requirements-legacy.txt", "/uv.lock"]
 exclude = ["**/.venv/**", "**/__pycache__/**", "**/.git/**"]

@@ -39,13 +39,16 @@ See the validation report for actual checks performed on this branch.
 
 ```sh
 vlastudio train -p act --cache-dir /scratch/vlastudio --model-cache-dir /models/hf -o /results/run1
-export VLASTUDIO_CACHE_DIR=/scratch/vlastudio
+export VLASTUDIO_CACHE=/scratch/vlastudio
 export VLASTUDIO_CONFIG_PATH=/my/configs
 export VLASTUDIO_PLUGIN_PATH=/my/project
 ```
 
-Cache root precedence: `--cache-dir`, `VLASTUDIO_CACHE_DIR`, legacy `ILSTD_CACHE`,
-user settings, platform user cache. `settings.json` in the platform VLAStudio config directory may set `cache_dir`; `VLASTUDIO_SETTINGS` can point to a different settings file. Within it are `envs`, `apps`, `uv`, `python`, `data`, `models`.
+Cache root precedence: `--cache-dir`, `VLASTUDIO_CACHE`, compatibility variable
+`VLASTUDIO_CACHE_DIR`, legacy `ILSTD_CACHE`, user settings, then
+`~/.cache/vlastudio`. `settings.json` in the platform VLAStudio config directory
+may set `cache_dir`; `VLASTUDIO_SETTINGS` can point to a different settings file.
+Within it are `envs`, `apps`, `uv`, `python`, `data`, `models`.
 `--model-cache-dir` overrides HF_HOME; otherwise existing HF_HOME/TORCH_HOME are respected. OpenPI assets default to
 `models/openpi` under the cache root, with `OPENPI_DATA_HOME` respected when set.
 Explicit dataset cache paths in task configs retain their existing behavior.
@@ -149,7 +152,7 @@ separate policy/device services when those interfaces can be separated.
 An optional `runtime.entrypoint: module:function` replaces the legacy task entry
 with a function `(command, argv) -> exit_code`. This is useful for a custom training
 stack, and intentionally runs only inside the selected environment. See
-`examples/extensions` for a dependency-free end-to-end example.
+`examples/components.py` and `examples/policy.yaml` provide a dependency-free end-to-end example.
 
 ## Packaging architecture
 
@@ -190,13 +193,13 @@ they do not expose tensors in the caller. `train(policy, dataset, config,
 output_dir=...)` updates `policy.checkpoint` after success; `bench.evaluate(policy,
 output_dir=...)` evaluates saved artifacts. Managed evaluation needs a complete
 simulation runtime manifest. See the [Python quick start](../README.md#用-python-组织训练和评估)
-and [runnable scripts](../examples/python). For direct inference use
+and [runnable scripts](../examples). For direct inference use
 `vlastudio serve` and the existing communication client interfaces.
 
 From a checkout, the real CPU smoke example is:
 
 ```sh
-vlastudio train -p examples/extensions/policy_mlp.yaml -t examples/extensions/task_mlp.yaml -c examples/extensions/training_mlp.yaml -o /tmp/my-checkpoints
+vlastudio train -p examples/policy_mlp.yaml -t examples/task_mlp.yaml -c examples/training_mlp.yaml -o /tmp/my-checkpoints
 ```
 
 
@@ -205,7 +208,7 @@ vlastudio train -p examples/extensions/policy_mlp.yaml -t examples/extensions/ta
 Install the wheel, then run from the source distribution or a checkout:
 
 ```sh
-python tests/gpu/run_smoke.py --cache-dir /scratch/vlastudio --output /scratch/gpu-checks mlp act train_mlp openvla openpi
+python examples/_01_train_and_eval_act_on_aloha.py --smoke
 ```
 
 Each case uses a managed worker with the corresponding policy environment. Tests

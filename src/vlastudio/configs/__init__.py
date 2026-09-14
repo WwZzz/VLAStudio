@@ -19,7 +19,8 @@ logging.getLogger("robosuite").setLevel(logging.ERROR)
 logging.getLogger("mujoco").setLevel(logging.ERROR)
 logging.getLogger("dm_control").setLevel(logging.ERROR)
 
-_default_cache = os.path.join(os.environ['VLASTUDIO_CACHE_DIR'], 'data') if os.environ.get('VLASTUDIO_CACHE_DIR') else os.path.join(os.path.expanduser('~'), '.cache/ilstd')
+_cache_root = os.environ.get('VLASTUDIO_CACHE') or os.environ.get('VLASTUDIO_CACHE_DIR')
+_default_cache = os.path.join(_cache_root, 'data') if _cache_root else os.path.join(os.path.expanduser('~'), '.cache/vlastudio/data')
 ILSTD_CACHE = os.environ.get('ILSTD_CACHE', _default_cache)
 os.makedirs(ILSTD_CACHE, exist_ok=True)
 

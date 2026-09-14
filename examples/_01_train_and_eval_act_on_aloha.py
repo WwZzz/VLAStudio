@@ -20,8 +20,6 @@ def parse_args():
                         help="Built-in task alias or task YAML")
     parser.add_argument("--training-config", default="default")
     parser.add_argument("--env", default="aloha_transfer", help="Built-in env alias or YAML")
-    parser.add_argument("--runtime-cache", type=Path, default=Path("~/.cache/vlastudio").expanduser())
-    parser.add_argument("--data-cache", type=Path, default=Path("~/.cache/vlastudio/data").expanduser())
     parser.add_argument(
         "--package-index",
         default=os.environ.get("UV_DEFAULT_INDEX", "https://mirrors.aliyun.com/pypi/simple"),
@@ -45,7 +43,7 @@ def make_smoke_task(data_cache: Path) -> Path:
     """Create a task config whose synthetic Dataset loads inside the ACT worker."""
     import yaml
 
-    implementation = Path(__file__).resolve().parent / "_support" / "aloha_smoke_dataset.py"
+    implementation = Path(__file__).resolve().parent / "aloha_smoke_dataset.py"
     dataset_dir = data_cache.resolve() / "datasets" / "sim_transfer_cube_scripted_smoke"
     dataset_dir.mkdir(parents=True, exist_ok=True)
     task = {
@@ -81,15 +79,20 @@ def main():
     if args.device.startswith("cuda"):
         os.environ.setdefault("MUJOCO_GL", "egl")
 
-    runtime_cache = args.runtime_cache.resolve()
-    data_cache = args.data_cache.resolve()
+    cache_value = (
+        os.environ.get("VLASTUDIO_CACHE")
+        or os.environ.get("VLASTUDIO_CACHE_DIR")
+        or "~/.cache/vlastudio"
+    )
+    cache_root = Path(cache_value).expanduser().resolve()
+    os.environ["VLASTUDIO_CACHE"] = str(cache_root)
+    data_cache = cache_root / "data"
     dataset_config = make_smoke_task(data_cache) if args.smoke else args.dataset
 
-    dataset = vla.load_dataset(dataset_config, cache_dir=data_cache)
+    dataset = vla.load_dataset(dataset_config)
     policy = vla.load_policy(
         args.policy,
         checkpoint=args.checkpoint,
-        cache_dir=runtime_cache,
     )
 
     if args.checkpoint is None:

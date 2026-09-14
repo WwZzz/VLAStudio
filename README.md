@@ -18,8 +18,7 @@ vlastudio/
 │   ├── api.py           # 公开 Python API
 │   ├── cli.py
 │   └── entrypoints/     # 训练、评估、采集入口实现
-├── examples/python/
-├── tests/
+├── examples/           # 可直接运行的扁平示例
 ├── docs/
 ├── pyproject.toml
 └── train.py             # 兼容旧命令的薄入口
@@ -39,6 +38,12 @@ cd VLAStudio
 python -m pip install -e .
 # 或安装构建好的 wheel
 python -m pip install /path/to/vlastudio-0.2.0.dev0-py3-none-any.whl
+```
+
+缓存默认位于 `~/.cache/vlastudio`。需要放到其他磁盘时只设置一个环境变量：
+
+```bash
+export VLASTUDIO_CACHE=/path/to/persistent-cache
 ```
 
 安装的只是轻量入口。`import vlastudio` 不导入 Torch / TensorFlow，也不触发下载。首次训练时，启动器按配置创建环境、安装依赖，后续复用。GPU 驱动、系统库、仿真资源和硬件 SDK 的系统部分需要主机或容器支持。
@@ -101,9 +106,9 @@ print(evaluation.metrics)
 以上路径需要替换为实际配置。无需数据下载的可运行案例：
 
 ```bash
-python examples/python/train_mlp.py --output-dir ./checkpoints/toy --cache-dir ./vla-cache
+python examples/train_mlp.py --output-dir ./checkpoints/toy
 # 已有可用 NVIDIA GPU 时
-python examples/python/train_mlp.py --output-dir ./checkpoints/toy-gpu --cache-dir ./vla-cache --gpu
+python examples/train_mlp.py --output-dir ./checkpoints/toy-gpu --gpu
 ```
 
 此例使用自定义合成数据集和小型 MLP，执行真实的两步优化并保存权重。首次仍需安装依赖。脚本按自身位置定位示例配置，也支持从其他目录使用脚本绝对路径运行。
@@ -111,31 +116,26 @@ python examples/python/train_mlp.py --output-dir ./checkpoints/toy-gpu --cache-d
 通用训练脚本接收自己的配置：
 
 ```bash
-python examples/python/train_policy.py \
+python examples/train_policy.py \
   --policy /my/configs/policy.yaml \
   --task /my/configs/task.yaml \
   --training-config /my/configs/training.yaml \
-  --output-dir /my/checkpoints/run1 \
-  --cache-dir /scratch/vlastudio
+  --output-dir /my/checkpoints/run1
 ```
 
-加上 `--env /my/env.yaml --eval-runtime /my/simulation-runtime.yaml` 可接续评估。案例源码见 [examples/python](examples/python)。
+加上 `--env /my/env.yaml --eval-runtime /my/simulation-runtime.yaml` 可接续评估。所有案例都直接放在 [examples](examples) 下。
 
 ACT 在 ALOHA 上训练并接续仿真评估的完整案例：
 
 ```bash
 # 两步 GPU 训练 + 5 步真实 MuJoCo rollout，用于验证整条链路
 python examples/_01_train_and_eval_act_on_aloha.py --smoke \
-  --runtime-cache ../cache \
-  --data-cache ../data-cache \
   --output-dir ../checkpoints/act-aloha-smoke \
   --eval-output-dir ../results/act-aloha-smoke
 
 # 使用内置 sim_transfer_cube_scripted 数据配置正式训练；首次自动下载数据
 python examples/_01_train_and_eval_act_on_aloha.py \
-  --max-steps 10000 \
-  --runtime-cache ../cache \
-  --data-cache ../data-cache
+  --max-steps 10000
 
 # 跳过训练，评估已有 checkpoint
 python examples/_01_train_and_eval_act_on_aloha.py \
@@ -207,7 +207,7 @@ policy = vla.load_policy("act", cache_dir="/scratch/vlastudio",
                          model_cache_dir="/datasets/huggingface-cache")
 ```
 
-也可通过 `vla.train(..., cache_dir=...)` 覆盖，或设置 `VLASTUDIO_CACHE_DIR`。缓存根目录优先级：显式参数、`VLASTUDIO_CACHE_DIR`、旧 `ILSTD_CACHE`、用户 settings、系统默认用户缓存。
+也可通过 API 的 `cache_dir=...` 显式覆盖，或设置 `VLASTUDIO_CACHE`。缓存根目录优先级：显式参数、`VLASTUDIO_CACHE`、兼容变量 `VLASTUDIO_CACHE_DIR`、旧 `ILSTD_CACHE`、用户 settings、`~/.cache/vlastudio`。
 
 | 位置 | 内容 |
 | --- | --- |
@@ -253,7 +253,7 @@ runtime:
     - my-policy-plugin==1.0.0
 ```
 
-示意包名需要替换为真实可安装依赖。policy 模块保留模型加载、processor、collator、Trainer hooks；dataset 保留样本契约；robot / device / action manager 遵循对应基类。参考 [扩展示例](examples/extensions) 与 [接口说明](docs/package_runtime.md#external-components)。
+示意包名需要替换为真实可安装依赖。policy 模块保留模型加载、processor、collator、Trainer hooks；dataset 保留样本契约；robot / device / action manager 遵循对应基类。参考 `examples/components.py`、`examples/policy.yaml` 与 [接口说明](docs/package_runtime.md#external-components)。
 
 支持 `module.Class`、`module:Class`、`/absolute/file.py:Class`，以及包 entry points 注册的 `@policy/name`、`@dataset/name` 等。`vla.register()` 仅作用于当前进程；跨环境使用模块 / 文件引用或安装包的 entry points，并将包加入 runtime requirements。
 
@@ -295,15 +295,7 @@ vlastudio train -p act --runtime current
 
 原演示和源码使用说明保留在 [README.legacy.md](README.legacy.md)。其中的旧环境安装说明是历史参考；旧完整依赖在 `requirements-legacy.txt`，当前根目录的 `uv sync` 仅安装轻量包依赖。
 
-## 验证与排错
-
-```bash
-python -m pip install -e ".[dev]"
-python -m pytest tests/packaging -q
-python tests/gpu/run_smoke.py --cache-dir /scratch/vlastudio --output ./gpu-checks mlp act train_mlp openvla openpi
-```
-
-GPU 检查使用合成输入验证前向、反向、优化器更新及推理。OpenPI 使用随机权重，OpenVLA 使用缩小架构，不代表正式预训练权重的机器人任务成功率。结果见 [验证报告](docs/package_validation.md)。Python API 的跨进程训练 / 评估测试使用测试专用入口，其指标不代表真实仿真成绩。
+## 排错
 
 - 缺少运行环境声明：添加 `runtime` 或完整 manifest，或使用已配置好的 `runtime="current"`。
 - 首次安装慢：查看下载日志、缓存盘容量和网络；重复相同环境会复用。
