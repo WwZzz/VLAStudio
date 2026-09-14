@@ -46,7 +46,8 @@ export VLASTUDIO_PLUGIN_PATH=/my/project
 
 Cache root precedence: `--cache-dir`, `VLASTUDIO_CACHE_DIR`, legacy `ILSTD_CACHE`,
 user settings, platform user cache. `settings.json` in the platform VLAStudio config directory may set `cache_dir`; `VLASTUDIO_SETTINGS` can point to a different settings file. Within it are `envs`, `apps`, `uv`, `python`, `data`, `models`.
-`--model-cache-dir` overrides HF_HOME; otherwise existing HF_HOME/TORCH_HOME are respected.
+`--model-cache-dir` overrides HF_HOME; otherwise existing HF_HOME/TORCH_HOME are respected. OpenPI assets default to
+`models/openpi` under the cache root, with `OPENPI_DATA_HOME` respected when set.
 Explicit dataset cache paths in task configs retain their existing behavior.
 Checkpoint outputs are not cache files and are never cleaned by the runtime manager.
 
@@ -130,7 +131,7 @@ custom datasets and devices should be declared here as well.
 To reproduce exact transitive dependencies on another host of the same platform,
 copy `envs/<key>/requirements.lock` to a project and use `runtime.lockfile` (relative
 to the manifest/config). It must include PyYAML, platformdirs and filelock.
-Built-in platform locks are shipped for Windows x86-64 ACT/MLP and Linux x86-64 OpenPI/OpenVLA. For other recipes without a supplied lock, first preparation resolves and saves a lock locally;
+Built-in platform locks are shipped for Windows/Linux x86-64 ACT/MLP and Linux x86-64 OpenPI/OpenVLA. For other recipes without a supplied lock, first preparation resolves and saves a lock locally;
 fresh hosts may resolve newer transitive dependencies. Check the supplied lock into
 your project for reproducibility. Use immutable versions/revisions for plugins.
 
@@ -182,4 +183,44 @@ From a checkout, the real CPU smoke example is:
 
 ```sh
 vlastudio train -p examples/extensions/policy_mlp.yaml -t examples/extensions/task_mlp.yaml -c examples/extensions/training_mlp.yaml -o /tmp/my-checkpoints
+```
+
+
+## GPU integration checks
+
+Install the wheel, then run from the source distribution or a checkout:
+
+```sh
+python tests/gpu/run_smoke.py --cache-dir /scratch/vlastudio --output /scratch/gpu-checks mlp act train_mlp openvla openpi
+```
+
+Each case uses a managed worker with the corresponding policy environment. Tests
+assert CUDA execution, finite loss/gradients, an actual optimizer update, and GPU
+inference, and record peak allocated memory. They use synthetic inputs: OpenPI
+uses randomly initialized weights; OpenVLA uses a reduced architecture and a locally
+saved checkpoint. These checks do not establish pretrained 7B checkpoint quality
+or task success rates. Run cases sequentially to limit peak GPU memory.
+
+For an installation mirror, set `UV_DEFAULT_INDEX` before invoking the launcher.
+`UV_CACHE_DIR` and `UV_PYTHON_INSTALL_DIR` can select existing shared download and
+interpreter caches; otherwise both live under the selected VLAStudio cache root.
+TorchInductor and Triton compilation caches also default under that root, with
+`TORCHINDUCTOR_CACHE_DIR` and `TRITON_CACHE_DIR` overrides respected.
+`UV_LOCK_TIMEOUT` defaults to 3600 seconds so another environment can finish a
+large CUDA wheel download before the cache lock expires.
+
+
+OpenVLA's default environment covers its PyTorch model and VLAStudio data path.
+Its optional RLDS pipeline is lazy-loaded. For that dataset path, declare the
+following requirements in the dataset's runtime (Python 3.10):
+
+```yaml
+runtime:
+  python: "3.10"
+  requirements:
+    - tensorflow==2.15.0
+    - tf-keras==2.15.0
+    - tensorflow-datasets==4.9.9
+    - tensorflow-graphics==2021.12.3
+    - dlimp @ git+https://github.com/kvablack/dlimp.git@5edaa4691567873d495633f2708982b42edf1972
 ```

@@ -24,6 +24,7 @@ def load_model(args):
             state_dim=getattr(args, 'state_dim', 14),
             action_dim=getattr(args, 'action_dim', 14),
             camera_names=getattr(args, 'camera_names', ['primary']),
+            pretrained_weight_path=getattr(args, 'pretrained_weight_path', 'openvla/openvla-7b'),
         )
         model = OpenPolicy(config)
         if config.training_mode == "lora":

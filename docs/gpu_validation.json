@@ -1,0 +1,75 @@
+{
+  "date": "2026-09-14",
+  "platform": "Linux x86_64",
+  "driver": "550.163.01",
+  "results": {
+    "train_mlp": {
+      "steps": 2,
+      "checkpoint": "GPU checkpoints with spaces",
+      "case": "train_mlp",
+      "torch": "2.4.0+cu121",
+      "cuda": "12.1",
+      "device": "NVIDIA GeForce RTX 4090",
+      "peak_memory_bytes": 18098176,
+      "passed": true
+    },
+    "openpi": {
+      "loss": 3.0920119285583496,
+      "shape": [
+        1,
+        2,
+        32
+      ],
+      "weights": "random initialization",
+      "case": "openpi",
+      "torch": "2.7.1+cu126",
+      "cuda": "12.6",
+      "device": "NVIDIA GeForce RTX 4090",
+      "peak_memory_bytes": 7412998656,
+      "passed": true
+    },
+    "act": {
+      "loss": 94.30435180664062,
+      "shape": [
+        2,
+        2,
+        2
+      ],
+      "case": "act",
+      "torch": "2.4.0+cu121",
+      "cuda": "12.1",
+      "device": "NVIDIA GeForce RTX 4090",
+      "peak_memory_bytes": 249705472,
+      "passed": true
+    },
+    "openvla": {
+      "loss": 10.593697547912598,
+      "shape": [
+        1,
+        1,
+        2
+      ],
+      "weights": "random initialization; reduced architecture; not a 7B checkpoint",
+      "case": "openvla",
+      "torch": "2.4.0+cu121",
+      "cuda": "12.1",
+      "device": "NVIDIA GeForce RTX 4090",
+      "peak_memory_bytes": 155781632,
+      "passed": true
+    },
+    "mlp": {
+      "loss": 0.33670657873153687,
+      "shape": [
+        2,
+        1,
+        2
+      ],
+      "case": "mlp",
+      "torch": "2.4.0+cu121",
+      "cuda": "12.1",
+      "device": "NVIDIA GeForce RTX 4090",
+      "peak_memory_bytes": 18096128,
+      "passed": true
+    }
+  }
+}

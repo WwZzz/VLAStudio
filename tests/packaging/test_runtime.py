@@ -216,3 +216,85 @@ if __name__ == '__main__':
 """.replace("REPLACE", repr(str(module) + ":Value")))
     result = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, timeout=40)
     assert result.returncode == 0, result.stderr
+
+
+def test_runtime_download_cache_overrides(tmp_path, monkeypatch):
+    from vlastudio.paths import runtime_env
+    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path / "shared-wheels"))
+    monkeypatch.setenv("UV_PYTHON_INSTALL_DIR", str(tmp_path / "interpreters"))
+    monkeypatch.delenv("UV_LOCK_TIMEOUT", raising=False)
+    env = runtime_env(tmp_path / "vlastudio")
+    assert env["UV_CACHE_DIR"] == str(tmp_path / "shared-wheels")
+    assert env["UV_PYTHON_INSTALL_DIR"] == str(tmp_path / "interpreters")
+    assert env["UV_LOCK_TIMEOUT"] == "3600"
+    monkeypatch.setenv("UV_LOCK_TIMEOUT", "7200")
+    assert runtime_env(tmp_path)["UV_LOCK_TIMEOUT"] == "7200"
+
+
+def test_prepare_recovers_interrupted_install(tmp_path, monkeypatch):
+    import vlastudio.runtime as runtime
+    calls = []
+    fail = [True]
+    def fake_run(command, env):
+        calls.append(command)
+        if command[1] == "venv":
+            assert "--allow-existing" in command
+            root = Path(command[-1])
+            python = root / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+            python.parent.mkdir(parents=True, exist_ok=True)
+            python.touch()
+        elif "compile" in command:
+            Path(command[command.index("--output-file") + 1]).write_text("")
+        elif "sync" in command and fail[0]:
+            fail[0] = False
+            raise RuntimeError("interrupted download")
+    monkeypatch.setattr(runtime, "uv_command", lambda: ["uv"])
+    monkeypatch.setattr(runtime, "run", fake_run)
+    profile = {"python": "3.10", "requirements": []}
+    with pytest.raises(RuntimeError, match="interrupted download"):
+        runtime.prepare(profile, tmp_path, {})
+    assert not list(tmp_path.glob("envs/*/.ready"))
+    python = runtime.prepare(profile, tmp_path, {})
+    assert python.is_file()
+    assert len(list(tmp_path.glob("envs/*/.ready"))) == 1
+    count = len(calls)
+    assert runtime.prepare(profile, tmp_path, {}, offline=True) == python
+    assert len(calls) == count
+
+
+@pytest.mark.parametrize("name", ["openpi", "openvla", "torch310"])
+def test_builtin_lock_preserves_direct_pins(name):
+    from vlastudio.profiles import BUILTINS
+    import vlastudio.profiles as profiles
+    lock = (Path(profiles.__file__).parent / "locks" / f"{name}-linux-x86_64.txt").read_text()
+    pins = {line.lower().replace("_", "-") for line in lock.splitlines()}
+    module = "mlp" if name == "torch310" else name
+    for requirement in BUILTINS["policy." + module]["requirements"]:
+        if "==" in requirement:
+            assert requirement.lower().replace("_", "-") in pins
+
+
+def test_openvla_factory_preserves_custom_pretrained_path():
+    import ast
+    from types import SimpleNamespace
+    from vlastudio.paths import legacy_root
+    source = (legacy_root() / "policy/openvla/__init__.py").read_text(encoding="utf-8")
+    function = next(n for n in ast.parse(source).body if isinstance(n, ast.FunctionDef) and n.name == "load_model")
+    class Model:
+        def __init__(self, config):
+            self.config = config
+            self.tokenizer = self.processor = None
+    namespace = {"OpenConfig": SimpleNamespace, "OpenPolicy": Model}
+    exec(compile(ast.Module(body=[function], type_ignores=[]), "factory", "exec"), namespace)
+    result = namespace["load_model"](SimpleNamespace(is_training=True, training_mode="full",
+                                                    pretrained_weight_path="/custom/weights"))
+    assert result["model"].config.pretrained_weight_path == "/custom/weights"
+
+
+def test_openvla_tokenizer_package_does_not_import_rlds():
+    import runpy
+    from vlastudio.paths import legacy_root
+    source = legacy_root() / "policy/openvla/prismatic/vla/__init__.py"
+    module = runpy.run_path(str(source))
+    assert callable(module["__getattr__"])
+    assert "get_vla_dataset_and_collator" not in module

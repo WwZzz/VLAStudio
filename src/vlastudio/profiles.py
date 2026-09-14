@@ -100,12 +100,12 @@ BUILTINS["policy.openpi"] = {
         "openpi @ " + _OPENPI_URL,
         "openpi-client @ " + _OPENPI_URL + "#subdirectory=packages/openpi-client",
         "lerobot @ git+https://github.com/huggingface/lerobot.git@0cf864870cf29f4738d3ade893e6fd13fbd7cdb5",
-        "peft==0.17.1", "rich==14.0.0", "draccus==0.10.0", "tyro==1.0.3",
+        "peft==0.17.1", "rich==14.0.0", "draccus==0.10.0", "tyro==1.0.3", "pytest==8.3.5", "chex==0.1.89",
     ],
     "overrides": ["ml-dtypes==0.4.1", "tensorstore==0.1.74"],
     "overlays": [{"source_module": "openpi", "source": "models_pytorch/transformers_replace", "target_module": "transformers"}],
 }
 BUILTINS["policy.openvla"] = {
     "python": "3.10", "platforms": ["linux"],
-    "requirements": TORCH + ["peft==0.13.2", "sentencepiece==0.2.0", "draccus==0.10.0", "rich==13.9.4", "tensorflow==2.15.0", "tf-keras==2.15.0", "tensorflow-datasets==4.9.9", "tensorflow-graphics==2021.12.3", "tianshou==0.2.0", "diffusers==0.35.1", "dlimp @ git+https://github.com/kvablack/dlimp.git@5edaa4691567873d495633f2708982b42edf1972"],
+    "requirements": [r for r in TORCH if not r.startswith(("timm==", "transformers=="))] + ["timm==0.9.16", "transformers==4.40.1", "tokenizers==0.19.1", "peft==0.13.2", "sentencepiece==0.2.0", "draccus==0.10.0", "rich==13.9.4"],
 }

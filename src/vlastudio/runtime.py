@@ -80,7 +80,8 @@ def prepare(profile, cache, env, offline=False):
             raise RuntimeError(f"Environment {key} is not prepared. Run prepare online first.")
         print(f"Preparing environment {key} (Python {profile['python']})", flush=True)
         uv = uv_command()
-        run([*uv, "venv", "--python", profile["python"], target], env)
+        # An interrupted download leaves a valid but incomplete environment behind.
+        run([*uv, "venv", "--allow-existing", "--python", profile["python"], target], env)
         requirements = target / "requirements.in"
         requirements.write_text("\n".join(CORE + profile.get("requirements", [])) + "\n", encoding="utf-8")
         lock = target / "requirements.lock"

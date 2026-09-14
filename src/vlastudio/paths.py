@@ -28,8 +28,10 @@ def runtime_env(cache, model_cache=None):
     env = os.environ.copy()
     env["VLASTUDIO_CACHE_DIR"] = str(cache)
     env["ILSTD_CACHE"] = str(cache / "data")
-    env["UV_CACHE_DIR"] = str(cache / "uv")
-    env["UV_PYTHON_INSTALL_DIR"] = str(cache / "python")
+    env.setdefault("UV_CACHE_DIR", str(cache / "uv"))
+    env.setdefault("UV_PYTHON_INSTALL_DIR", str(cache / "python"))
+    # CUDA wheels can take longer than uv's default cache-lock timeout to download.
+    env.setdefault("UV_LOCK_TIMEOUT", "3600")
     env.setdefault("GIT_TERMINAL_PROMPT", "0")
     env.setdefault("GIT_LFS_SKIP_SMUDGE", "1")
     if model_cache:
@@ -37,4 +39,7 @@ def runtime_env(cache, model_cache=None):
     else:
         env.setdefault("HF_HOME", str(cache / "models" / "huggingface"))
     env.setdefault("TORCH_HOME", str(cache / "models" / "torch"))
+    env.setdefault("OPENPI_DATA_HOME", str(cache / "models" / "openpi"))
+    env.setdefault("TORCHINDUCTOR_CACHE_DIR", str(cache / "torchinductor"))
+    env.setdefault("TRITON_CACHE_DIR", str(cache / "triton"))
     return env

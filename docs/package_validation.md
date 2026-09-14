@@ -1,34 +1,69 @@
-# Packaging validation
+# Packaging and GPU validation
 
 Validation date: 2026-09-14. Branch: `codex/package-runtime-isolation`.
 Base: `db79c4c12c4858e310a6990c5c4c9f4b4d76f381` (main, PR #39).
 
-## Verified locally
+## Packaging and extension contracts
 
-- 24 packaging and extension contract tests passed on Windows, including actual
-  multiprocessing spawn with an external file-based component.
-- Wheel and source distribution built successfully. The wheel contains the legacy
-  implementation inside `vlastudio/_legacy`, without generic top-level packages.
-- Installed the wheel into a clean Python 3.11 environment; importing the public
-  package does not load torch or create policy environments.
-- Managed Python 3.10 ACT/MLP dependencies installed successfully. A real MLP
-  training run completed two CPU steps using an external dataset and YAML configs,
-  launched from outside the source tree through the installed wheel. Checkpoints
-  were saved to a user-selected directory containing spaces.
-- A dependency-free custom task ran through its managed Python 3.11 entrypoint,
-  including offline reuse. A custom device ran start and close successfully.
-- Linux OpenPI (Python 3.11, glibc >= 2.31) and OpenVLA (Python 3.10) dependency
-  resolution completed. Their resolved locks are included, along with the Windows
-  ACT/MLP lock. OpenPI's transformer overlay is declared in its runtime profile.
+31 local tests pass, including file-based extensions across multiprocessing spawn,
+config/argument compatibility, cache overrides, dependency-lock consistency,
+interrupted-install recovery, and custom OpenVLA pretrained checkpoint paths.
+Wheel and source distributions build. The wheel keeps legacy implementations in
+`vlastudio/_legacy` and does not install generic top-level `policy`/`utils` packages.
+The lightweight public import does not import torch or create environments.
 
-## Remaining integration coverage
+Windows wheel installation, two-step CPU training, custom dataset/config loading,
+custom device start/close, custom runtime entrypoints, and offline environment reuse
+were also verified. GPU tests use the installed wheel from outside the source tree.
 
-OpenPI/OpenVLA GPU installation, model execution, hardware SDKs, physical robots,
-and simulation backends have not been validated here. Linux dependency resolution
-is not a GPU training test. The added Windows/Linux CI workflow has not yet run.
-Unsupported policies require an explicit runtime manifest or an existing environment.
-A managed Python `Policy.load().predict()` proxy is outside this first version;
-use task dispatch or the existing policy-server clients.
+## GPU execution
 
-This is a development package, not a PyPI release. Build artifacts can be installed
-with `pip install /path/to/vlastudio-0.2.0.dev0-py3-none-any.whl`.
+Host: QZ Linux, RTX 4090 (49,140 MiB reported), NVIDIA driver 550.163.01,
+glibc 2.35. Each model runs in its managed environment, with no host ML environment
+on the worker import path. See `gpu_validation.json` for measured results.
+
+| Check | Torch / CUDA | Peak allocated MiB | Result |
+| --- | --- | ---: | --- |
+| MLP train/inference | 2.4.0+cu121 / 12.1 | 17.3 | Pass |
+| ACT train/inference | 2.4.0+cu121 / 12.1 | 238.1 | Pass |
+| Original train.py, two GPU steps | 2.4.0+cu121 / 12.1 | 17.3 | Pass |
+| OpenVLA reduced model, checkpoint load/train/inference | 2.4.0+cu121 / 12.1 | 148.6 | Pass |
+| OpenPI full architecture, LoRA step/compiled inference | 2.7.1+cu126 / 12.6 | 7069.6 | Pass |
+
+All model checks assert CUDA execution, finite loss/gradients, an optimizer update,
+and finite inference output. The MLP CLI check executes the original `train.py`
+for two GPU steps with external YAML/dataset files and saves checkpoints to a
+user-selected directory containing spaces.
+
+OpenVLA uses a small randomly initialized architecture, a synthetic tokenizer,
+and a local checkpoint, including the real factory and `select_action` path.
+OpenPI uses the 3.5B-parameter architecture with random weights and rank-2 LoRA,
+batch size 1, action horizon 2, token length 8, and one compiled denoising step. These are execution
+checks, not pretrained model quality or robotics task-success evaluations.
+
+## Fixes found through integration
+
+- Preserve incomplete environments on retry and mark readiness only after success.
+- Increase uv cache-lock waiting for large CUDA downloads; respect download-cache
+  overrides and route TorchInductor, Triton and OpenPI asset caches under the cache root.
+- Match OpenVLA's required timm/transformers/tokenizers versions, preserve its custom
+  pretrained path, and lazy-load the optional RLDS data pipeline.
+- Declare pytest and chex, which the pinned OpenPI model/tokenizer import at runtime.
+- Ship the validated Linux ACT/MLP lock alongside the other platform locks.
+
+The QZ default download route was slow. Official wheel bytes were fetched through
+an installation mirror and verified against PyPI SHA-256 metadata before uv
+installed the locked dependencies. Validation caches were relocated when the shared
+HDD quota filled; no user datasets or working checkouts were modified.
+
+## Remaining coverage
+
+Pretrained OpenVLA-7B/OpenPI checkpoint quality, real robot/device SDKs, multi-GPU
+training, Windows GPU execution, RLDS ingestion, and simulation backends are not
+covered by these checks. Unsupported policies still require a runtime manifest or
+an existing environment. A managed `Policy.load().predict()` Python proxy is outside
+this first version; use task dispatch or existing policy-server clients.
+
+This is a development package, not a PyPI release. Install the built wheel or the
+branch to try it. Reproduction instructions are in `package_runtime.md` and
+`tests/gpu/run_smoke.py`.
