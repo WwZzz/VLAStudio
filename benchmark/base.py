@@ -271,7 +271,6 @@ class MetaPolicy:
             Chunk consumption/truncation is delegated to the action_manager.
         """
         # Pick the state representation that matches training ctrl_space.
-        # Alicia (and others) may publish state_joint + state_ee; default `state`
         # is usually joints, which would break EE-conditioned policies.
         cs = str(self.ctrl_space).lower()
         state_src = "state"
