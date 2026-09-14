@@ -33,6 +33,15 @@ Observation space: {"qpos": Concat[ left_arm_qpos (6),         # absolute joint 
                                     right_gripper_qvel (1)]     # normalized gripper velocity (pos: opening, neg: closing)
                     "images": {"main": (480x640x3)}        # h, w, c, dtype='uint8'
 """
+import os
+import sys
+
+# Configure offscreen rendering before dm_control or MuJoCo is imported.
+if (sys.platform.startswith("linux")
+        and not os.environ.get("DISPLAY")
+        and not os.environ.get("WAYLAND_DISPLAY")):
+    os.environ.setdefault("MUJOCO_GL", "egl")
+
 # Removed problematic numpy import that causes compatibility issues
 from vlastudio.benchmark.base import MetaEnv, MetaAction, MetaObs, MetaPolicy
 from .constants import SIM_TASK_CONFIGS
