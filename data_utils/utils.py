@@ -371,15 +371,13 @@ def _import_class_from_path(class_path: str):
     Returns:
         The imported class
     """
-    if '.' not in class_path:
+    if '.' not in class_path and ':' not in class_path and not class_path.startswith('@'):
         # If no module path, assume it's in data_utils.datasets
         class_path = f'data_utils.datasets.{class_path}'
     
-    module_path, class_name = class_path.rsplit('.', 1)
-    
+    from utils.extensions import resolve
     try:
-        module = importlib.import_module(module_path)
-        return getattr(module, class_name)
+        return resolve(class_path, kind="dataset")
     except (ImportError, AttributeError) as e:
         raise ImportError(f"Failed to import {class_path}: {e}")
 

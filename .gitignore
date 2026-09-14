@@ -30,7 +30,6 @@ gyx/*
 wyb/*
 num2words/
 .venv/
-uv.lock
 configs/policy/*gc*
 configs/action_manager/so101*
 benchmark/simplerenv/ManiSkill2_real2sim/*
@@ -39,3 +38,10 @@ policy/*pose*
 policy/*nostate*
 *bilora*
 configs/task/local/
+
+# Local packaging validation environments
+.runtime-test/
+.wheel-test/
+.sdist-test/
+.packaging-outside/
+dist/

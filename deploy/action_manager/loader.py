@@ -54,18 +54,8 @@ def _load_class_from_path(type_path: str):
     Returns:
         The class object
     """
-    parts = type_path.rsplit('.', 1)
-    if len(parts) != 2:
-        raise ValueError(f"Invalid type path: {type_path}. Expected format: 'module.path.ClassName'")
-    
-    module_path, class_name = parts
-    try:
-        module = importlib.import_module(module_path)
-        return getattr(module, class_name)
-    except ImportError as e:
-        raise ImportError(f"Failed to import module '{module_path}': {e}")
-    except AttributeError as e:
-        raise AttributeError(f"Class '{class_name}' not found in module '{module_path}': {e}")
+    from utils.extensions import resolve
+    return resolve(type_path, kind="action_manager")
 
 
 def load_action_manager(manager_name_or_path: str = None, config: Dict[str, Any] = None):

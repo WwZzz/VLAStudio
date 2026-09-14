@@ -1,3 +1,5 @@
+> Packaging development: see [managed runtimes and extension interfaces](docs/package_runtime.md).
+
 <div align="center">
   <img src='https://raw.githubusercontent.com/WwZzz/myfigs/refs/heads/master/vlastudio.png'  width="200"/>
 <h1> VLAStudio: A Modular Learning Playground for Robotics

@@ -7,6 +7,7 @@ and dynamically import and instantiate model modules.
 
 import yaml
 import importlib
+from utils.extensions import resolve
 import os
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
@@ -87,7 +88,7 @@ class PolicyLoader:
             return self._loaded_modules[policy_config.module_path]
         
         try:
-            module = importlib.import_module(policy_config.module_path)
+            module = resolve(policy_config.module_path, kind="policy", module=True)
             self._loaded_modules[policy_config.module_path] = module
             return module
         except ImportError as e:

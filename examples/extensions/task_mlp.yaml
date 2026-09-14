@@ -1,0 +1,10 @@
+datasets:
+- args: {}
+  name: toy
+  type: examples/extensions/toy_dataset.py:ToyDataset
+meta:
+  action_dim: 2
+  action_normalize: identity
+  state_dim: 2
+  state_normalize: identity
+name: toy

@@ -1,0 +1,13 @@
+args:
+  action_dim: 2
+  chunk_size: 1
+  hidden_dim: 4
+  num_layers: 2
+  state_dim: 2
+  use_camera: false
+config_class: MLPPolicyConfig
+data_collator: get_data_collator
+data_processor: get_data_processor
+model_class: MLPPolicy
+name: toy_mlp
+type: policy.mlp

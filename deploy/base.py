@@ -4,6 +4,7 @@ from deploy.utils import RateLimiter
 from deploy.shm_utils import SharedMemoryChannel, _fix_resource_tracker
 from loguru import logger
 import importlib
+from utils.extensions import resolve
 import numpy as np
 import signal
 import sys
@@ -19,11 +20,7 @@ def start_device(device_config:dict):
     _fix_resource_tracker()
     
     device_type = device_config['type']
-    parts = device_type.rsplit('.', 1)
-    device_module_name = parts[0]
-    device_class_name = parts[1]
-    device_module = importlib.import_module(device_module_name)
-    device_class = getattr(device_module, device_class_name)
+    device_class = resolve(device_type)
     device = device_class(**device_config['args'])
     
     # Setup signal handlers for graceful shutdown
@@ -183,11 +180,7 @@ def is_robot_config(config:dict) -> bool:
     Check if the config is a robot config
     """
 
-    parts = config['type'].rsplit('.', 1)
-    device_module_name = parts[0]
-    device_class_name = parts[1]
-    device_module = importlib.import_module(device_module_name)
-    device_class = getattr(device_module, device_class_name)
+    device_class = resolve(config['type'])
     from deploy.robot.base import BaseRobot
     return issubclass(device_class, BaseRobot)
 
@@ -195,19 +188,13 @@ def is_camera_config(config:dict) -> bool:
     """
     Check if the config is a camera config
     """
-    parts = config['type'].rsplit('.', 1)
-    device_module_name = parts[0]
-    device_class_name = parts[1]
-    device_module = importlib.import_module(device_module_name)
-    device_class = getattr(device_module, device_class_name)
+    device_class = resolve(config['type'])
     from deploy.sensor.camera.opencv_camera import OpenCVCamera
     return issubclass(device_class, OpenCVCamera)
 
 def _resolve_device_class(config: dict):
     """Import and return the device class from a config dict."""
-    parts = config['type'].rsplit('.', 1)
-    mod = importlib.import_module(parts[0])
-    return getattr(mod, parts[1])
+    return resolve(config['type'])
 
 
 def _get_device_shm_name(config: dict) -> str:
@@ -341,10 +328,6 @@ def is_teleop_config(config:dict) -> bool:
     """
     Check if the config is a teleop config
     """
-    parts = config['type'].rsplit('.', 1)
-    device_module_name = parts[0]
-    device_class_name = parts[1]
-    device_module = importlib.import_module(device_module_name)
-    device_class = getattr(device_module, device_class_name)
+    device_class = resolve(config['type'])
     from deploy.teleoperator.base import BaseTeleopDevice
     return issubclass(device_class, BaseTeleopDevice)

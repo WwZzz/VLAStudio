@@ -1,7 +1,6 @@
 import numpy as np
 from dataclasses import asdict
 import torch
-from tianshou.env import SubprocVectorEnv
 import time
 import os
 from PIL import Image, ImageDraw, ImageFont

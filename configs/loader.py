@@ -101,7 +101,7 @@ class ConfigLoader:
                 'manager_name', 'class', 'model_args', 'pretrained_config',
                 'config_class', 'model_class', 'data_processor',
                 'data_collator', 'trainer_class', 'datasets', 'meta', 'envs',
-                'visualizer',
+                'visualizer', 'runtime',
             }
             args_dict = {k: v for k, v in cfg.items() if k not in reserved_keys}
             if args_dict:
@@ -118,7 +118,7 @@ class ConfigLoader:
             'datasets',
             'meta',
             'envs',
-            'visualizer',
+            'visualizer', 'runtime',
         ]
         for field in special_fields:
             if field in cfg:

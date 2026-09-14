@@ -7,21 +7,6 @@ Note: The subpackage `deploy.remote` has been renamed to `deploy.comm`.
       Imports here are kept for backward compatibility.
 """
 
-# Import from the new location (deploy.comm)
-from .comm import (
-    PolicyServer,
-    PolicyClient,
-    FastAPIPolicyServer,
-    FastAPIPolicyClient,
-    parse_server_address,
-    is_server_address,
-    is_http_address,
-    create_server,
-    create_client,
-    BaseServer,
-    BaseClient,
-)
-
 __all__ = [
     # TCP
     "PolicyServer",
@@ -40,3 +25,13 @@ __all__ = [
     "BaseServer",
     "BaseClient",
 ]
+
+
+
+def __getattr__(name):
+    if name not in __all__:
+        raise AttributeError(name)
+    from . import comm
+    value = getattr(comm, name)
+    globals()[name] = value
+    return value

@@ -9,6 +9,7 @@ from the checkpoint's config.json file.
 import json
 import os
 import importlib
+from utils.extensions import resolve
 from pathlib import Path
 from typing import Dict, Any, Optional, Union
 import torch
@@ -51,7 +52,9 @@ class DirectPolicyLoader:
                 policy_module = metadata.get('policy_module')
                 if policy_module:
                     # Extract policy name from module path (e.g., 'policy.act' -> 'act')
-                    return policy_module.split('.')[-1]
+                    if policy_module.startswith('policy.') and policy_module.count('.') == 1:
+                        return policy_module.split('.')[-1]
+                    return policy_module if any(c in policy_module for c in '.:@') else policy_module + ':'
             except Exception as e:
                 print(f"Warning: Failed to load policy metadata: {e}")
 
@@ -66,9 +69,9 @@ class DirectPolicyLoader:
         if policy_type in self._loaded_modules:
             return self._loaded_modules[policy_type]
         
-        module_path = f"policy.{policy_type}"
+        module_path = policy_type if any(c in policy_type for c in ".:@") else f"policy.{policy_type}"
         try:
-            module = importlib.import_module(module_path)
+            module = resolve(module_path, kind="policy", module=True)
             self._loaded_modules[policy_type] = module
             return module
         except ImportError as e:

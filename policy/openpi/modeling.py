@@ -1,8 +1,6 @@
 import openpi.models.pi0_config
 import openpi.models_pytorch.pi0_pytorch
 import openpi.shared.normalize as _normalize
-import openpi.training.config as _config
-import openpi.training.data_loader as _data
 import openpi.models.model as _model
 from transformers.modeling_utils import PreTrainedModel
 from transformers.configuration_utils import PretrainedConfig

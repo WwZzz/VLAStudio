@@ -105,8 +105,9 @@ def main(args):
     metadata_path = os.path.join(training_args.output_dir, 'policy_metadata.json')
     with open(metadata_path, 'w') as f:
         json.dump({
-                'policy_module': policy_config['module_path'],
+                'policy_module': policy_config.get('module_path') or policy_config['type'],
                 'policy_name': policy_config['name'],
+                **({'runtime': json.loads(os.environ['VLASTUDIO_RUNTIME_JSON'])} if os.environ.get('VLASTUDIO_RUNTIME_JSON') else {}),
             }, f, indent=2)
     
     # Load model 

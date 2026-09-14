@@ -30,20 +30,20 @@ from .base import BaseServer, BaseClient
 # ---------------------------------------------------------------------------
 # TCP + pickle implementation (default)
 # ---------------------------------------------------------------------------
-from .server import PolicyServer
-from .client import PolicyClient
+
+
 
 # ---------------------------------------------------------------------------
 # FastAPI HTTP/JSON implementation
 # ---------------------------------------------------------------------------
-from .fastapi.server import FastAPIPolicyServer
-from .fastapi.client import FastAPIPolicyClient
+
+
 
 # ---------------------------------------------------------------------------
 # Shared Memory implementation
 # ---------------------------------------------------------------------------
-from .shm.server import SHMPolicyServer
-from .shm.client import SHMPolicyClient
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ def create_client(
     - host:port        -> PolicyClient (TCP)
     """
     if is_http_address(address):
-        return FastAPIPolicyClient(
+        return __getattr__("FastAPIPolicyClient")(
             base_url=address,
             ctrl_space=ctrl_space,
             ctrl_type=ctrl_type,
@@ -151,7 +151,7 @@ def create_client(
         )
     elif is_shm_address(address):
         shm_name = parse_shm_address(address)
-        return SHMPolicyClient(
+        return __getattr__("SHMPolicyClient")(
             shm_name=shm_name,
             ctrl_space=ctrl_space,
             ctrl_type=ctrl_type,
@@ -159,7 +159,7 @@ def create_client(
         )
     else:
         host, port = parse_server_address(address)
-        return PolicyClient(
+        return __getattr__("PolicyClient")(
             host=host,
             port=port,
             ctrl_space=ctrl_space,
@@ -253,7 +253,7 @@ def create_server(
                     "    export ILSTD_SSL_CERTFILE=$(pwd)/cert.pem\n"
                 )
 
-        return FastAPIPolicyServer(
+        return __getattr__("FastAPIPolicyServer")(
             policy,
             host=host,
             port=p,
@@ -264,7 +264,7 @@ def create_server(
     elif is_shm_address(address):
         # Shared memory mode
         shm_name = parse_shm_address(address)
-        return SHMPolicyServer(
+        return __getattr__("SHMPolicyServer")(
             policy,
             shm_name=shm_name,
             batch_wait_ms=batch_wait_ms,
@@ -273,7 +273,7 @@ def create_server(
         # Plain host string -> TCP
         host = address
         p = port if port is not None else 5000
-        return PolicyServer(policy, host=host, port=p)
+        return __getattr__("PolicyServer")(policy, host=host, port=p)
 
 
 __all__ = [
@@ -299,3 +299,16 @@ __all__ = [
     "create_server",
     "create_client",
 ]
+
+
+_TRANSPORTS = {'PolicyServer': '.server', 'PolicyClient': '.client', 'FastAPIPolicyServer': '.fastapi.server', 'FastAPIPolicyClient': '.fastapi.client', 'SHMPolicyServer': '.shm.server', 'SHMPolicyClient': '.shm.client'}
+
+
+def __getattr__(name):
+    """Load only the selected transport and its optional dependencies."""
+    if name not in _TRANSPORTS:
+        raise AttributeError(name)
+    import importlib
+    cls = getattr(importlib.import_module(_TRANSPORTS[name], __name__), name)
+    globals()[name] = cls
+    return cls

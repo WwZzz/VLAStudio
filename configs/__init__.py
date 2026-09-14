@@ -19,7 +19,8 @@ logging.getLogger("robosuite").setLevel(logging.ERROR)
 logging.getLogger("mujoco").setLevel(logging.ERROR)
 logging.getLogger("dm_control").setLevel(logging.ERROR)
 
-ILSTD_CACHE = os.environ.get('ILSTD_CACHE', os.path.join(os.path.expanduser('~'), ".cache/ilstd"))
+_default_cache = os.path.join(os.environ['VLASTUDIO_CACHE_DIR'], 'data') if os.environ.get('VLASTUDIO_CACHE_DIR') else os.path.join(os.path.expanduser('~'), '.cache/ilstd')
+ILSTD_CACHE = os.environ.get('ILSTD_CACHE', _default_cache)
 os.makedirs(ILSTD_CACHE, exist_ok=True)
 
 import torch
