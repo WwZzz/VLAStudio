@@ -170,7 +170,24 @@ class ConfigLoader:
         convert_yaml_string_types(cfg)
         
         # Apply command-line overrides
-        apply_overrides_to_mapping(cfg, self.get_overrides(category), _convert_to_type)
+        overrides = self.get_overrides(category)
+        if isinstance(cfg, list):
+            # Multi-device robot/teleop YAML: --robot.args.foo applies to first dict entry.
+            # Also supports --robot.0.args.foo / --robot.1.args.foo
+            for dotted, raw in overrides.items():
+                if raw is None:
+                    continue
+                keys = dotted.split(".")
+                target = cfg
+                if keys and keys[0].isdigit():
+                    idx = int(keys[0])
+                    if 0 <= idx < len(cfg) and isinstance(cfg[idx], dict):
+                        apply_overrides_to_mapping(cfg[idx], {".".join(keys[1:]): raw}, _convert_to_type)
+                    continue
+                if cfg and isinstance(cfg[0], dict):
+                    apply_overrides_to_mapping(cfg[0], {dotted: raw}, _convert_to_type)
+        else:
+            apply_overrides_to_mapping(cfg, overrides, _convert_to_type)
         
         return cfg, path
 

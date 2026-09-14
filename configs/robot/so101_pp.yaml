@@ -1,0 +1,19 @@
+# SO101++ Follower (parallel gripper) — qpos control
+#
+# Teleop (leader=ttyACM0, follower=ttyACM1):
+#   python collect_data.py \
+#     -r configs/robot/so101_pp.yaml \
+#     -t configs/teleop/so101_pp_leader.yaml \
+#     -o data/so101_pp_teleop \
+#     --no-record-teleop
+
+- type: deploy.robot.so101_pp.So101PP
+  name: so101_pp_follower
+  args:
+    name: so101_pp_follower
+    max_size_mb: 64
+    fps: 100.0
+    com: /dev/ttyACM1
+    robot_id: so101_pp_follower
+    control_mode: qpos
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]

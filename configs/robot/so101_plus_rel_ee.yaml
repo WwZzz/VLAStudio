@@ -1,0 +1,82 @@
+# SO101 Plus — relative EE (rel_ee) + Alicia Piper-style global IK
+#
+# EE frame: wrist flange link `gripper_body` (NOT gripper tip `gripper_finger`).
+# Pair with: configs/teleop/quest3_so101_plus_rel_ee.yaml
+#
+# Example:
+#   python collect_data.py \
+#     -r configs/robot/so101_plus_rel_ee.yaml \
+#     -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
+#     -o data/so101_plus_vr_teleop \
+#     --no-record-teleop
+
+- type: deploy.robot.so101_plus.So101Plus
+  name: so101_plus_rel_ee
+  args:
+    name: so101_plus_rel_ee
+    fps: 100.0
+    control_mode: rel_ee
+    com: /dev/ttyACM1
+    robot_id: so101_plus_follower
+
+    # Wrist flange (URDF link after wrist_roll). Tip would be gripper_finger.
+    ik_end_frame: gripper_body
+    # Same as Alicia: control the raw flange frame (no extra R offset).
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+
+    # Same IK stack as Alicia-D (Piper global). position_only must stay false
+    # or wrist_roll / wrist_yaw will not track VR orientation.
+    ik_eps: 0.01
+    ik_max_iter: 60
+    # Was 0.022 — scipy backend often timed out (iters=0/1) → sticky / jump feel.
+    ik_max_solve_time_s: 0.05
+    # Slightly higher than Alicia default so flange ori pulls wrist_yaw/roll.
+    ik_rotation_weight: 0.3
+    ik_position_only: false
+    # Prefer hardware wrist_yaw / wrist_roll over shoulder_pan for orientation.
+    # Order = URDF IK: [pan, lift, elbow, flex, yaw, roll]
+    ik_joint_reg_weights: [20.0, 20.0, 10.0, 5.0, 0.02, 0.02]
+    ik_regularize_to_warmstart: true
+    # Soft-limit joint steps instead of freeze+reanchor.
+    clip_joint_delta: true
+
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    # Trigger maps to absolute open amount [0,1] (pair with teleop gripper_delta_mode: false)
+    gripper_absolute: true
+
+    joint_smooth_alpha: 0.15
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 5
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    max_joint_delta_deg: 30.0
+
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]
+    debug: false
+    gripper_trace: false
+
+    # go_home: return to pose captured at connect (current qpos), ~4s interpolate
+    home_duration_s: 1.5
+    home_step_sleep: 0.03
+
+    # Pipeline diagnostics: console + data/so101_plus_diag.jsonl
+    diag_log: true
+    diag_print_hz: 5.0
+
+# Uncomment when cameras are available.
+# - type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+#   name: wrist_camera
+#   args:
+#     name: wrist_camera
+#     index_or_path: /dev/v4l/by-id/usb-YOUR_CAMERA-video-index0
+#     width: 640
+#     height: 480
+#     max_size_mb: 10
+#     fps: 30
+#     fourcc: MJPG
+#     bgr_to_rgb: true

@@ -299,9 +299,19 @@ def inference_worker(
                         action_payload["latency_ms"] = latency_ms
                         action_writer.write(action_payload)
 
-                        if inference_count % 50 == 0:
-                            logger.debug(f"[InferenceWorker-{mode_str}] Inference #{inference_count}, "
-                                       f"latency={latency_ms:.1f}ms, chunk_size={len(mact_list)}")
+                        # Surface GPU slowdown (e.g. MX150 thermal) — sync_chunk then
+                        # freezes for seconds between 16-step bursts and looks "broken".
+                        if latency_ms >= 1500.0:
+                            logger.warning(
+                                f"[InferenceWorker-{mode_str}] SLOW inference #{inference_count}: "
+                                f"latency={latency_ms:.0f}ms (chunk={len(mact_list)}). "
+                                f"Likely GPU throttle; publish rate will collapse under sync_chunk."
+                            )
+                        elif inference_count % 50 == 0:
+                            logger.info(
+                                f"[InferenceWorker-{mode_str}] Inference #{inference_count}, "
+                                f"latency={latency_ms:.1f}ms, chunk_size={len(mact_list)}"
+                            )
                 else:
                     time.sleep(0.0001)  # 0.1ms idle sleep
     

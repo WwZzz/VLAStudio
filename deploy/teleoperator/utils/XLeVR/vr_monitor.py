@@ -31,20 +31,75 @@ def setup_xlevr_environment():
     # Set environment variables
     os.environ['PYTHONPATH'] = f"{XLEVR_PATH}:{os.environ.get('PYTHONPATH', '')}"
 
+def _is_usable_lan_ip(ip: str) -> bool:
+    """Skip loopback / link-local / common VPN & proxy fake-IP ranges."""
+    if not ip or ":" in ip:  # skip IPv6 here
+        return False
+    if ip.startswith("127."):
+        return False
+    # Clash / Mihomo fake-ip / TUN (198.18.0.0/15)
+    if ip.startswith("198.18.") or ip.startswith("198.19."):
+        return False
+    # Common VPN / tunnel placeholders seen on this host
+    if ip.startswith("2.0.") or ip.startswith("169.254."):
+        return False
+    return True
+
+
 def get_local_ip():
-    """Get the local IP address of this machine."""
+    """Get a LAN IP the VR headset can actually reach (not VPN/proxy TUN)."""
+    candidates = []
+
+    # 1) Enumerate interface IPs (avoids Mihomo/Clash TUN hijacking UDP to 8.8.8.8)
     try:
-        # Connect to a remote address to determine the local IP
+        import subprocess
+        out = subprocess.check_output(
+            ["ip", "-4", "-o", "addr", "show", "scope", "global"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) < 4:
+                continue
+            iface, cidr = parts[1], parts[3]
+            ip = cidr.split("/", 1)[0]
+            if _is_usable_lan_ip(ip):
+                candidates.append((iface, ip))
+    except Exception:
+        pass
+
+    if candidates:
+        preferred_prefixes = ("wl", "en", "eth", "wlan")
+        for pref in preferred_prefixes:
+            for iface, ip in candidates:
+                if iface.startswith(pref):
+                    return ip
+        for _, ip in candidates:
+            if ip.startswith(("192.168.", "10.")) or any(
+                ip.startswith(f"172.{i}.") for i in range(16, 32)
+            ):
+                return ip
+        return candidates[0][1]
+
+    # 2) Fallback: UDP connect (may return VPN IP under TUN — filtered)
+    try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
-            return s.getsockname()[0]
+            ip = s.getsockname()[0]
+            if _is_usable_lan_ip(ip):
+                return ip
     except Exception:
-        try:
-            # Fallback: get hostname IP
-            return socket.gethostbyname(socket.gethostname())
-        except Exception:
-            # Final fallback
-            return "localhost"
+        pass
+
+    try:
+        ip = socket.gethostbyname(socket.gethostname())
+        if _is_usable_lan_ip(ip):
+            return ip
+    except Exception:
+        pass
+
+    return "localhost"
 
 def import_xlevr_modules():
     """Import xlevr modules"""

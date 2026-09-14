@@ -1,0 +1,15 @@
+# SO101 Plus Leader — drives so101_plus follower via qpos teleop
+#
+# Calibration JSON is created by:
+#   python -m deploy.robot.so101_plus --port /dev/ttyACM0 --id so101_plus_leader --calibrate
+# and lives under: $HF_HOME/lerobot/calibration/robots/so101_plus/
+# (controller defaults to that path; do NOT point at ~/.cache if HF_HOME is set)
+
+type: deploy.teleoperator.so101_plus_leader.So101PlusLeader
+name: so101_plus_leader
+args:
+  name: so101_plus_leader
+  max_size_mb: 1
+  fps: 100.0
+  com: /dev/ttyACM0
+  robot_id: so101_plus_leader

@@ -1,0 +1,67 @@
+# Bimanual SO101 Plus — Quest3 dual-hand relative EE
+#
+# Action: 14D [left_7D, right_7D]
+#   left  = Quest left controller, right = Quest right controller
+# Pair with: configs/teleop/quest3_bi_so101_plus_rel_ee.yaml
+#
+# Example:
+#   bash scripts/bi_so101_plus_vr_tele.sh
+#   # or
+#   python collect_data.py \
+#     -r configs/robot/bi_so101_plus_rel_ee.yaml \
+#     -t configs/teleop/quest3_bi_so101_plus_rel_ee.yaml \
+#     -o data/bi_so101_plus_vr \
+#     --no-record-teleop
+
+- type: deploy.robot.bi_so101_plus.BiSo101Plus
+  name: bi_so101_plus_rel_ee
+  args:
+    name: bi_so101_plus_rel_ee
+    fps: 100.0
+    control_mode: rel_ee
+
+    # Serial ports — left / right MUST use distinct robot_id calibrations.
+    # NEVER point both arms at the same calibration JSON (writes wrong ROM to servos).
+    left_arm_port: /dev/ttyACM0
+    right_arm_port: /dev/ttyACM1
+    left_arm_id: so101_plus_left
+    right_arm_id: so101_plus_right
+
+    ik_end_frame: gripper_body
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+
+    ik_eps: 0.01
+    ik_max_iter: 60
+    ik_max_solve_time_s: 0.05
+    ik_rotation_weight: 0.3
+    ik_position_only: false
+    # URDF IK order: [pan, lift, elbow, flex, yaw, roll]
+    ik_joint_reg_weights: [20.0, 20.0, 10.0, 5.0, 0.02, 0.02]
+    ik_regularize_to_warmstart: true
+    clip_joint_delta: true
+
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    gripper_absolute: true
+
+    joint_smooth_alpha: 0.15
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 5
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    max_joint_delta_deg: 30.0
+
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]
+    # Fixed go_home targets (normalized qpos). Recorded from live arms; not overwritten on start.
+    # Order: [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, wrist_yaw, gripper]
+    left_home_qpos: [-2.10, -98.64, 92.34, 84.73, 1.38, 0.14, 2.20]
+    right_home_qpos: [-9.06, -98.99, 99.73, 68.31, 1.04, -9.47, 1.01]
+    home_duration_s: 1.5
+    home_step_sleep: 0.03
+    debug: false
+    gripper_trace: false
+    diag_log: false

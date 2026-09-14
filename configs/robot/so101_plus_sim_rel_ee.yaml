@@ -1,0 +1,49 @@
+# SO101 Plus MuJoCo simulation — Quest3 relative EE (same teleop as real arm)
+#
+# Usage:
+#   python collect_data.py \
+#     -r configs/robot/so101_plus_sim_rel_ee.yaml \
+#     -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
+#     -o data/so101_plus_sim_vr \
+#     --no-record-teleop
+#
+# Or: bash scripts/so101_plus_sim_vr_tele.sh
+
+type: deploy.robot.so101_plus_sim.So101PlusSimRobot
+name: so101_plus_sim
+args:
+  name: so101_plus_sim
+  max_size_mb: 64
+  fps: 50.0
+  # Bundled scene (floor + frontview). Pass scene_name: empty to use shared scenes/.
+  xml_path: deploy/robot/so101_plus_sim/mujoco_model/scene.xml
+  enable_viewer: true
+  viewer_auto_open: true
+  camera_names: [frontview]
+  camera_width: 640
+  camera_height: 480
+
+  control_mode: rel_ee
+  position_scale: 1.0
+  rotation_scale: 1.0
+  gripper_scale: 1.0
+  gripper_absolute: true
+
+  ik_end_frame: gripper_body
+  ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+  ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+  ik_eps: 0.01
+  ik_max_iter: 60
+  ik_max_solve_time_s: 0.05
+  # Prefer wrist_yaw/roll for orientation (local Piper IK, not Alicia).
+  ik_rotation_weight: 0.3
+  # Prefer wrist_yaw/roll (URDF order) over proximal joints for orientation.
+  ik_joint_reg_weights: [20.0, 20.0, 10.0, 5.0, 0.02, 0.02]
+  ik_regularize_to_warmstart: true
+  max_joint_delta_deg: 30.0
+  # Soft-limit joint steps like real so101_plus (avoid hard freeze on jumps).
+  clip_joint_delta: true
+
+  # Pipeline diagnostics: console + data/so101_plus_sim_diag.jsonl
+  diag_log: true
+  diag_print_hz: 5.0

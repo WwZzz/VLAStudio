@@ -1,0 +1,44 @@
+# Quest3 dual-hand VR — Relative EE for bimanual SO101 Plus
+#
+# Action: [L_xyz, L_rpy, L_grip, R_xyz, R_rpy, R_grip] (14D)
+# Compatible with: configs/robot/bi_so101_plus_rel_ee.yaml
+#
+# Controls (per hand):
+#   Squeeze (side) = unfreeze that arm; release freezes that arm only
+#   Trigger 0~1   = that arm's gripper (inverted: release=closed, press=open)
+#   B (right) or Y (left) = go_home both arms (no squeeze required)
+
+type: deploy.teleoperator.quest3.Quest3Teleop
+name: quest3_teleop
+args:
+  name: quest3_teleop
+  max_size_mb: 1
+  fps: 30.0
+  arm_mode: dual
+  mode: rel_ee
+  # Robot XYZ after calibration_transform: [horiz, horiz, up/down]
+  position_scale: [0.8, 0.8, 1.0]
+  rotation_scale: 1.0
+  connect_timeout: 180.0
+  gripper_default_closed: true
+  # Same invert as single-arm so101_plus VR
+  gripper_invert: true
+  gripper_delta_mode: false
+  gripper_delta_value: 0.25
+  gripper_use_trigger: true
+  gripper_trigger_mode: analog_travel
+  gripper_trigger_analog_scale: 1.0
+  gripper_trigger_analog_deadband: 0.06
+  gripper_a_maps_to_open: false
+  gripper_b_maps_to_close: false
+
+  # Same map as quest3_so101_plus_rel_ee / Alicia (det=+1)
+  calibration_transform:
+    - [0, 0, -1]
+    - [-1, 0, 0]
+    - [0, 1, 0]
+
+  debug: false
+  gripper_trace: false
+  keep_screen_awake: true
+  keep_screen_awake_interval: 5.0

@@ -1,0 +1,66 @@
+# Bimanual SO101++ - Quest3 dual-hand relative EE
+#
+# Action: 14D [left_7D, right_7D]
+#   left  = Quest left controller, right = Quest right controller
+# Pair with: configs/teleop/quest3_bi_so101_plus_rel_ee.yaml
+#
+# The PP arm keeps the same 7D order as SO101 Plus but uses the parallel-gripper
+# backend/calibration from deploy.robot.so101_pp.
+#
+# Example:
+#   bash scripts/bi_so101_pp_vr_tele.sh
+
+- type: deploy.robot.bi_so101_pp.BiSo101PP
+  name: bi_so101_pp_rel_ee
+  args:
+    name: bi_so101_pp_rel_ee
+    fps: 100.0
+    control_mode: rel_ee
+
+    # Serial ports - left / right MUST use distinct robot_id calibrations.
+    # NEVER point both arms at the same calibration JSON.
+    left_arm_port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C120975-if00
+    right_arm_port: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A7C122994-if00
+    left_arm_id: so101_pp_left
+    right_arm_id: so101_pp_right
+
+    # Measured startup/home qpos on 2026-09-05. VR motion is still anchored to
+    # the live measured pose at process start; these values are only a saved home reference.
+    left_home_qpos: [-5.255474, -97.483221, 99.358974, 81.244197, -2.638007, 2.626642, 0.432900]
+    right_home_qpos: [-2.313625, -97.322176, 99.625643, 78.228782, 1.050061, 4.913430, 0.277585]
+
+    ik_end_frame: gripper_body
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+
+    ik_eps: 0.01
+    ik_max_iter: 60
+    ik_max_solve_time_s: 0.05
+    ik_rotation_weight: 0.3
+    ik_position_only: false
+    # URDF IK order: [pan, lift, elbow, flex, yaw, roll]
+    ik_joint_reg_weights: [20.0, 20.0, 10.0, 5.0, 0.02, 0.02]
+    ik_regularize_to_warmstart: true
+    clip_joint_delta: true
+
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    gripper_absolute: true
+
+    joint_smooth_alpha: 0.15
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 5
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    max_joint_delta_deg: 30.0
+
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]
+    # B/Y triggers a slow interpolation to the saved home above; startup never does.
+    home_duration_s: 1.5
+    home_step_sleep: 0.03
+    debug: false
+    gripper_trace: false
+    diag_log: false

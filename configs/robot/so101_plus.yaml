@@ -1,0 +1,43 @@
+# SO101 Plus Follower (single arm) — qpos control
+#
+# Extra joint: wrist_yaw on servo ID 7 (original IDs 1-6 unchanged).
+# qpos / action order (7D):
+#   [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, wrist_yaw, gripper]
+#
+# Teleop example (leader=ttyACM0, follower=ttyACM1):
+#   python collect_data.py \
+#     -r configs/robot/so101_plus.yaml \
+#     -t configs/teleop/so101_plus_leader.yaml \
+#     -o data/so101_plus_teleop \
+#     --no-record-teleop
+
+- type: deploy.robot.so101_plus.So101Plus
+  name: so101_plus_follower
+  args:
+    name: so101_plus_follower
+    max_size_mb: 64
+    fps: 100.0
+    com: /dev/ttyACM1
+    robot_id: so101_plus_follower
+    control_mode: qpos
+    # control_shm_name is auto-filled from --teleop by collect_data.py
+
+    # Joint direction signs (7D, 1=normal, -1=reversed)
+    joint_signs: [1, 1, 1, 1, 1, 1, 1]
+
+    # Optional joint limits in radians (body + wrist_yaw + gripper)
+    # qlimit_min: [-2.1, -3.1, 0.0, -1.375, -1.57, -1.57, -0.15]
+    # qlimit_max: [2.1, 0.0, 3.1, 1.475, 3.1, 1.57, 1.5]
+
+
+# Uncomment when cameras are plugged in /dev paths are correct.
+# - type: deploy.sensor.camera.opencv_camera.OpenCVCamera
+#   name: left_wrist_camera
+#   args:
+#     name: left_wrist_camera
+#     index_or_path: /dev/left_camera
+#     width: 640
+#     height: 480
+#     max_size_mb: 10
+#     fps: 30
+#     fourcc: MJPG

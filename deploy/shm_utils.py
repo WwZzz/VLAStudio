@@ -402,6 +402,8 @@ class SharedMemoryDataSynchronizer:
         self._buffers: Dict[str, deque] = {name: deque(maxlen=buffer_maxlen) for name, _ in shm_channels}
         # Per device: timestamp of last emitted sample (for blocking mode, avoid duplicates)
         self._last_emitted_ts: Dict[str, float] = {name: float("-inf") for name, _ in shm_channels}
+        # Filled by get_synced_frame_blocking for diagnostics
+        self.last_sync_stats: Dict[str, object] = {}
 
     def _get_timestamp(self, data: dict) -> float:
         """Extract timestamp from data. Uses __timestamp__ (writer) or timestamp (legacy)."""
@@ -483,10 +485,15 @@ class SharedMemoryDataSynchronizer:
 
         Returns:
             Dict mapping device name -> data dict, or None if stop_check aborted.
+
+        Side effect:
+            Sets ``self.last_sync_stats`` with wait_ms, wait_loops, wait_counts_ms per device,
+            bottleneck device, and per-device age_ms of the emitted samples.
         """
         wait_start = time.perf_counter()
         wait_count = 0
         last_waiting_for = None
+        wait_counts: Dict[str, int] = {name: 0 for name, _ in self.shm_channels}
         
         while True:
             self.read_and_buffer()
@@ -502,6 +509,7 @@ class SharedMemoryDataSynchronizer:
                 new_ts = [b[0] for b in buf if b[0] > last]
                 if not new_ts:
                     waiting_for = name
+                    wait_counts[name] = wait_counts.get(name, 0) + 1
                     time.sleep(poll_interval_s)
                     break
                 new_ts_per_device[name] = new_ts
@@ -511,12 +519,14 @@ class SharedMemoryDataSynchronizer:
                 ref = max(min(ts_list) for ts_list in new_ts_per_device.values())
 
                 result = {}
+                emitted_ts: Dict[str, float] = {}
                 for name, _ in self.shm_channels:
                     buf = self._buffers[name]
                     last = self._last_emitted_ts[name]
                     candidates = [(b[0], b[1]) for b in buf if b[0] > last]
                     if not candidates:
                         waiting_for = name
+                        wait_counts[name] = wait_counts.get(name, 0) + 1
                         time.sleep(poll_interval_s)
                         break
                     # Pick sample with ts closest to ref, preferring fresher (ts >= ref)
@@ -526,16 +536,45 @@ class SharedMemoryDataSynchronizer:
                     )
                     if abs(best_ts - ref) > self.max_tolerance_s:
                         waiting_for = f"{name}(tolerance)"
+                        base = name.split("(")[0]
+                        wait_counts[base] = wait_counts.get(base, 0) + 1
                         time.sleep(poll_interval_s)
                         break
                     self._last_emitted_ts[name] = best_ts
+                    emitted_ts[name] = best_ts
                     result[name] = best_data
                 else:
+                    wait_time_ms = (time.perf_counter() - wait_start) * 1000
+                    # Approximate time spent waiting on each device (poll loops * interval)
+                    wait_ms_per_device = {
+                        n: c * poll_interval_s * 1000.0 for n, c in wait_counts.items() if c > 0
+                    }
+                    bottleneck = None
+                    if wait_ms_per_device:
+                        bottleneck = max(wait_ms_per_device.items(), key=lambda kv: kv[1])[0]
+                    elif last_waiting_for:
+                        bottleneck = str(last_waiting_for).split("(")[0]
+                    now = time.perf_counter()
+                    age_ms = {
+                        n: max(0.0, (now - ts) * 1000.0) for n, ts in emitted_ts.items()
+                    }
+                    self.last_sync_stats = {
+                        "wait_ms": wait_time_ms,
+                        "wait_loops": wait_count,
+                        "wait_ms_per_device": wait_ms_per_device,
+                        "bottleneck": bottleneck,
+                        "last_waiting_for": last_waiting_for,
+                        "age_ms": age_ms,
+                        "ref_ts": ref,
+                    }
                     # Success - print debug if waited
                     if debug and wait_count > 0:
-                        wait_time_ms = (time.perf_counter() - wait_start) * 1000
                         if wait_time_ms > 5:  # Only print if waited > 5ms
-                            print(f"[Sync] Waited {wait_time_ms:.1f}ms ({wait_count} loops), last waiting for: {last_waiting_for}")
+                            print(
+                                f"[Sync] Waited {wait_time_ms:.1f}ms ({wait_count} loops), "
+                                f"bottleneck={bottleneck}, waits={wait_ms_per_device}, "
+                                f"last={last_waiting_for}"
+                            )
                     return result
             
             # Track what we're waiting for

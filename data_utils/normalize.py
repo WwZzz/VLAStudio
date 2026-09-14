@@ -1059,7 +1059,10 @@ class ZScoreNormalizer(BaseNormalizer):
         return result.to(dtype) if isinstance(result, torch.Tensor) else result.astype(dtype)
     
 class Identity(BaseNormalizer):
-    def __init__(self, ctrl_type:str='delta', ctrl_space:str='ee', *args, **kwargs):
+    def __init__(self, *args, ctrl_type: str = 'delta', ctrl_space: str = 'ee', **kwargs):
+        # Accept same (load_dir, dataset_name=..., ctrl_*) call shape as other normalizers.
+        # Previously ctrl_type was positional #1, so Identity(load_dir, ctrl_type=...) crashed
+        # and load_normalizers fell back to ee/delta — breaking abs-EE replay tagging.
         logger.info("Perform no normalization on actions and state")
         self.ctrl_type = ctrl_type
         self.ctrl_space = ctrl_space

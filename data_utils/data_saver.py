@@ -17,7 +17,7 @@ import sys
 import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 from loguru import logger
@@ -96,10 +96,12 @@ def is_image_like(value: Any) -> bool:
 
 
 def is_scalar_or_1d(value: Any) -> bool:
-    """Check if a value is a scalar or 1D array (suitable for state/action)."""
+    """Check if a value is a numeric scalar or 1D array (suitable for state/action)."""
     try:
         arr = np.asarray(value)
-        return arr.ndim <= 1 and arr.dtype != object
+        if arr.dtype.kind in ("U", "S", "O"):
+            return False
+        return arr.ndim <= 1
     except Exception:
         return False
 
@@ -112,6 +114,7 @@ def convert_frame_data(
     frame: Dict[str, dict],
     device_names: List[str],
     teleop_device: Optional[str],
+    enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
 ) -> Dict[str, Any]:
     """
     Convert a raw frame dict to a standardized format.
@@ -128,10 +131,15 @@ def convert_frame_data(
         frame: Raw frame data {device_name: {key: value, ...}, ...}
         device_names: List of all device names
         teleop_device: Name of teleoperator device (or None)
+        enrich_saved_frame: Optional hook to enrich raw device dicts before conversion
+            (e.g. AliciaD FK → state_ee at save time).
     
     Returns:
         Converted frame dict with standardized keys
     """
+    if enrich_saved_frame is not None:
+        frame = enrich_saved_frame(frame)
+
     result: Dict[str, Any] = {}
     
     # Copy special keys
@@ -149,7 +157,7 @@ def convert_frame_data(
         if dev_name == teleop_device:
             # Teleoperator data -> observation.teleop.xxx (teleop signals are rarely used for training)
             for key, value in dev_data.items():
-                if key in ("__timestamp__", "timestamp"):
+                if key in ("__timestamp__", "timestamp") or str(key).startswith("_"):
                     continue
                 try:
                     if isinstance(value, np.ndarray):
@@ -172,7 +180,7 @@ def convert_frame_data(
         else:
             # Non-teleoperator data -> observation.xxx (save raw data)
             for key, value in dev_data.items():
-                if key in ("__timestamp__", "timestamp"):
+                if key in ("__timestamp__", "timestamp") or str(key).startswith("_"):
                     continue
                 try:
                     if isinstance(value, np.ndarray):
@@ -227,10 +235,12 @@ class BaseDataSaver(ABC):
         output_dir: Union[str, Path],
         fps: int,
         task: str = "",
+        enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
     ):
         self.output_dir = Path(output_dir)
         self.fps = int(max(1, fps))
         self.task = task
+        self._enrich_saved_frame = enrich_saved_frame
         self._episode_count = 0
         self._feature_schema: Dict[str, dict] = {}  # Track feature schema
         
@@ -247,6 +257,20 @@ class BaseDataSaver(ABC):
         self._stream_stop_event: Optional[threading.Event] = None
         self._stream_error: Optional[Exception] = None
         self._stream_frame_count = 0
+
+    def _convert_frame(
+        self,
+        frame: Dict[str, dict],
+        device_names: List[str],
+        teleop_device: Optional[str],
+    ) -> Dict[str, Any]:
+        """Convert + optional per-device save-time enrichment."""
+        return convert_frame_data(
+            frame,
+            device_names,
+            teleop_device,
+            enrich_saved_frame=self._enrich_saved_frame,
+        )
     
     def start_episode(
         self,
@@ -451,8 +475,9 @@ class HDF5DataSaver(BaseDataSaver):
         output_dir: Union[str, Path],
         fps: int,
         task: str = "",
+        enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
     ):
-        super().__init__(output_dir, fps, task)
+        super().__init__(output_dir, fps, task, enrich_saved_frame=enrich_saved_frame)
         if not HAS_H5PY:
             raise ImportError("h5py is required for HDF5 format. Install with: pip install h5py")
         
@@ -532,7 +557,7 @@ class HDF5DataSaver(BaseDataSaver):
         
         try:
             # Convert first frame to infer schema
-            conv_first = convert_frame_data(first_frame, device_names, teleop_device)
+            conv_first = self._convert_frame(first_frame, device_names, teleop_device)
             
             # Open HDF5 file
             h5_file = h5py.File(str(self._h5_tmp_path), "w")
@@ -615,7 +640,7 @@ class HDF5DataSaver(BaseDataSaver):
                     continue
                 
                 # Convert frame
-                conv_frame = convert_frame_data(frame, device_names, teleop_device)
+                conv_frame = self._convert_frame(frame, device_names, teleop_device)
                 
                 # Extract timestamp
                 ts = conv_frame.pop("_sync_timestamp", 0.0)
@@ -718,8 +743,9 @@ class LeRobotV30DataSaver(BaseDataSaver):
         output_dir: Union[str, Path],
         fps: int,
         task: str = "",
+        enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
     ):
-        super().__init__(output_dir, fps, task)
+        super().__init__(output_dir, fps, task, enrich_saved_frame=enrich_saved_frame)
         self.dataset = None
         self.dataset_root: Optional[Path] = None
         self.repo_id: Optional[str] = None
@@ -918,7 +944,7 @@ class LeRobotV30DataSaver(BaseDataSaver):
         
         try:
             # Convert first frame to infer schema
-            conv_first = convert_frame_data(first_frame, device_names, teleop_device)
+            conv_first = self._convert_frame(first_frame, device_names, teleop_device)
             
             # Initialize dataset if needed
             self._ensure_dataset_initialized([conv_first])
@@ -961,7 +987,7 @@ class LeRobotV30DataSaver(BaseDataSaver):
                     continue
                 
                 # Convert frame
-                conv_fr = convert_frame_data(raw_frame, device_names, teleop_device)
+                conv_fr = self._convert_frame(raw_frame, device_names, teleop_device)
                 
                 # Build frame for LeRobot
                 frame: Dict[str, Any] = {"task": self.task}
@@ -1087,8 +1113,9 @@ class LeRobotV21DataSaver(BaseDataSaver):
         output_dir: Union[str, Path],
         fps: int,
         task: str = "",
+        enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
     ):
-        super().__init__(output_dir, fps, task)
+        super().__init__(output_dir, fps, task, enrich_saved_frame=enrich_saved_frame)
         self._features_schema: Dict[str, dict] = {}
         self._info: Optional[Dict[str, Any]] = None
         self._episodes: Dict[int, Dict[str, Any]] = {}  # episode_index -> episode_dict
@@ -1636,7 +1663,7 @@ class LeRobotV21DataSaver(BaseDataSaver):
             
             # Convert all frames
             converted_frames = [
-                convert_frame_data(fr, device_names, teleop_device)
+                self._convert_frame(fr, device_names, teleop_device)
                 for fr in frames
             ]
             
@@ -1859,7 +1886,7 @@ class LeRobotV21DataSaver(BaseDataSaver):
         
         try:
             # Convert first frame to get schema
-            converted_first = convert_frame_data(first_frame, device_names, teleop_device)
+            converted_first = self._convert_frame(first_frame, device_names, teleop_device)
             
             # Initialize dataset if needed
             self._ensure_initialized([converted_first], episode_idx)
@@ -2110,7 +2137,7 @@ class LeRobotV21DataSaver(BaseDataSaver):
                     continue
                 
                 # Convert frame
-                conv_fr = convert_frame_data(frame, device_names, teleop_device)
+                conv_fr = self._convert_frame(frame, device_names, teleop_device)
                 frame_idx = self._stream_frame_count
                 
                 # Add auto-managed features to buffer
@@ -2188,6 +2215,7 @@ def create_data_saver(
     output_dir: Union[str, Path],
     fps: int,
     task: str = "",
+    enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
     **kwargs,
 ) -> BaseDataSaver:
     """
@@ -2198,16 +2226,23 @@ def create_data_saver(
         output_dir: Output directory
         fps: Recording frequency
         task: Task description
+        enrich_saved_frame: Optional hook to enrich raw frames at save/stream time
     
     Returns:
         A data saver instance
     """
+    common = dict(
+        output_dir=output_dir,
+        fps=fps,
+        task=task,
+        enrich_saved_frame=enrich_saved_frame,
+    )
     if format == "hdf5":
-        return HDF5DataSaver(output_dir, fps, task)
+        return HDF5DataSaver(**common)
     elif format == "lerobotv30":
-        return LeRobotV30DataSaver(output_dir, fps, task)
+        return LeRobotV30DataSaver(**common)
     elif format == "lerobotv21":
-        return LeRobotV21DataSaver(output_dir, fps, task)
+        return LeRobotV21DataSaver(**common)
     else:
         raise ValueError(f"Unknown format: {format}. Supported: lerobotv21, lerobotv30, hdf5")
 

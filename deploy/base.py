@@ -216,6 +216,60 @@ def _get_device_shm_name(config: dict) -> str:
     return args.get('name') or args.get('robot_id') or config.get('name', 'unknown')
 
 
+def create_enrich_saved_frame_func(device_configs: list):
+    """Build a save-time frame enricher from per-device ``enrich_saved_frame`` hooks.
+
+    Device classes may define::
+
+        @classmethod
+        def enrich_saved_frame(cls, device_data: dict, device_args: dict | None = None) -> dict:
+            ...
+
+    The returned callable takes a raw synced frame ``{shm_name: device_data, ...}``
+    and returns a (shallow-copied) frame with device dicts enriched before dataset write.
+    Devices without the hook are left unchanged.
+    """
+    from deploy.utils import partition_visualizer_configs
+
+    device_configs, _ = partition_visualizer_configs(list(device_configs))
+    entries = []  # (shm_name, enrich_callable, device_args)
+    for cfg in device_configs:
+        shm_name = _get_device_shm_name(cfg)
+        try:
+            cls = _resolve_device_class(cfg)
+        except Exception as e:
+            logger.warning("create_enrich_saved_frame_func: skip {} ({})", cfg.get("type"), e)
+            continue
+        fn = getattr(cls, "enrich_saved_frame", None)
+        if callable(fn):
+            entries.append((shm_name, fn, dict(cfg.get("args") or {})))
+
+    if entries:
+        logger.info(
+            "create_enrich_saved_frame_func: {} device(s) → [{}]",
+            len(entries),
+            ", ".join(n for n, _, _ in entries),
+        )
+    else:
+        logger.info("create_enrich_saved_frame_func: no enrich_saved_frame hooks")
+
+    def _enrich(frame: dict) -> dict:
+        if not frame or not entries:
+            return frame
+        out = dict(frame)
+        for shm_name, fn, device_args in entries:
+            dev = out.get(shm_name)
+            if not isinstance(dev, dict):
+                continue
+            try:
+                out[shm_name] = fn(dev, device_args=device_args)
+            except Exception as e:
+                logger.warning("enrich_saved_frame failed for {}: {}", shm_name, e)
+        return out
+
+    return _enrich
+
+
 def create_obs2meta_func(device_configs: list):
     """Build a composite obs2meta from per-device obs2meta methods.
 
