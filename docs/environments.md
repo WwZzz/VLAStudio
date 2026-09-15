@@ -16,19 +16,26 @@ vlastudio env init --shell powershell | Out-String | Invoke-Expression
 初始化后可以创建并自动激活环境，也可以安装到当前环境：
 
 ```bash
-vlastudio env create --policy act
+vlastudio env create                   # 默认创建/复用 base；ACT 无需单独 create
 vlastudio env create --policy smolvla
 vlastudio env create --env robotwin
-vlastudio env install --policy act -n work
+vlastudio env install                  # 安装到当前环境，并登记为 base
+vlastudio env install --policy smolvla -n work
 vlastudio env list
 vlastudio env activate work
+vlastudio env activate                 # 默认切换到 base
+vlastudio env deactivate               # 同样切换到 base
 ```
 
 未初始化 shell 时，create 完成创建和安装，但不能切换父终端。
 install 不创建 venv，使用增量安装；版本约束可能升级或降级现有包。
 安装成功后登记到 `$VLASTUDIO_CACHE/environments.json`，保存环境名、解释器路径和来源。
 list 也显示缓存中的旧环境，以及已删除解释器的 missing 状态。`-n` 指定环境名。
-同名但路径不同会附加路径哈希，避免覆盖已有记录。
+省略组件或环境名时，create、install、prepare、path、run、activate 均默认使用 base。
+install 未指定 `-n` 时将当前解释器登记为 base，即使使用了 `--policy` 或 `--env`。
+重新登记 base 会更新默认解释器，原记录保留为 `base-<路径哈希>`；其他同名环境附加路径哈希。
+run、path 和 create/prepare 复用已登记的 base。deactivate 始终返回 base，不恢复之前的任意环境。
+更新后请重新执行上述 shell 初始化命令，以启用 deactivate。
 RoboTwin 和 BEHAVIOR 清单安装 Python 依赖；仿真资源、SDK 和系统驱动需另行准备。
 
 安装 VLAStudio 入口后，按组件名称运行脚本，无需知道 extras 名称：

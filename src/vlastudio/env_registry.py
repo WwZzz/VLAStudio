@@ -1,4 +1,5 @@
 """Persistent environment inventory and shell activation."""
+import base64
 import json
 import os
 from pathlib import Path
@@ -21,7 +22,11 @@ def register(cache, name, python, kind):
         python = os.path.abspath(os.path.expanduser(str(python)))
         if name in entries and entries[name]['python'] != python:
             import hashlib
-            name += '-' + hashlib.sha256(python.encode()).hexdigest()[:8]
+            if name == 'base':
+                old = entries[name]
+                entries['base-' + hashlib.sha256(old['python'].encode()).hexdigest()[:8]] = old
+            else:
+                name += '-' + hashlib.sha256(python.encode()).hexdigest()[:8]
         entries[name] = {'python': python, 'kind': kind}
         path = cache / 'environments.json'
         temp = path.with_suffix('.tmp')
@@ -57,23 +62,31 @@ shutil.copytree(source, target, dirs_exist_ok=True)
 
 
 def activation(cache, name, shell):
-    if name is None:
-        name = (cache / 'last-environment').read_text(encoding='utf-8')
+    name = name or 'base'
     entry = read(cache).get(name)
     if entry is None:
-        raise ValueError(f'Unknown environment: {name}. Use vlastudio env list.')
+        raise ValueError(f'Unknown environment: {name}. Use vlastudio env create or env install to register base; env list shows registered environments.')
     python = Path(entry['python'])
     if not python.is_file():
         raise ValueError(f'Environment interpreter is missing: {python}')
     app = snapshot(cache)
-    values = {'PATH': str(python.parent) + os.pathsep + os.environ.get('PATH', ''),
+    previous = os.environ.get('VLASTUDIO_ACTIVE_PYTHON')
+    paths = os.environ.get('PATH', '').split(os.pathsep)
+    if previous:
+        paths = [p for p in paths if os.path.normcase(p) != os.path.normcase(str(Path(previous).parent))]
+    values = {'PATH': os.pathsep.join([str(python.parent), *paths]),
               'VLASTUDIO_ACTIVE_PYTHON': str(python), 'VLASTUDIO_ENV': name,
               'PYTHONPATH': str(app) + os.pathsep + os.environ.get('PYTHONPATH', '')}
     root = python.parent.parent if python.parent.name in ('bin', 'Scripts') else python.parent
     if (root / 'pyvenv.cfg').is_file():
         values['VIRTUAL_ENV'] = str(root)
+    values.setdefault('VIRTUAL_ENV', '')
+    values['CONDA_PREFIX'] = str(root) if (root / 'conda-meta').is_dir() else ''
     if shell == 'powershell':
-        return '\n'.join("$env:" + key + " = '" + value.replace("'", "''") + "'" for key, value in values.items())
+        return '\n'.join(
+            "$env:" + key + " = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('"
+            + base64.b64encode(value.encode('utf-8')).decode('ascii') + "'))"
+            for key, value in values.items())
     return '\n'.join('export ' + key + '=' + shlex.quote(value) for key, value in values.items())
 
 
@@ -81,21 +94,21 @@ def hook(shell):
     if shell == 'powershell':
         exe = sys.executable.replace("'", "''")
         return """function global:vlastudio {
-  if ($args.Count -ge 2 -and $args[0] -eq 'env' -and $args[1] -eq 'activate') {
+  if ($args.Count -ge 2 -and $args[0] -eq 'env' -and ($args[1] -eq 'activate' -or $args[1] -eq 'deactivate')) {
     $code = & 'EXE' -m vlastudio @args --shell powershell
     if ($LASTEXITCODE -eq 0) { Invoke-Expression ($code -join "`n") }
   } else {
     & 'EXE' -m vlastudio @args
     if ($LASTEXITCODE -eq 0 -and $args.Count -ge 2 -and $args[0] -eq 'env' -and $args[1] -eq 'create' -and $args -notcontains '--dry-run') {
       $tail = @($args | Select-Object -Skip 2)
-      $code = & 'EXE' -m vlastudio env activate @tail --shell powershell
+      $code = & 'EXE' -m vlastudio env activate @tail --last-created --shell powershell
       if ($LASTEXITCODE -eq 0) { Invoke-Expression ($code -join "`n") }
     }
   }
 }""".replace('EXE', exe)
     exe = shlex.quote(sys.executable)
     return '''vlastudio() {
-  if [ "$1" = env ] && [ "$2" = activate ]; then
+  if [ "$1" = env ] && { [ "$2" = activate ] || [ "$2" = deactivate ]; }; then
     local code
     code=$(EXE -m vlastudio "$@" --shell bash) || return $?
     eval "$code"
@@ -104,7 +117,7 @@ def hook(shell):
     if [ "$1" = env ] && [ "$2" = create ]; then
       local code
       case " $* " in *" --dry-run "*) return 0 ;; esac
-      code=$(EXE -m vlastudio env activate "${@:3}" --shell bash) || return $?
+      code=$(EXE -m vlastudio env activate "${@:3}" --last-created --shell bash) || return $?
       eval "$code"
     fi
   fi

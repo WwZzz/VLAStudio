@@ -52,9 +52,10 @@ def select_profile(policy=None, environment=None, manifest=None, remote=False):
 def main(argv):
     from . import env_registry
     parser = argparse.ArgumentParser(prog='vlastudio env')
-    parser.add_argument('action', choices=['create', 'install', 'activate', 'init', 'prepare', 'run', 'path', 'list'])
+    parser.add_argument('action', choices=['create', 'install', 'activate', 'deactivate', 'init', 'prepare', 'run', 'path', 'list'])
     parser.add_argument('name', nargs='?')
     parser.add_argument('-n', '--name', dest='environment_name')
+    parser.add_argument('--last-created', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--shell', choices=['bash', 'zsh', 'powershell'])
     parser.add_argument('--policy')
     parser.add_argument('--env')
@@ -70,11 +71,16 @@ def main(argv):
     if args.action == 'init':
         print(env_registry.hook(args.shell or 'bash'))
         return 0
-    if args.action == 'activate':
+    if args.action in ('activate', 'deactivate'):
         try:
             if not args.shell:
                 raise ValueError('Initialize the shell first: eval "$(vlastudio env init --shell bash)"; PowerShell: vlastudio env init --shell powershell | Out-String | Invoke-Expression')
-            print(env_registry.activation(cache, args.name, args.shell))
+            label = args.environment_name or args.name or 'base'
+            if args.last_created:
+                label = (cache / 'last-environment').read_text(encoding='utf-8')
+            if args.action == 'deactivate':
+                label = 'base'
+            print(env_registry.activation(cache, label, args.shell))
             return 0
         except (ValueError, OSError) as error:
             print(str(error), file=sys.stderr)
@@ -95,6 +101,7 @@ def main(argv):
         name, profile = select_profile(args.policy, args.env, args.runtime_manifest, args.remote)
         label = args.environment_name or args.name or (name if name == 'base' else args.policy or args.env or 'custom')
         if args.action == 'install':
+            label = args.environment_name or args.name or 'base'
             active = os.environ.get('VIRTUAL_ENV') or os.environ.get('CONDA_PREFIX')
             current = Path(active) / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python') if active else Path(sys.executable)
             python = Path(os.environ.get('VLASTUDIO_ACTIVE_PYTHON') or current)
@@ -110,9 +117,12 @@ def main(argv):
             return 0
         key, _ = environment_identity(profile)
         python = cache / 'envs' / key / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-        external = os.environ.get('VLASTUDIO_BASE_PYTHON') if name == 'base' and args.action != 'create' else None
+        registered = env_registry.read(cache).get(label, {})
+        external = registered.get('python')
+        if name == 'base' and label == 'base':
+            external = os.environ.get('VLASTUDIO_BASE_PYTHON') or external
         if external:
-            python = Path(external).expanduser().resolve()
+            python = Path(os.path.abspath(os.path.expanduser(external)))
             if not python.is_file():
                 raise ValueError(f'Base interpreter does not exist: {python}')
         if args.dry_run:
