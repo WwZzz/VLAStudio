@@ -86,11 +86,16 @@ def snapshot(cache):
     return destination
 
 
-def prepare(profile, cache, env, offline=False):
+def environment_identity(profile):
     identity = {k: v for k, v in profile.items() if k != "entrypoint"}
     identity["platform"] = [sys.platform, platform.machine()]
     identity["core"] = CORE
     key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()[:24]
+    return key, identity
+
+
+def prepare(profile, cache, env, offline=False):
+    key, identity = environment_identity(profile)
     target = cache / "envs" / key
     target.parent.mkdir(parents=True, exist_ok=True)
     python = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")

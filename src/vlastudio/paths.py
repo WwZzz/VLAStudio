@@ -31,7 +31,7 @@ def cache_root(value=None):
         or os.environ.get("VLASTUDIO_CACHE_DIR")
         or os.environ.get("ILSTD_CACHE")
         or user_settings().get("cache_dir")
-        or user_cache_dir("vlastudio")
+        or Path.home() / '.cache' / 'vlastudio'
     ).expanduser().resolve()
 
 

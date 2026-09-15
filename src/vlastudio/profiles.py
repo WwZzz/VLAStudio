@@ -19,6 +19,12 @@ def environment_for(config, path, manifest=None):
         module = config.get("type") or config.get("module_path")
         if module and module.startswith('vlastudio.'):
             module = module[len('vlastudio.'):]
+        family_manifest = {'policy.act': 'base', 'policy.mlp': 'base',
+                           'policy.diffusion_policy': 'base', 'policy.remote': 'base',
+                           'policy.smolvla': 'smolvla'}.get(module)
+        if family_manifest:
+            manifest_path = Path(__file__).parent / 'environments' / (family_manifest + '.yaml')
+            return environment_for({'runtime': str(manifest_path)}, path)
         if module not in BUILTINS:
             raise ValueError(f"No managed runtime for {module!r}. Declare runtime in the config, use --runtime-manifest, or --runtime current.")
         declaration = copy.deepcopy(BUILTINS[module])

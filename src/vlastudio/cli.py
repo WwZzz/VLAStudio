@@ -67,6 +67,10 @@ def selected_config(command, args):
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == 'env':
+        from .env_cli import main as env_main
+        return env_main(argv[1:])
     options, args = parse(sys.argv[1:] if argv is None else argv)
     try:
         cache = cache_root(options.cache_dir)

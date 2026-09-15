@@ -4,6 +4,10 @@
 
 推荐使用 Python 脚本组织实验，同时保留 `vlastudio train` 和原来的 `python train.py`。不同 policy 的依赖由独立、可复用的 Python 环境管理。
 
+按组件选择环境运行脚本：`vlastudio env run --policy act -- python experiment.py`。
+ACT、DP 与基础仿真共用 base；SmolVLA、OpenPI 使用独立环境。
+完整命令和已有 base 的接入方法见 [环境管理](docs/environments.md)。
+
 ## 源码布局
 
 ```text

@@ -9,17 +9,10 @@ PyTorch、Transformers、MuJoCo 或其他运行库。
 
 ## 1. Policy 服务端
 
-创建 Policy 环境：
+第一个终端从仓库根目录运行；首次自动准备并缓存 base 环境：
 
 ```bash
-python -m venv .venv-policy-act
-.venv-policy-act/bin/python -m pip install -e ".[act]"
-```
-
-第一个终端启动服务：
-
-```bash
-.venv-policy-act/bin/python examples/02_remote_inference/serve.py
+vlastudio env run --policy act -- python examples/02_remote_inference/serve.py
 ```
 
 `serve.py` 从 `checkpoints/act_aloha` 加载 checkpoint，并在所有网卡的 TCP 5000
@@ -27,18 +20,16 @@ python -m venv .venv-policy-act
 
 ## 2. 仿真评测端
 
-创建独立的仿真环境：
-
-```bash
-python -m venv .venv-env-aloha
-.venv-env-aloha/bin/python -m pip install -e ".[remote-eval,aloha]"
-```
-
 保持服务端运行，在第二个终端执行：
 
 ```bash
-.venv-env-aloha/bin/python examples/02_remote_inference/evaluate.py
+vlastudio env run --remote --env aloha_sim -- python examples/02_remote_inference/evaluate.py
 ```
+
+ACT 与 ALOHA 使用相同 base 解释器，但运行在独立进程中。将服务端换成
+SmolVLA 或 OpenPI 时，分别使用 `--policy smolvla` 或 `--policy pi0`，
+服务端会自动切换到独立环境；同时修改 serve.py 中的 policy 配置和 checkpoint。
+Python 脚本本身沿用启动它的环境。
 
 同一台机器使用 `127.0.0.1:5000`。跨机器运行时，将 `evaluate.py` 中的地址改为
 Policy 服务器可访问的 IP，例如：
@@ -66,7 +57,7 @@ bench.evaluate("192.168.1.20:5000", output_dir="results/remote")
 HTTP/HTTPS 服务端需要额外安装：
 
 ```bash
-.venv-policy-act/bin/python -m pip install -e ".[act,serve-http]"
+"$(vlastudio env path --policy act)" -m pip install -e ".[serve-http]"
 ```
 
 然后同时修改两个脚本中的地址。HTTPS 证书路径使用仓库已有的
