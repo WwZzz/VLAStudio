@@ -18,30 +18,43 @@ def env_fn(env_config, env_handler):
     return create_env
 
 def load_env_module(env_cfg):
-    # Parse env type - support both old format (simple name) and new format (full path)
-    env_type = env_cfg.type
-    if '.' in env_type:
-        # New format: full path like 'benchmark.aloha.AlohaSimEnv'
-        # Extract module path and class name
-        module_path, class_name = env_type.rsplit('.', 1)
-        env_module = importlib.import_module(module_path)
-        # Use the module name (e.g., 'aloha') for directory naming
-        env_name = module_path.split('.')[-1] if '.' in module_path else module_path
+    """Resolve an environment definition to its create_env factory + evaluate fn.
+
+    ``env_cfg.type`` may be any reference ``vlastudio.extensions.resolve``
+    understands: a packaged dotted path (``pkg.mod.EnvClass`` /
+    ``pkg.mod:EnvClass``), a local file (``/path/env.py:EnvClass``), or a plugin
+    (``@env/name``). It may resolve to a module exposing ``create_env`` or
+    directly to a class / callable used as the factory.
+    """
+    import inspect
+    import sys
+    from types import SimpleNamespace
+    from vlastudio.extensions import resolve
+
+    target = resolve(env_cfg.type, kind="env")
+    if inspect.ismodule(target):
+        create_env_fn = getattr(target, "create_env", None)
+        module = target
+        env_name = target.__name__.split(".")[-1]
     else:
-        # Old format: simple name like 'aloha'
-        env_module = importlib.import_module(f"benchmark.{env_type}")
-        env_name = env_type
-    
-    if not hasattr(env_module, 'create_env'): 
-        raise AttributeError(f"env module {module_path if '.' in env_type else env_type} has no 'create_env'")
-    
-    # Check if env_module has its own evaluate function
-    if hasattr(env_module, 'evaluate'):
-        evaluate = env_module.evaluate
+        create_env_fn = target
+        module = sys.modules.get(getattr(target, "__module__", ""))
+        env_name = (getattr(target, "__module__", "") or "env").split(".")[-1]
+
+    if not callable(create_env_fn):
+        raise AttributeError(
+            f"env type '{env_cfg.type}' did not resolve to a callable or a module "
+            f"exposing 'create_env'"
+        )
+
+    if module is not None and hasattr(module, "evaluate"):
+        evaluate = module.evaluate
         logger.info(f"Using environment-specific evaluate function from {env_name}")
     else:
         evaluate = default_evaluate
-        logger.info(f"Using default evaluate function")
+        logger.info("Using default evaluate function")
+
+    env_module = SimpleNamespace(create_env=create_env_fn, evaluate=evaluate, __name__=env_name)
     return env_module, env_name, evaluate
 
 

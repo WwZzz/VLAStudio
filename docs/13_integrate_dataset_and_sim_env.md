@@ -24,7 +24,7 @@ You may use any of:
 | your own package | `my_pkg.datasets:MyDataset` |
 | a single file | `/abs/path/my_dataset.py:MyDataset` or `examples/my_dataset.py:MyDataset` |
 | a package directory | `/abs/path/my_env_pkg/` (loads `__init__.py`) |
-| an installed entry point | `@dataset/my_dataset` (see ?1.5) |
+| an installed entry point | `@dataset/my_dataset`, `@env/my_env` (see ?1.5, ?2.5) |
 
 Nothing else is required ??no registry edits, no package reinstall (when using a
 file path). Configs are plain YAML, loaded by `vlastudio.configs.loader.ConfigLoader`.
@@ -309,10 +309,21 @@ success are read from the env's returned `info` (see `benchmark/utils.evaluate`)
 
 ### 2.5 Registering
 
-Environments are resolved by import path (`type:`) ??a packaged dotted path, your
-own package, or a local file path (?0). There is no separate entry-point group for
-environments, so point `type:` at your class and add a module-level
-`create_env(config)` factory if the built-in loader looks one up.
+Environments are resolved through the same extension mechanism as every other
+kind (`vlastudio.extensions.resolve`, `kind="env"`). Your `type:` may be a
+packaged dotted path, your own package, a local file path, or an installed
+entry point ??exactly the forms in ?0. The reference may resolve to a module that
+exposes `create_env(config)`, or directly to a class / callable used as the
+factory.
+
+```toml
+[project.entry-points."vlastudio.env"]
+my_task = "my_pkg.env:MyEnv"           # then: type: @env/my_task
+```
+
+The loader (`vlastudio/entrypoints/eval_sim.py::load_env_module`) also picks up an
+optional module-level `evaluate(...)` to override the default rollout loop, so you
+can ship environment-specific success metrics next to the env class.
 
 ---
 

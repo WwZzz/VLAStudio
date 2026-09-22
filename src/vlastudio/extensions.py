@@ -14,7 +14,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 import sys
 
-KINDS = {"policy", "robot", "device", "action_manager", "dataset", "config"}
+KINDS = {"policy", "robot", "device", "action_manager", "dataset", "env", "config"}
 _registry = {}
 
 
