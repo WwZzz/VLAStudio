@@ -756,10 +756,16 @@ class WrappedLerobotV30Dataset(tud.Dataset):
         meta = self.dataset_metas[dataset_idx]
         ep = meta.episodes[ep_idx]
         pdata = self._load_parquet_file(dataset_idx, ep['data_chunk_index'], ep['data_file_index'])
+        # LeRobot v3.0 packs each data file with a contiguous slice of the GLOBAL
+        # frame index; episode dataset_from_index/dataset_to_index are global too.
+        # Convert to file-local row offsets using the file's first global index.
+        idx_col = pdata.get('index') if isinstance(pdata, dict) else None
+        file_start = int(np.min(idx_col)) if idx_col is not None and len(idx_col) else 0
         frame_abs_idx = int(ep['dataset_from_index']) + frame_offset
+        frame_local_idx = frame_abs_idx - file_start
 
         # state (current frame)
-        state_arr = self._get_data_by_keys(pdata, self.state_key, frame_abs_idx=frame_abs_idx)
+        state_arr = self._get_data_by_keys(pdata, self.state_key, frame_abs_idx=frame_local_idx)
         if state_arr is None:
             state = torch.zeros(self.state_dim, dtype=torch.float32)
         else:
@@ -773,7 +779,7 @@ class WrappedLerobotV30Dataset(tud.Dataset):
             is_pad = np.ones((self.chunk_size,), dtype=bool)
         else:
             # Slice to this episode's rows
-            ep_actions = np.asarray(action_full)[ep['dataset_from_index']:ep['dataset_to_index']]
+            ep_actions = np.asarray(action_full)[int(ep['dataset_from_index']) - file_start:int(ep['dataset_to_index']) - file_start]
             end = min(frame_offset + self.chunk_size, ep_len)
             valid_count = max(0, end - frame_offset)
             valid = ep_actions[frame_offset:end]
@@ -793,7 +799,7 @@ class WrappedLerobotV30Dataset(tud.Dataset):
         is_pad = torch.tensor(is_pad, dtype=torch.bool)
 
         # task / language
-        task_idx = int(pdata['task_index'][frame_abs_idx]) if 'task_index' in pdata else 0
+        task_idx = int(pdata['task_index'][frame_local_idx]) if 'task_index' in pdata else 0
         raw_lang = meta.tasks.get(task_idx, "")
         if not raw_lang and ep.get('tasks'):
             raw_lang = ep['tasks'][0]
