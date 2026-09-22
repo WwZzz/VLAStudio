@@ -24,7 +24,7 @@
     name: bi_so101_follower
     max_size_mb: 64
     fps: 100.0
-    # control_shm_name: auto-filled by collect_data.py from teleop device name
+    # control_shm_name: auto-filled by vlastudio collect from teleop device name
     left_arm_port: /dev/so101_left_arm
     right_arm_port: /dev/so101_right_arm
     robot_id: bi_so101_follower

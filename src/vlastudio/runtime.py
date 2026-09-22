@@ -15,6 +15,115 @@ from filelock import FileLock
 CORE = ["PyYAML==6.0.2", "platformdirs==4.3.6", "filelock==3.18.0", "loguru==0.7.3"]
 
 
+def project_root():
+    from .paths import package_source_root
+    package = package_source_root()
+    repo = package.parent.parent
+    if (repo / "pyproject.toml").is_file():
+        return repo
+    return None
+
+
+def install_application(python, env):
+    """Put the live VLAStudio package into a managed interpreter (no extra deps)."""
+    root = project_root()
+    if root is None:
+        return
+    run([*uv_command(), "pip", "install", "--python", str(python), "--no-deps", "-e", str(root)], env)
+
+
+def _libero_git_spec(requirements):
+    for requirement in requirements or []:
+        match = re.search(r"git\+(https?://\S+LIBERO\.git)(?:@([0-9a-fA-F]{7,40}))?", requirement, re.I)
+        if match:
+            return match.group(1), match.group(2)
+    return "https://github.com/Lifelong-Robot-Learning/LIBERO.git", "8f1084e3132a39270c3a13ebe37270a43ece2a01"
+
+
+def _looks_like_libero_checkout(path):
+    path = Path(path)
+    return (path / "libero" / "libero").is_dir() and ((path / "libero" / "libero" / "__init__.py").is_file())
+
+
+def find_libero_source(env=None, requirements=None):
+    """LIBERO's setup.py emits an empty wheel; import needs the git checkout on sys.path."""
+    env = env or os.environ
+    from .paths import cache_root, package_source_root
+    candidates = [package_source_root() / "third_party" / "libero"]
+    if env.get("LIBERO_ROOT"):
+        candidates.append(Path(env["LIBERO_ROOT"]).expanduser())
+    uv_cache = Path(env.get("UV_CACHE_DIR") or (cache_root(env.get("VLASTUDIO_CACHE")) / "uv"))
+    if uv_cache.is_dir():
+        candidates.extend(sorted(uv_cache.glob("git-v0/checkouts/*/*")))
+    src = cache_root(env.get("VLASTUDIO_CACHE")) / "src" / "LIBERO"
+    candidates.append(src)
+    for candidate in candidates:
+        if _looks_like_libero_checkout(candidate):
+            return candidate.resolve()
+    return None
+
+
+def _clone_libero_source(env, requirements):
+    from .paths import cache_root
+    dest = cache_root(env.get("VLASTUDIO_CACHE")) / "src" / "LIBERO"
+    if _looks_like_libero_checkout(dest):
+        return dest.resolve()
+    url, sha = _libero_git_spec(requirements)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.exists():
+        shutil.rmtree(dest)
+    run(["git", "clone", "--filter=blob:none", url, str(dest)], env)
+    if sha:
+        run(["git", "-C", str(dest), "checkout", sha], env)
+    if not _looks_like_libero_checkout(dest):
+        raise RuntimeError(f"Failed to checkout an importable LIBERO tree at {dest}")
+    return dest.resolve()
+
+
+def _seed_libero_config(source):
+    config_dir = Path(os.environ.get("LIBERO_CONFIG_PATH", Path.home() / ".libero")).expanduser()
+    config_file = config_dir / "config.yaml"
+    if config_file.is_file():
+        return
+    root = Path(source) / "libero" / "libero"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config_file.write_text(
+        "\n".join([
+            f"assets: {root / 'assets'}",
+            f"bddl_files: {root / 'bddl_files'}",
+            f"benchmark_root: {root}",
+            f"datasets: {root.parent / 'datasets'}",
+            f"init_states: {root / 'init_files'}",
+            "",
+        ]),
+        encoding="utf-8",
+    )
+
+
+def ensure_source_layout_packages(python, profile, env):
+    """Repair packages whose published/build metadata does not ship importable modules."""
+    requirements = list(profile.get("requirements") or [])
+    if profile.get("lock"):
+        requirements.extend(profile["lock"].splitlines())
+    if not any(re.search(r"(?i)(^|[\s/@=])libero($|[\s/@=<>!~;])", item) or "LIBERO.git" in item for item in requirements):
+        return
+    probe = subprocess.run([str(python), "-c", "from libero.libero import benchmark"], env=env)
+    if probe.returncode == 0:
+        return
+    source = find_libero_source(env, requirements) or _clone_libero_source(env, requirements)
+    _seed_libero_config(source)
+    script = (
+        "import pathlib, site, sys, sysconfig\n"
+        "source = pathlib.Path(sys.argv[1]).resolve()\n"
+        "bases = list(site.getsitepackages()) or [sysconfig.get_path('purelib')]\n"
+        "path = pathlib.Path(bases[0]) / 'libero-src.pth'\n"
+        "path.write_text(str(source) + '\\n', encoding='utf-8')\n"
+        "print(path)\n"
+    )
+    run([python, "-c", script, str(source)], env)
+    run([python, "-c", "from libero.libero import benchmark"], env)
+
+
 def _glibcxx_version(path):
     try:
         versions = re.findall(rb"GLIBCXX_(\d+)\.(\d+)\.(\d+)", Path(path).read_bytes())
@@ -24,7 +133,7 @@ def _glibcxx_version(path):
 
 
 def _configure_headless_graphics(command, python, env):
-    if (command != "eval-sim" or not sys.platform.startswith("linux")
+    if (command != "evaluate" or not sys.platform.startswith("linux")
             or env.get("DISPLAY") or env.get("WAYLAND_DISPLAY")):
         return
     env.setdefault("MUJOCO_GL", "egl")
@@ -61,13 +170,14 @@ def files_under(root):
     for directory, dirs, files in os.walk(root):
         dirs[:] = sorted(d for d in dirs if d not in (".git", ".venv", "__pycache__", ".ipynb_checkpoints") and not (Path(directory) / d / ".git").exists())
         for name in sorted(files):
-            if not name.endswith((".pyc", ".pyo")) and name != ".git":
+            if not name.endswith((".pyc", ".pyo")) and name not in (".git", ".package_origin"):
                 yield Path(directory) / name
 
 
 def snapshot(cache):
     """Copy only application files, never the parent environment's site-packages."""
-    package = Path(__file__).parent
+    from .paths import package_source_root
+    package = package_source_root()
     entries = [(f, Path("vlastudio") / f.relative_to(package)) for f in files_under(package)]
     digest = hashlib.sha256()
     for source, target in entries:
@@ -83,6 +193,9 @@ def snapshot(cache):
                 out.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(source, out)
             (destination / ".ready").write_text("ready")
+        origin = destination / "vlastudio" / ".package_origin"
+        origin.parent.mkdir(parents=True, exist_ok=True)
+        origin.write_text(str(package.resolve()), encoding="utf-8")
     return destination
 
 
@@ -94,13 +207,33 @@ def environment_identity(profile):
     return key, identity
 
 
-def prepare(profile, cache, env, offline=False):
+def environment_target(profile, cache, name=None):
+    if name is not None:
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', name):
+            raise ValueError('Environment names must start with a letter or digit and contain only letters, digits, dots, underscores or hyphens (max 128 characters)')
+        return cache / 'envs' / ('named-' + name)
+    key, _ = environment_identity(profile)
+    return cache / 'envs' / key
+
+
+def build_environment(profile, env):
+    result = dict(env)
+    requirements = profile.get('requirements', []) + profile.get('lock', '').splitlines()
+    if any(re.match(r'(?i)\s*(robomimic|egl[-_]probe)(?:\s|[=<>!~;\[]|$)', requirement) for requirement in requirements):
+        # egl-probe's legacy CMake declaration needs a policy floor on CMake 4.
+        result.setdefault('CMAKE_POLICY_VERSION_MINIMUM', '3.5')
+    return result
+
+
+def prepare(profile, cache, env, offline=False, name=None):
+    env = build_environment(profile, env)
     key, identity = environment_identity(profile)
-    target = cache / "envs" / key
+    target = environment_target(profile, cache, name)
     target.parent.mkdir(parents=True, exist_ok=True)
     python = target / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
     with FileLock(str(target) + ".lock"):
-        if (target / ".ready").is_file() and python.is_file():
+        # Named environments keep the existing interpreter. Do not re-sync.
+        if python.is_file() and (name is not None or (target / ".ready").is_file()):
             return python
         if offline:
             raise RuntimeError(f"Environment {key} is not prepared. Run prepare online first.")
@@ -124,6 +257,8 @@ def prepare(profile, cache, env, offline=False):
                 extra = ["--override", overrides]
             run([*uv, "pip", "compile", "--quiet", requirements, "--python", python, "--output-file", lock, *extra], env)
             run([*uv, "pip", "sync", "--python", python, lock], env)
+        install_application(python, env)
+        ensure_source_layout_packages(python, profile, env)
         for overlay in profile.get("overlays", []):
             # Patches remain confined to this managed environment. They are part of its cache key.
             script = "import importlib.util,json; print(json.dumps([list(importlib.util.find_spec(n).submodule_search_locations)[0] for n in " + repr([overlay["source_module"], overlay["target_module"]]) + "]))"

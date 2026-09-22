@@ -49,7 +49,7 @@ Connecting via the ILStudio robot config will also prompt for calibration if the
 ## Run with ILStudio
 
 ```bash
-python eval_real.py -r configs/robot/so101_plus.yaml -m __dummy-random_7x16
+vlastudio infer --runtime current -r configs/robot/so101_plus.yaml -m __dummy-random_7x16
 ```
 
 Config: `configs/robot/so101_plus.yaml`  
@@ -64,7 +64,7 @@ global IK on the bundled URDF (`piper_global_ik.py`).
 
 ```bash
 # or: bash scripts/so101_plus_vr_tele.sh
-python collect_data.py \
+vlastudio collect --runtime current \
   -r configs/robot/so101_plus_rel_ee.yaml \
   -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
   -o data/so101_plus_vr_teleop \

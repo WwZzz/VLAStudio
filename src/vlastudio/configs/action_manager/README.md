@@ -126,20 +126,20 @@ Triggers inference at a minimum FPS rate, enabling asynchronous/pipelined infere
 
 ## Usage Examples
 
-### 1. Using in `eval_real.py` with command line
+### 1. Using in `vlastudio infer` with command line
 
 ```bash
 # Use basic manager (default)
-python eval_real.py -am basic
+vlastudio infer --runtime current -am basic
 
 # Use older_first manager (uses default config values)
-python eval_real.py -am older_first
+vlastudio infer --runtime current -am older_first
 
 # Use truncated_conservative preset
-python eval_real.py -am truncated_conservative
+vlastudio infer --runtime current -am truncated_conservative
 
 # Override parameters via command line
-python eval_real.py -am truncated_conservative \
+vlastudio infer --runtime current -am truncated_conservative \
     --manager.start_ratio 0.15 \
     --manager.end_ratio 0.25 \
     --manager.older_coef 0.9
@@ -162,13 +162,13 @@ args:
 Then use it:
 ```bash
 # Use the custom config (by name)
-python eval_real.py -am my_custom
+vlastudio infer --runtime current -am my_custom
 
 # Or use the full path
-python eval_real.py -am configs/action_manager/my_custom.yaml
+vlastudio infer --runtime current -am configs/action_manager/my_custom.yaml
 
 # Override specific parameters via command line
-python eval_real.py -am my_custom --manager.older_coef 0.95
+vlastudio infer --runtime current -am my_custom --manager.older_coef 0.95
 ```
 
 **Command-line overrides** (`--manager.xxx`) have the highest priority and will override values in the YAML file.
@@ -210,12 +210,12 @@ args:
 
 Then use it:
 ```bash
-python eval_real.py --action_manager my_custom
+vlastudio infer --runtime current --action_manager my_custom
 ```
 
 You can also use the config without placing it in `configs/action_manager/`:
 ```bash
-python eval_real.py --action_manager /path/to/my_custom.yaml
+vlastudio infer --runtime current --action_manager /path/to/my_custom.yaml
 ```
 
 ## Choosing the Right Manager
@@ -248,10 +248,10 @@ python eval_real.py --action_manager /path/to/my_custom.yaml
 
 ```bash
 # YAML file has: start_ratio: 0.1, end_ratio: 0.2
-python eval_real.py -am truncated_conservative
+vlastudio infer --runtime current -am truncated_conservative
 
 # Override end_ratio via command line
-python eval_real.py -am truncated_conservative --manager.end_ratio 0.3
+vlastudio infer --runtime current -am truncated_conservative --manager.end_ratio 0.3
 # Result: start_ratio=0.1 (from YAML), end_ratio=0.3 (from CLI)
 ```
 

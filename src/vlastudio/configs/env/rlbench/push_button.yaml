@@ -4,7 +4,7 @@
 # because CoppeliaSim cannot be safely run in multiple processes.
 #
 # Usage:
-#   python eval_sim.py -e rlbench.push_button -m <model> --batch_size 0
+#   vlastudio evaluate -e rlbench.push_button -m <model> --batch_size 0
 #
 # The --batch_size 0 flag forces sequential execution mode.
 

@@ -7,7 +7,7 @@
 # Position deltas in world frame (m), rotation deltas axis-angle (rad).
 # Gripper: slider delta, scaled by gripper_scale. Positive=open, negative=close.
 #
-# Visualization: collect_data.py --visualize
+# Visualization: vlastudio collect --visualize
 
 type: vlastudio.deploy.robot.bessica_sim.BessicaSimRobot
 name: bessica_sim

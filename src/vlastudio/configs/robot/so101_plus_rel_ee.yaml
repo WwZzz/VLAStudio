@@ -4,7 +4,7 @@
 # Pair with: configs/teleop/quest3_so101_plus_rel_ee.yaml
 #
 # Example:
-#   python collect_data.py \
+#   vlastudio collect \
 #     -r configs/robot/so101_plus_rel_ee.yaml \
 #     -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
 #     -o data/so101_plus_vr_teleop \

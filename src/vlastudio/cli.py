@@ -1,4 +1,4 @@
-"""CLI dispatch with the same train.py policy/task/output argument semantics."""
+"""CLI dispatch with the same policy/task/output argument semantics."""
 import argparse
 import hashlib
 import json
@@ -15,9 +15,16 @@ from .worker import ENTRIES
 from .deploy.comm import is_server_address
 
 
+PUBLIC_COMMANDS = ["device", "train", "evaluate", "collect", "infer", "serve", "prepare", "doctor"]
+LEGACY_ALIASES = {"eval-sim": "evaluate", "eval-real": "infer"}
+
+
 def parse(argv):
+    argv = list(argv)
+    if argv and argv[0] in LEGACY_ALIASES:
+        argv[0] = LEGACY_ALIASES[argv[0]]
     parser = argparse.ArgumentParser(prog="vlastudio", allow_abbrev=False)
-    parser.add_argument("command", choices=[*ENTRIES, "prepare", "doctor"])
+    parser.add_argument("command", choices=PUBLIC_COMMANDS)
     parser.add_argument("--runtime", choices=["managed", "current"], default="managed")
     parser.add_argument("--runtime-manifest", help="Environment YAML, resolved from the current directory")
     parser.add_argument("--cache-dir")
@@ -29,7 +36,7 @@ def parse(argv):
     parser.add_argument("--dry-run", action="store_true")
     # Parse help separately so train flags can be described without ML imports.
     if any(x in argv for x in ("-h", "--help")):
-        parser.epilog = "Train forwards -p/--policy (config name or YAML path), -t/--task, -c/--training_config, -o/--output_dir and dotted overrides unchanged. Serve forwards -m/--model_name_or_path (checkpoint path)."
+        parser.epilog = "train forwards -p/--policy (config name or YAML path), -t/--task, -c/--training_config, -o/--output_dir and dotted overrides unchanged. evaluate forwards the simulation evaluation flags; infer forwards the real-world inference flags; serve forwards -m/--model_name_or_path (checkpoint path)."
     return parser.parse_known_args(argv)
 
 
@@ -52,10 +59,10 @@ def selected_config(command, args):
         selector.add_argument("-c", "--config", required=True)
         options, _ = selector.parse_known_args(args)
         return read_config(options.config, "device")
-    if command in ("serve", "eval-sim"):
+    if command in ("serve", "evaluate"):
         selector.add_argument("-m", "--model_name_or_path", default="ckpt/act_sim_transfer_cube_scripted_zscore_example")
         options, _ = selector.parse_known_args(args)
-        if command == "eval-sim" and is_server_address(options.model_name_or_path):
+        if command == "evaluate" and is_server_address(options.model_name_or_path):
             return {"type": "vlastudio.policy.remote"}, Path.cwd()
         checkpoint = Path(options.model_name_or_path).expanduser().resolve()
         metadata_root = checkpoint.parent if checkpoint.name.startswith("checkpoint-") else checkpoint
@@ -103,7 +110,7 @@ def main(argv=None):
                         task_args, _ = task_parser.parse_known_args(args)
                         task_config, task_path = read_config(task_args.task, "task")
                         profile = merge_component_runtimes(profile, task_config, task_path)
-                    elif options.command == "eval-sim":
+                    elif options.command == "evaluate":
                         env_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
                         env_parser.add_argument("-e", "--env", default="aloha_transfer")
                         env_args, _ = env_parser.parse_known_args(args)
@@ -126,7 +133,11 @@ def main(argv=None):
             return 0
         if profile:
             env["VLASTUDIO_RUNTIME_JSON"] = json.dumps({k: v for k, v in profile.items() if k != "entrypoint"})
-        app = snapshot(cache)
+        if options.runtime == "managed":
+            app = snapshot(cache)
+        else:
+            from .paths import package_source_root
+            app = package_source_root().parent
         return execute(options.command, args, python, app, env, (profile or {}).get("entrypoint"), isolated=options.runtime == "managed")
     except KeyboardInterrupt:
         return 130

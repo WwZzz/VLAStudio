@@ -75,10 +75,7 @@ class LiberoHDF5(EpisodicDataset):
             local_dir=dataset_dir,
             local_dir_use_symlinks=False
         )
-        # Update dataset_dir with the downloaded path
-        if not dataset_dir:
-            self.dataset_dir = downloaded_path
-        return self.dataset_dir
+        return downloaded_path or dataset_dir
     
     def _get_h5_len(self, datapath):
         try:

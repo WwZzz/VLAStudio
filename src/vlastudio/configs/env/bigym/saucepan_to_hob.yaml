@@ -4,7 +4,7 @@
 # Move the saucepan to the hob.
 #
 # Usage:
-#   python eval_sim.py -e bigym.saucepan_to_hob -m <model>
+#   vlastudio evaluate -e bigym.saucepan_to_hob -m <model>
 #
 # Observation/Action Structure:
 #   - observation.state (16 dims): [floating_base(4), left_arm(5), right_arm(5), grippers(2)]

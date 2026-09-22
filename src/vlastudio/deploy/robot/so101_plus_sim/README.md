@@ -17,7 +17,7 @@ frame `gripper_body` as the real `So101Plus`).
 ```bash
 bash scripts/so101_plus_sim_vr_tele.sh
 # or
-python collect_data.py \
+vlastudio collect --runtime current \
   -r configs/robot/so101_plus_sim_rel_ee.yaml \
   -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
   -o data/so101_plus_sim_vr \

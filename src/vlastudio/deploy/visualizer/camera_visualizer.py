@@ -350,7 +350,7 @@ def start_camera_visualizer(shm_names: List[str], **kwargs):
     """
     Start the camera visualizer.
     
-    This function is called by collect_data.py to start the camera visualizer.
+    This function is called by vlastudio collect to start the camera visualizer.
     
     Args:
         shm_names: List of camera shared memory names

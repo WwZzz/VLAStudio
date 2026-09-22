@@ -222,10 +222,10 @@ args:
 
 ## Evaluation
 
-Run evaluation with eval_sim.py:
+Run evaluation with vlastudio evaluate:
 
 ```bash
-python eval_sim.py \
+vlastudio evaluate --runtime current \
     -e bigym.reach_target \
     -m /path/to/checkpoint \
     --max_timesteps 500

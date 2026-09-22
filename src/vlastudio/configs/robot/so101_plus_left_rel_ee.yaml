@@ -6,7 +6,7 @@
 # Example:
 #   bash scripts/so101_plus_left_vr_tele.sh
 #   # or
-#   python collect_data.py \
+#   vlastudio collect \
 #     -r configs/robot/so101_plus_left_rel_ee.yaml \
 #     -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
 #     -o data/so101_plus_left_vr_teleop \

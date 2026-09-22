@@ -44,49 +44,49 @@ The system supports arbitrary nesting depth for parameters. Examples:
 
 ```bash
 # Basic parameter override
-python train.py --policy act --policy.camera_names '["primary", "wrist"]'
+vlastudio train --runtime current --policy act --policy.camera_names '["primary", "wrist"]'
 
 # Nested parameter override
-python train.py --policy act --policy.model_args.backbone resnet50
-python train.py --policy act --policy.model_args.hidden_dim 1024
-python train.py --policy act --policy.model_args.enc_layers 6
+vlastudio train --runtime current --policy act --policy.model_args.backbone resnet50
+vlastudio train --runtime current --policy act --policy.model_args.hidden_dim 1024
+vlastudio train --runtime current --policy act --policy.model_args.enc_layers 6
 
 # Deep nesting override
-python train.py --policy act --policy.model_args.optimizer.lr 0.001
-python train.py --policy act --policy.model_args.optimizer.lr_scheduler.type cosine
+vlastudio train --runtime current --policy act --policy.model_args.optimizer.lr 0.001
+vlastudio train --runtime current --policy act --policy.model_args.optimizer.lr_scheduler.type cosine
 ```
 
 ### Training Configuration Overrides
 
 ```bash
 # Training parameter override
-python train.py --training.learning_rate 0.0001
-python train.py --training.num_train_epochs 10
+vlastudio train --runtime current --training.learning_rate 0.0001
+vlastudio train --runtime current --training.num_train_epochs 10
 
 # Optimizer configuration override
-python train.py --training.optimizer.weight_decay 0.01
-python train.py --training.optimizer.lr_scheduler.warmup_steps 1000
-python train.py --training.optimizer.lr_scheduler.type linear
+vlastudio train --runtime current --training.optimizer.weight_decay 0.01
+vlastudio train --runtime current --training.optimizer.lr_scheduler.warmup_steps 1000
+vlastudio train --runtime current --training.optimizer.lr_scheduler.type linear
 ```
 
 ### Task Configuration Overrides
 
 ```bash
 # Basic task parameters
-python train.py --task.action_dim 14
-python train.py --task.state_dim 14
+vlastudio train --runtime current --task.action_dim 14
+vlastudio train --runtime current --task.state_dim 14
 
 # Environment parameter override
-python train.py --task.env.simulation.physics.timestep 0.01
-python train.py --task.env.simulation.physics.gravity -9.81
-python train.py --task.env.simulation.rendering.width 1920
-python train.py --task.env.simulation.rendering.height 1080
+vlastudio train --runtime current --task.env.simulation.physics.timestep 0.01
+vlastudio train --runtime current --task.env.simulation.physics.gravity -9.81
+vlastudio train --runtime current --task.env.simulation.rendering.width 1920
+vlastudio train --runtime current --task.env.simulation.rendering.height 1080
 ```
 
 ### Combined Usage
 
 ```bash
-python train.py \
+vlastudio train --runtime current \
   --policy act \
   --task sim_transfer_cube_scripted \
   --training default \
@@ -127,39 +127,39 @@ This means command-line arguments always override the same parameters in configu
 
 ```bash
 # Try different backbones
-python train.py --policy act --policy.model_args.backbone resnet34
-python train.py --policy act --policy.model_args.backbone resnet50
+vlastudio train --runtime current --policy act --policy.model_args.backbone resnet34
+vlastudio train --runtime current --policy act --policy.model_args.backbone resnet50
 
 # Adjust network depth
-python train.py --policy act --policy.model_args.enc_layers 6
-python train.py --policy act --policy.model_args.dec_layers 8
+vlastudio train --runtime current --policy act --policy.model_args.enc_layers 6
+vlastudio train --runtime current --policy act --policy.model_args.dec_layers 8
 ```
 
 ### 2. Debugging and Testing
 
 ```bash
 # Quickly reduce training steps for testing
-python train.py --training.max_steps 100
+vlastudio train --runtime current --training.max_steps 100
 
 # Adjust batch size
-python train.py --training.per_device_train_batch_size 4
+vlastudio train --runtime current --training.per_device_train_batch_size 4
 
 # Modify camera configuration
-python train.py --policy.camera_names '["primary"]'
+vlastudio train --runtime current --policy.camera_names '["primary"]'
 ```
 
 ### 3. Hyperparameter Search
 
 ```bash
 # Learning rate search
-python train.py --training.learning_rate 0.001
-python train.py --training.learning_rate 0.0001
-python train.py --training.learning_rate 0.00001
+vlastudio train --runtime current --training.learning_rate 0.001
+vlastudio train --runtime current --training.learning_rate 0.0001
+vlastudio train --runtime current --training.learning_rate 0.00001
 
 # Network size search
-python train.py --policy.model_args.hidden_dim 256
-python train.py --policy.model_args.hidden_dim 512
-python train.py --policy.model_args.hidden_dim 1024
+vlastudio train --runtime current --policy.model_args.hidden_dim 256
+vlastudio train --runtime current --policy.model_args.hidden_dim 512
+vlastudio train --runtime current --policy.model_args.hidden_dim 1024
 ```
 
 ## Important Notes

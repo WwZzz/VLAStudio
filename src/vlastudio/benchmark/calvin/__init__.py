@@ -61,7 +61,7 @@ from calvin_env_10.evaluation.utils import get_env_state_for_initial_condition
 from vlastudio.benchmark.base import MetaEnv, MetaObs, MetaAction
 
 # Export evaluation functions
-# The 'evaluate' function will be used by eval_sim.py if env_module has it
+# The 'evaluate' function will be used by vlastudio evaluate if env_module has it
 from .evaluate import evaluate, count_success
 
 # Global counter for sequence allocation (shared across processes via Manager)
@@ -292,7 +292,7 @@ class CalvinEnv(MetaEnv):
         4. If completed, advances to next subtask or marks sequence as done
         5. Returns (obs, reward, done, info)
         
-        For eval_sim.py compatibility:
+        For vlastudio evaluate compatibility:
         - done=True when sequence ends (all subtasks done OR failed)
         - info['success'] = True if at least 1 subtask completed (for standard eval)
         - info['subtasks_completed'] = actual number (for CALVIN metrics)
@@ -342,7 +342,7 @@ class CalvinEnv(MetaEnv):
             sequence_done = True
         
         # Prepare info dict
-        # For eval_sim.py: 'success' means at least 1 subtask completed
+        # For vlastudio evaluate: 'success' means at least 1 subtask completed
         info = {
             'success': self.subtasks_completed > 0,  # True if any subtask completed
             'subtasks_completed': self.subtasks_completed,  # CALVIN metric: 0-5

@@ -82,7 +82,7 @@ RoboTwin must run with its own Python environment:
 
 ```bash
 # Use RoboTwin's Python
-python eval_sim.py -e robotwin_pick_bottles -m <model> --batch_size 0
+vlastudio evaluate --runtime current -e robotwin_pick_bottles -m <model> --batch_size 0
 ```
 
 ⚠️ **Sequential mode only** (`--batch_size 0`) due to Sapien limitations.
@@ -276,14 +276,14 @@ ILStudio's `use_planner` parameter controls planner initialization:
 
 ```bash
 # Test without planner (fast, recommended)
-benchmark/robotwin/.venv/bin/python eval_sim.py \
+benchmark/robotwin/.venv/bin/vlastudio evaluate --runtime current \
   -m __dummy-16random \
   -e robotwin_pick_bottles \
   --batch_size 0 \
   --num_rollout 1
 
 # Test with planner (slow, smooth trajectories)
-benchmark/robotwin/.venv/bin/python eval_sim.py \
+benchmark/robotwin/.venv/bin/vlastudio evaluate --runtime current \
   -m __dummy-16random \
   -e robotwin_pick_bottles_with_planner \
   --batch_size 0 \

@@ -1,5 +1,5 @@
 # BEHAVIOR-1K Task Evaluation Configuration
-# Use with: python eval_sim.py -e behavior1k.example -m <model_path> --batch_size 0 -n 1
+# Use with: vlastudio evaluate -e behavior1k.example -m <model_path> --batch_size 0 -n 1
 #
 # This uses official OmniGibson eval.py settings with R1Pro robot.
 # Only need to specify task name - configs are auto-generated.

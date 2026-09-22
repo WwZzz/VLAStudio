@@ -50,8 +50,8 @@ def create_env(config):
     This function reuses the same environment instance to avoid OpenGL context
     issues when creating multiple environments in the same process.
     
-    When using eval_sim.py, always use --batch_size 0 to force sequential mode:
-        python eval_sim.py -e rlbench_reach -m <model> --batch_size 0
+    When using vlastudio evaluate, always use --batch_size 0 to force sequential mode:
+        vlastudio evaluate --runtime current -e rlbench_reach -m <model> --batch_size 0
     
     Args:
         config: Configuration object containing task parameters
@@ -69,7 +69,7 @@ def create_env(config):
             "WARNING: RLBench is being created in a subprocess!\n"
             "RLBench does NOT support parallel execution (SubprocVectorEnv).\n"
             "This will likely fail. Please use --batch_size 0 for sequential mode:\n"
-            "    python eval_sim.py -e rlbench_reach -m <model> --batch_size 0\n"
+            "    vlastudio evaluate --runtime current -e rlbench_reach -m <model> --batch_size 0\n"
             + "="*70,
             RuntimeWarning,
             stacklevel=2

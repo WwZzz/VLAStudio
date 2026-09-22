@@ -6,7 +6,7 @@
 #
 # Use with: configs/robot/so101_sim_qpos.yaml (qpos_input_unit: normalized)
 # Run:
-#   python collect_data.py -r configs/robot/so101_sim_qpos.yaml -t configs/teleop/slider_so101_qpos.yaml --visualize
+#   vlastudio collect -r configs/robot/so101_sim_qpos.yaml -t configs/teleop/slider_so101_qpos.yaml --visualize
 
 type: vlastudio.deploy.teleoperator.tk_slider.SliderTeleop
 name: slider_so101_qpos

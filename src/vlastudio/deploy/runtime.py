@@ -603,7 +603,7 @@ def eval_real_session_recorder_main(
 
 
 # ---------------------------------------------------------------------------
-# Main-process cleanup + manifest (eval_real.py)
+# Main-process cleanup + manifest (vlastudio infer)
 # ---------------------------------------------------------------------------
 
 
@@ -642,7 +642,7 @@ def setup_eval_real_output_dir(args) -> str:
     os.makedirs(output_dir, exist_ok=True)
     logger.info("Output directory (resolved): {}", output_dir)
     manifest = {
-        "script": "eval_real.py",
+        "script": "vlastudio infer",
         "output_dir": output_dir,
         "robot": getattr(args, "robot", ""),
         "model_name_or_path": getattr(args, "model_name_or_path", ""),

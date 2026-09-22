@@ -64,5 +64,5 @@ trainer_class: Trainer
 
 # Training Example
 ```shell
-python train.py -p pi05 -t sim_transfer_cube_scripted -o ckpt/pi05_aloha -c openpi_lora
+vlastudio train --runtime current -p pi05 -t sim_transfer_cube_scripted -o ckpt/pi05_aloha -c openpi_lora
 ```

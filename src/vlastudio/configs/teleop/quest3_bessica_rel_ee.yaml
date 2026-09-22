@@ -4,7 +4,7 @@
 # left_unsqueeze_active, right_unsqueeze_active (Quest3Teleop provides all).
 #
 # Usage:
-#   python collect_data.py -r configs/robot/bessica_sim_rel_ee.yaml \
+#   vlastudio collect -r configs/robot/bessica_sim_rel_ee.yaml \
 #     -t configs/teleop/quest3_bessica_rel_ee.yaml --visualize
 
 type: vlastudio.deploy.teleoperator.quest3.Quest3Teleop

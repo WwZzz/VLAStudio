@@ -27,7 +27,7 @@ source .venv/bin/activate
 
 # Train with ILStudio
 cd ../../..  # Back to ILStudio root
-python train.py -p openvla_oft -t your_task_config -o outputs/openvla_oft_experiment
+vlastudio train --runtime current -p openvla_oft -t your_task_config -o outputs/openvla_oft_experiment
 ```
 
 ### Using Pretrained Checkpoints
@@ -55,7 +55,7 @@ args:
 
 ```bash
 # Evaluate on simulation
-python eval_sim.py -e libero_spatial -m path/to/checkpoint -o results/eval
+vlastudio evaluate --runtime current -e libero_spatial -m path/to/checkpoint -o results/eval
 ```
 
 ## Configuration

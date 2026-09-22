@@ -82,7 +82,7 @@ class Environment:
 
     def evaluate(self, policy, *, output_dir, num_rollout=4, batch_size=0,
                  device="cuda", action_manager=None, overrides=None, **runtime_options):
-        """Evaluate a saved policy using the existing eval_sim.py pipeline.
+        """Evaluate a saved policy using the simulation evaluation pipeline.
 
         Built-in environments declare their simulator dependencies. A custom
         environment may supply runtime_manifest or use runtime='current'.
@@ -114,7 +114,7 @@ class Environment:
         if action_manager is not None:
             args.extend(["-am", str(_config(action_manager, "action_manager"))])
         args.extend(_overrides(overrides))
-        _run("eval-sim", args, options)
+        _run("evaluate", args, options)
         metrics = {str(p.relative_to(output)): json.loads(p.read_text(encoding="utf-8"))
                    for p in sorted(output.rglob("*.json"))}
         return EvaluationResult(output, metrics)

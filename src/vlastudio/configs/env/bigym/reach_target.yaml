@@ -4,7 +4,7 @@
 # Reach the red target sphere with either hand.
 #
 # Usage:
-#   python eval_sim.py -e bigym.reach_target -m <model>
+#   vlastudio evaluate -e bigym.reach_target -m <model>
 #
 # Observation/Action Structure:
 #   - observation.state (15 dims): [floating_base(3), left_arm(5), right_arm(5), grippers(2)]

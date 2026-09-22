@@ -5,7 +5,7 @@
 #   [shoulder_pan, shoulder_lift, elbow_flex, wrist_flex, wrist_roll, wrist_yaw, gripper]
 #
 # Teleop example (leader=ttyACM0, follower=ttyACM1):
-#   python collect_data.py \
+#   vlastudio collect \
 #     -r configs/robot/so101_plus.yaml \
 #     -t configs/teleop/so101_plus_leader.yaml \
 #     -o data/so101_plus_teleop \
@@ -20,7 +20,7 @@
     com: /dev/ttyACM1
     robot_id: so101_plus_follower
     control_mode: qpos
-    # control_shm_name is auto-filled from --teleop by collect_data.py
+    # control_shm_name is auto-filled from --teleop by vlastudio collect
 
     # Joint direction signs (7D, 1=normal, -1=reversed)
     joint_signs: [1, 1, 1, 1, 1, 1, 1]

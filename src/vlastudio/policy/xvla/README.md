@@ -18,7 +18,7 @@ The ILStudio entrypoint is `configs/policy/xvla.yaml`.
 Typical fine-tuning command:
 
 ```bash
-python train.py -p xvla -t lerobot/xvla-soft-fold -o ckpt/xvla_soft_fold
+vlastudio train --runtime current -p xvla -t lerobot/xvla-soft-fold -o ckpt/xvla_soft_fold
 ```
 
 If you want to start from a different X-VLA checkpoint, override `pretrained_model_name_or_path`

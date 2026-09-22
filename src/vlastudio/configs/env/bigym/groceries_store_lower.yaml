@@ -4,7 +4,7 @@
 # Store groceries in the lower cabinet.
 #
 # Usage:
-#   python eval_sim.py -e bigym.groceries_store_lower -m <model>
+#   vlastudio evaluate -e bigym.groceries_store_lower -m <model>
 #
 # Observation/Action Structure:
 #   - observation.state (16 dims): [floating_base(4), left_arm(5), right_arm(5), grippers(2)]

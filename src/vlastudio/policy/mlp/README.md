@@ -68,7 +68,7 @@ model_args:
 
 ### Training
 ```bash
-python train.py --policy mlp --config configs/policy/mlp.yaml
+vlastudio train --runtime current --policy mlp --config configs/policy/mlp.yaml
 ```
 
 ### Evaluation
@@ -78,7 +78,7 @@ python eval.py --policy mlp --model_name_or_path /path/to/checkpoint
 
 ### Multi-modal Training
 ```bash
-python train.py --policy mlp --config configs/policy/mlp_camera.yaml
+vlastudio train --runtime current --policy mlp --config configs/policy/mlp_camera.yaml
 ```
 
 ## Framework Interface

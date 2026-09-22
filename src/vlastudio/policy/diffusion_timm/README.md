@@ -109,13 +109,13 @@ p_drop_attn: 0.1 # attention dropout
 
 ```bash
 # UNet backbone (default)
-python train.py \
+vlastudio train --runtime current \
     --task_config configs/task/your_task.yaml \
     --policy_config configs/policy/diffusion_timm.yaml \
     --training_config configs/training/dp.yaml
 
 # Transformer backbone
-python train.py \
+vlastudio train --runtime current \
     --task_config configs/task/your_task.yaml \
     --policy_config configs/policy/diffusion_timm.yaml \
     --training_config configs/training/dp.yaml \

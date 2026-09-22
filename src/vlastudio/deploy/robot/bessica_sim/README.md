@@ -1,65 +1,76 @@
 # Bessica-D Simulation Robot (`bessica_sim`)
 
-ILStudio **自带**双臂 Bessica-D v1.0 仿真：URDF、MJCF、场景均在 `deploy/robot/bessica_sim/` 下，**不依赖**任何外部 Bessica / Synria Python 包或仓库路径。
+VLAStudio includes a dual-arm Bessica-D v1.0 simulation. Its URDF, MJCF, and
+scene files live inside `src/vlastudio/deploy/robot/bessica_sim/`; simulation
+does not depend on an external Bessica/Synria Python package or SDK path.
 
-- **运动学 / IK**：本仓库内 `kinematics.py` + Pinocchio，读包内 `assets/Bessica-D_Covered.urdf`
-- **可视化 / 步进**：MuJoCo，读包内 `mujoco_model/scene.xml` → `bessica_d.xml`
+- Kinematics and IK: the included `kinematics.py` and Pinocchio use
+  `assets/Bessica-D_Covered.urdf`.
+- Rendering and stepping: MuJoCo loads `mujoco_model/scene.xml` and `bessica_d.xml`.
 
-## 网格文件（一次性放入本目录）
+## Mesh files
 
-STL 体积大，通常不强制进 Git；由你在本地**放进 ILStudio 树内**这两处（路径固定，与 MJCF / URDF 一致）：
+STL files are large and may be omitted from Git. Place the meshes inside this
+module at both locations expected by its MJCF and URDF:
 
-| 用途 | 目录 |
-|------|------|
+| Usage | Directory relative to this module |
+| --- | --- |
 | MuJoCo | `mujoco_model/meshes/Bessica-D_v1_0/` |
-| URDF（Pinocchio 可选加载 mesh） | `assets/meshes/Bessica-D_v1_0/` |
+| URDF and optional Pinocchio mesh loading | `assets/meshes/Bessica-D_v1_0/` |
 
-两处应包含**同一套** `*.STL` / `*.stl`（与 MJCF 里列出的 mesh 名一致，如 `base_link.STL` 等）。
+Both directories must contain the same `*.STL`/`*.stl` files, with names matching
+the model declarations, such as `base_link.STL`.
 
-**推荐**：用脚本把 STL **复制进** `bessica_sim`（之后仿真只读包内文件，不依赖 SDK 的 Python 包；`SRC` 任意）：
+Use the helper to copy meshes into the module:
 
 ```bash
-cd deploy/robot/bessica_sim
+cd src/vlastudio/deploy/robot/bessica_sim
 ./vendor_meshes.sh /path/to/folder/containing/stl/files
 ```
 
-若 ILStudio 仓库根目录下自带厂商资源树 **`Bessica-D-SDK/bessica_d_sdk/robocore_main/assets/robot/meshes/Bessica-D_v1_0/`**（与 `urdf/`、`mjcf/` 并列），可直接：
+If a vendor checkout is available at the repository root, the source meshes may
+be under `Bessica-D-SDK/bessica_d_sdk/robocore_main/assets/robot/meshes/Bessica-D_v1_0/`.
+Pass its absolute path to the helper. After copying, simulation reads only the
+module's own files and does not need the vendor SDK at runtime.
+
+To distribute a checkout or wheel with meshes included, retain both mesh copies
+under this module. Large assets may be tracked with Git LFS. Do not rely on an
+external SDK directory being present on another machine.
+
+## Control modes
+
+- `delta_ee` (default): 14 dimensions, right arm then left arm, each containing
+  `dx, dy, dz, dr, dp, dy, gripper`. Gripper channels control slide joints;
+  negative closes and zero keeps the current position.
+- `qpos`: 16 dimensions, ordered as `right_arm_joint1..7, right_gripper_width,
+  left_arm_joint1..7, left_gripper_width`. Arm joints use radians; grippers use
+  the distance between fingers in meters, from `0` (closed) to `0.101` (open).
+
+MuJoCo equality constraints mirror each pair of fingers, so one value controls
+both fingers on each hand.
+
+## Observations
+
+- `qpos`, shape `(16,)`: `[R_joint1..7, R_gripper, L_joint1..7, L_gripper]`.
+- `gpos`, shape `(12,)`: `[x, y, z, roll, pitch, yaw]` for right `link7`, then
+  left `link7`, computed by Pinocchio forward kinematics.
+
+## Configuration
+
+- `src/vlastudio/configs/robot/bessica_sim.yaml`
+- `src/vlastudio/configs/robot/bessica_sim_qpos.yaml`
+
+Leave `xml_path` and `urdf_path` unset to use packaged model paths. Override them
+only when intentionally testing another model.
+
+## Dependencies
+
+Install `mujoco`, `numpy`, and `pin` (Pinocchio, imported as `pinocchio`).
+
+## Smoke test
+
+With meshes copied and dependencies installed, run from the repository root:
 
 ```bash
-cd deploy/robot/bessica_sim
-./vendor_meshes.sh ../../Bessica-D-SDK/bessica_d_sdk/robocore_main/assets/robot/meshes/Bessica-D_v1_0
-```
-
-（这与此前只检查 `.local/Bessica-D-SDK` 时「看不到」mesh 不同：根目录 `Bessica-D-SDK/` 里可以包含完整 `meshes/Bessica-D_v1_0/`。）
-
-若你希望克隆即可跑仿真，将 `bessica_sim` 下两份 `meshes/Bessica-D_v1_0/` **提交进 Git**（大文件可用 Git LFS）；**不要**指望运行时去读 `Bessica-D-SDK/` 目录，否则换机器会丢路径。
-
-## 控制模式
-
-- **`delta_ee`**（默认）：14D — 右臂 7 + 左臂 7：`dx,dy,dz, dr,dp,dy, gripper`。夹爪通道控制 slide 关节（负=闭合，0=不动）。
-- **`qpos`**：16D — `right_arm_joint1..7, right_gripper_width, left_arm_joint1..7, left_gripper_width`。臂关节为弧度，夹爪值为两指间宽度（米）`[0, 0.101]`（0=完全闭合，0.101=全开）。
-
-每只手的两根手指通过 MuJoCo `equality` 约束镜像联动，只需控制一个值。
-
-## 观测
-
-- `qpos`: (16,) — `[R_joint1..7, R_gripper, L_joint1..7, L_gripper]`
-- `gpos`: (12,) — 右 `link7` 再左 `link7` 的 `[x,y,z,roll,pitch,yaw]`（Pinocchio FK）
-
-## 配置
-
-- `configs/robot/bessica_sim.yaml`
-- `configs/robot/bessica_sim_qpos.yaml`
-
-一般**不要**在 YAML 里写 `xml_path` / `urdf_path`，除非你要临时换模型；默认始终用本包内路径。
-
-## 依赖
-
-与 ILStudio 一致：**mujoco**、**numpy**、**pin**（Pinocchio：`import pinocchio as pin`）。
-
-## 烟测
-
-```bash
-# 已放好 STL 且环境已安装 pinocchio
-python deploy/robot/bessica_sim/robot.py --mode qpos --visualize
+python -m vlastudio.deploy.robot.bessica_sim.robot --mode qpos --visualize
 ```

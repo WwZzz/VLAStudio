@@ -132,7 +132,7 @@ args:
 
 ```bash
 # Train on CALVIN dataset
-python train.py \
+vlastudio train --runtime current \
     --policy_config configs/policy/roboflamingo.yaml \
     --task_config configs/task/calvin.yaml \
     --output_dir outputs/roboflamingo

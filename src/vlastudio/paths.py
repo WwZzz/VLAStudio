@@ -9,6 +9,62 @@ def package_root():
     return Path(__file__).resolve().parent
 
 
+def package_source_root():
+    """The installed or checkout package, not a cached application snapshot."""
+    here = Path(__file__).resolve().parent
+    origin = here / ".package_origin"
+    if origin.is_file():
+        path = Path(origin.read_text(encoding="utf-8").strip())
+        if (path / "__init__.py").is_file():
+            return path
+    try:
+        here.relative_to(cache_root() / "apps")
+    except ValueError:
+        return here
+    live = _installed_package_root()
+    return live if live is not None else here
+
+
+def _installed_package_root():
+    try:
+        from importlib.metadata import distribution
+        from urllib.parse import unquote, urlparse
+        dist = distribution("vlastudio")
+    except Exception:
+        return None
+    try:
+        info = json.loads(dist.read_text("direct_url.json") or "")
+        url = info.get("url", "")
+        if url.startswith("file:"):
+            root = Path(unquote(urlparse(url).path))
+            for candidate in (root / "src" / "vlastudio", root / "vlastudio"):
+                if (candidate / "__init__.py").is_file():
+                    return candidate
+    except Exception:
+        pass
+    try:
+        locate = Path(dist.locate_file("vlastudio/__init__.py"))
+        if locate.is_file():
+            return locate.parent
+    except Exception:
+        pass
+    return None
+
+
+def drop_app_snapshots(pythonpath, cache=None):
+    """Remove cached application snapshots from a PYTHONPATH value."""
+    apps = cache_root(cache) / "apps"
+    kept = []
+    for part in (pythonpath or "").split(os.pathsep):
+        if not part:
+            continue
+        try:
+            Path(part).expanduser().resolve().relative_to(apps)
+        except ValueError:
+            kept.append(part)
+    return os.pathsep.join(kept)
+
+
 def legacy_root():
     """Compatibility name for tools written before the source-layout migration."""
     return package_root()

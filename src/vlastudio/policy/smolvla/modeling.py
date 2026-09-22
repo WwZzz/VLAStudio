@@ -1,12 +1,17 @@
 from lerobot.policies.smolvla.modeling_smolvla import VLAFlowMatching
 try:
     from lerobot.policies.rtc.configuration_rtc import RTCConfig
-except:
-    # For compatibility
+except ImportError:
     RTCConfig = None
 from transformers.modeling_utils import PreTrainedModel
 from transformers.configuration_utils import PretrainedConfig
-from lerobot.utils.constants import ACTION
+try:
+    from lerobot.utils.constants import ACTION
+except ImportError:
+    try:
+        from lerobot.constants import ACTION
+    except ImportError:
+        ACTION = "action"
 from collections import deque
 from torch import Tensor
 import torch

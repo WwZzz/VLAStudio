@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-collect_data.py
+vlastudio collect
 
 Data collection for teleoperation:
 1. Start all devices (teleop optional, robot + cameras required)
@@ -13,24 +13,24 @@ Data collection for teleoperation:
 5. Optionally auto-generate a task config YAML for training
 
 Usage:
-    python collect_data.py --robot configs/robot/bi_so101_follower.yaml [--teleop configs/teleop/bi_so101_leader.yaml] -o data/teleop_recordings
+    vlastudio collect --runtime current --robot configs/robot/bi_so101_follower.yaml [--teleop configs/teleop/bi_so101_leader.yaml] -o data/teleop_recordings
     
     # With visualization (if robot module provides a Visualizer class):
-    python collect_data.py --robot configs/robot/so101_sim_qpos.yaml --teleop configs/teleop/so101_leader.yaml --visualize
+    vlastudio collect --runtime current --robot configs/robot/so101_sim_qpos.yaml --teleop configs/teleop/so101_leader.yaml --visualize
     
     # Overwrite episode 0 (lerobotv21 only):
-    python collect_data.py --robot <...> -o data/teleop_recordings --start-idx 0
+    vlastudio collect --runtime current --robot <...> -o data/teleop_recordings --start-idx 0
     
     # Save as HDF5 (legacy):
-    python collect_data.py --robot <...> --teleop <...> -o data/teleop_recordings --dataset-format hdf5
+    vlastudio collect --runtime current --robot <...> --teleop <...> -o data/teleop_recordings --dataset-format hdf5
     
     # Auto-generate task config after collection:
-    python collect_data.py --robot <...> -o data/teleop_recordings -g local.my_task
+    vlastudio collect --runtime current --robot <...> -o data/teleop_recordings -g local.my_task
     # Or with full path:
-    python collect_data.py --robot <...> -o data/teleop_recordings -g configs/task/my_task.yaml
+    vlastudio collect --runtime current --robot <...> -o data/teleop_recordings -g configs/task/my_task.yaml
     
     # Enable streaming mode (faster save, writes to disk in real-time):
-    python collect_data.py --robot <...> -o data/teleop_recordings --streaming
+    vlastudio collect --runtime current --robot <...> -o data/teleop_recordings --streaming
 """
 
 # CRITICAL: Import shm_utils FIRST to patch resource_tracker before multiprocessing

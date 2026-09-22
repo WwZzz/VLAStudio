@@ -1,7 +1,52 @@
 import sys
 import os
 import threading
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'third_party', 'libero'))
+from pathlib import Path
+
+def _libero_repo_roots():
+    roots = [Path(__file__).resolve().parents[2] / 'third_party' / 'libero']
+    if os.environ.get('LIBERO_ROOT'):
+        roots.append(Path(os.environ['LIBERO_ROOT']).expanduser())
+    uv_cache = Path(os.environ.get('UV_CACHE_DIR') or (Path.home() / '.cache' / 'vlastudio' / 'uv'))
+    if uv_cache.is_dir():
+        roots.extend(sorted(uv_cache.glob('git-v0/checkouts/*/*')))
+    config = Path(os.environ.get('LIBERO_CONFIG_PATH', Path.home() / '.libero')) / 'config.yaml'
+    if config.is_file():
+        try:
+            import yaml
+            data = yaml.safe_load(config.read_text(encoding='utf-8')) or {}
+            benchmark_root = data.get('benchmark_root')
+            if benchmark_root:
+                package = Path(benchmark_root).expanduser().resolve()
+                roots.extend([package.parent.parent, package.parent])
+        except Exception:
+            pass
+    return roots
+
+def _ensure_libero_importable():
+    try:
+        __import__('libero.libero')
+        return
+    except ImportError:
+        pass
+    for root in _libero_repo_roots():
+        if not (root / 'libero' / 'libero' / '__init__.py').is_file():
+            continue
+        path = str(root.resolve())
+        if path not in sys.path:
+            sys.path.insert(0, path)
+        try:
+            __import__('libero.libero')
+            return
+        except ImportError:
+            if path in sys.path:
+                sys.path.remove(path)
+    raise ImportError(
+        "LIBERO is not importable. Its setup.py builds an empty wheel, so the git checkout must be on sys.path. "
+        "Run `vlastudio env install --policy smolvla -n <env>` or set LIBERO_ROOT to a LIBERO checkout."
+    )
+
+_ensure_libero_importable()
 from vlastudio.benchmark.base import MetaAction, MetaEnv, MetaObs
 from libero.libero import benchmark as libero_bench
 from libero.libero import get_libero_path
@@ -16,7 +61,6 @@ import copy
 import json
 from PIL import Image, ImageDraw, ImageFont
 from typing import List
-from pathlib import Path
 import argparse
 from collections import deque
 import imageio

@@ -1,7 +1,7 @@
 # SO101++ Follower (parallel gripper) — qpos control
 #
 # Teleop (leader=ttyACM0, follower=ttyACM1):
-#   python collect_data.py \
+#   vlastudio collect \
 #     -r configs/robot/so101_pp.yaml \
 #     -t configs/teleop/so101_pp_leader.yaml \
 #     -o data/so101_pp_teleop \

@@ -45,14 +45,14 @@ export OMNIGIBSON_HEADLESS=True
 
 # Test environment setup (DummyTask, no task loading)
 # Note: R1Pro robot requires 23-dimensional actions
-python eval_sim.py -e behavior1k.dummy -m __dummy-23 --batch_size 0 -n 1
+vlastudio evaluate --runtime current -e behavior1k.dummy -m __dummy-23 --batch_size 0 -n 1
 ```
 
 ### Evaluating Specific Tasks
 
 ```shell
 # Evaluate assembling_gift_baskets task
-python eval_sim.py -e behavior1k.example -m /path/to/checkpoint --batch_size 0 -n 10
+vlastudio evaluate --runtime current -e behavior1k.example -m /path/to/checkpoint --batch_size 0 -n 10
 ```
 
 **Important Notes**:
@@ -110,10 +110,10 @@ Create a new configuration file `configs/env/behavior1k/my_task.yaml`:
 
 ```shell
 # Use local model
-python eval_sim.py -e behavior1k/example -m /path/to/checkpoint -n 10
+vlastudio evaluate --runtime current -e behavior1k/example -m /path/to/checkpoint -n 10
 
 # Use remote policy server
-python eval_sim.py -e behavior1k/example -m localhost:5000 -n 10
+vlastudio evaluate --runtime current -e behavior1k/example -m localhost:5000 -n 10
 ```
 
 ## Important Notes
@@ -168,7 +168,7 @@ nvidia-smi
 apt-get install xvfb
 
 # Run with virtual display
-xvfb-run -a python eval_sim.py -e behavior1k/dummy ...
+xvfb-run -a vlastudio evaluate --runtime current -e behavior1k/dummy ...
 ```
 
 #### 5. Check CUDA Version Compatibility

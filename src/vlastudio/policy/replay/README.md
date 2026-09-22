@@ -4,7 +4,7 @@ Play back dataset actions from a **pseudo checkpoint** directory. `select_action
 
 ## Task name
 
-Use dot form like **`local.t0325`** (same as `train.py -t` / `ConfigLoader`), i.e. `configs/task/local/t0325.yaml`. Avoid `local/t0325` path syntax unless you pass a real `.yaml` path.
+Use dot form like **`local.t0325`** (same as `vlastudio train -t` / `ConfigLoader`), i.e. `configs/task/local/t0325.yaml`. Avoid `local/t0325` path syntax unless you pass a real `.yaml` path.
 
 ## Build a pseudo checkpoint
 
@@ -33,8 +33,8 @@ python -m policy.replay --list-episodes local.t0325
 Same as any other checkpoint:
 
 ```bash
-python start_policy_server.py -m ckpt/replay_demo -p 5000
-python eval_real.py -r <robot> -m ckpt/replay_demo -am basic
+vlastudio serve --runtime current -m ckpt/replay_demo -p 5000
+vlastudio infer --runtime current -r <robot> -m ckpt/replay_demo -am basic
 ```
 
 Use an action manager that aligns with your chunk length (e.g. `basic`, `sync_chunk`). If **`loop`** is off and **`on_exhausted`** is **`repeat_last`**, after the last chunk the policy repeats **only that last chunk** forever—not the full demo. Default loading treats missing **`loop`** in `replay_spec.json` as **true**.
@@ -46,8 +46,8 @@ Use an action manager that aligns with your chunk length (e.g. `basic`, `sync_ch
 To check whether odd ACT behavior comes from the **observation pipeline** (sync, `obs2meta`) vs the **policy**, record the same inputs under `eval_real` for replay and for the trained checkpoint, then diff by `trigger_t`:
 
 ```bash
-python eval_real.py -r <robot> -m ckpt/replay_demo -am basic --infer_record_dir /tmp/rec_replay
-python eval_real.py -r <robot> -m ckpt/act_right_pick -am basic --infer_record_dir /tmp/rec_act
+vlastudio infer --runtime current -r <robot> -m ckpt/replay_demo -am basic --infer_record_dir /tmp/rec_replay
+vlastudio infer --runtime current -r <robot> -m ckpt/act_right_pick -am basic --infer_record_dir /tmp/rec_act
 PYTHONPATH=. python scripts/compare_infer_records.py /tmp/rec_replay /tmp/rec_act \
   --label_a replay --label_b act
 ```

@@ -4,7 +4,17 @@ import sys
 from .paths import package_root
 from .compat import enable_legacy_imports
 
-ENTRIES = {"device": None, "train": "train.py", "serve": "start_policy_server.py", "eval-real": "eval_real.py", "eval-sim": "eval_sim.py", "collect": "collect_data.py"}
+ENTRIES = {
+    "device": None,
+    "train": "train.py",
+    "evaluate": "eval_sim.py",
+    "collect": "collect_data.py",
+    "infer": "eval_real.py",
+    "serve": "start_policy_server.py",
+    # Backward-compatible command aliases.
+    "eval-sim": "eval_sim.py",
+    "eval-real": "eval_real.py",
+}
 
 
 def main():

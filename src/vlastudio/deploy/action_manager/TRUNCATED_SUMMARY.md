@@ -76,13 +76,13 @@ Executed: [5 6 7 8 ... 37 38 39]
 
 ```bash
 # Use default config
-python eval_real.py -am truncated
+vlastudio infer --runtime current -am truncated
 
 # Use conservative preset
-python eval_real.py -am truncated_conservative
+vlastudio infer --runtime current -am truncated_conservative
 
 # Use aggressive preset
-python eval_real.py -am truncated_aggressive
+vlastudio infer --runtime current -am truncated_aggressive
 
 # Use custom config
 cat > configs/action_manager/my_tuned.yaml << EOF
@@ -92,7 +92,7 @@ start_ratio: 0.15
 end_ratio: 0.25
 older_coef: 0.85
 EOF
-python eval_real.py -am my_tuned
+vlastudio infer --runtime current -am my_tuned
 ```
 
 ## Key Features
@@ -179,7 +179,7 @@ older_coef: 0.7   # Accept new chunk earlier
 ## Testing Checklist
 
 Before deployment, verify:
-- ✅ Manager loads correctly: `python eval_real.py -am truncated --help`
+- ✅ Manager loads correctly: `vlastudio infer --runtime current -am truncated --help`
 - ✅ Truncation happens: Check logs for "Truncated chunk: X -> Y actions"
 - ✅ OlderFirst behavior: Check logs for refusal messages
 - ✅ Chunk boundaries: Observe robot behavior at chunk transitions
@@ -190,7 +190,7 @@ Before deployment, verify:
 
 1. **Start conservative:**
    ```bash
-   python eval_real.py -am truncated_conservative
+   vlastudio infer --runtime current -am truncated_conservative
    ```
 
 2. **Observe and analyze:**

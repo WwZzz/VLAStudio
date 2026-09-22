@@ -19,7 +19,7 @@
 #
 # joint_signs: Use -1 to reverse a joint's direction, 1 for normal
 #
-# Visualization: Use --visualize flag with collect_data.py to enable MuJoCo viewer
+# Visualization: Use --visualize flag with vlastudio collect to enable MuJoCo viewer
 
 type: vlastudio.deploy.robot.so101_sim.So101SimRobot
 name: so101_sim_qpos
@@ -32,7 +32,7 @@ args:
   camera_names: [frontview]
   camera_width: 640
   camera_height: 480
-  # Omit control_shm_name when using collect_data.py -t <teleop>: deploy.utils auto-fills
+  # Omit control_shm_name when using vlastudio collect -t <teleop>: deploy.utils auto-fills
   # from the first teleop device's `name` (e.g. slider_so101_qpos).
   # For a hardware leader, set explicitly, e.g. control_shm_name: so101_leader
   control_mode: qpos              # Direct joint position control (6D)

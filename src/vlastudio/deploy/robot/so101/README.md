@@ -73,7 +73,7 @@ python start_teleop_controller.py --teleop_config configs/teleop/so101_leader.ya
 ### Policy Evaluation
 ```bash
 # Evaluate trained policy
-python eval_real.py -r configs/robot/so101_follower.yaml --policy_config configs/policy/your_policy.yaml
+vlastudio infer --runtime current -r configs/robot/so101_follower.yaml --policy_config configs/policy/your_policy.yaml
 ```
 
 ## Hardware Requirements

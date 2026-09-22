@@ -24,7 +24,7 @@ Calibration files:
 ## Teleop
 
 ```bash
-python collect_data.py \
+vlastudio collect --runtime current \
   -r configs/robot/so101_pp.yaml \
   -t configs/teleop/so101_pp_leader.yaml \
   -o data/so101_pp_teleop \

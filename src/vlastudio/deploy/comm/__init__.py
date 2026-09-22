@@ -25,7 +25,7 @@ from typing import Optional, Tuple
 # ---------------------------------------------------------------------------
 # Base classes
 # ---------------------------------------------------------------------------
-from .base import BaseServer, BaseClient
+# Base classes and transports are loaded on demand; address helpers stay lightweight.
 
 # ---------------------------------------------------------------------------
 # TCP + pickle implementation (default)
@@ -301,7 +301,7 @@ __all__ = [
 ]
 
 
-_TRANSPORTS = {'PolicyServer': '.server', 'PolicyClient': '.client', 'FastAPIPolicyServer': '.fastapi.server', 'FastAPIPolicyClient': '.fastapi.client', 'SHMPolicyServer': '.shm.server', 'SHMPolicyClient': '.shm.client'}
+_TRANSPORTS = {'BaseServer': '.base', 'BaseClient': '.base', 'PolicyServer': '.server', 'PolicyClient': '.client', 'FastAPIPolicyServer': '.fastapi.server', 'FastAPIPolicyClient': '.fastapi.client', 'SHMPolicyServer': '.shm.server', 'SHMPolicyClient': '.shm.client'}
 
 
 def __getattr__(name):

@@ -25,13 +25,13 @@ Always use `--batch_size 0` to force sequential execution:
 
 ```bash
 # Evaluate on ReachTarget task
-python eval_sim.py -e rlbench_reach -m <model_path> --batch_size 0
+vlastudio evaluate --runtime current -e rlbench_reach -m <model_path> --batch_size 0
 
 # Evaluate on PickAndLift task  
-python eval_sim.py -e rlbench_pick -m <model_path> --batch_size 0
+vlastudio evaluate --runtime current -e rlbench_pick -m <model_path> --batch_size 0
 
 # Multiple rollouts in sequence
-python eval_sim.py -e rlbench_reach -m <model_path> --batch_size 0 --num_rollout 10
+vlastudio evaluate --runtime current -e rlbench_reach -m <model_path> --batch_size 0 --num_rollout 10
 ```
 
 ## Dataset Generation
@@ -94,10 +94,10 @@ Each episode is saved as an HDF5 file with the following structure:
 
 ```bash
 # Train ACT policy
-python train.py --policy act --task rlbench_reach --output_dir ckpt/act_rlbench_reach
+vlastudio train --runtime current --policy act --task rlbench_reach --output_dir ckpt/act_rlbench_reach
 
 # Train Diffusion Policy
-python train.py --policy diffusion_policy --task rlbench_reach --output_dir ckpt/dp_rlbench_reach
+vlastudio train --runtime current --policy diffusion_policy --task rlbench_reach --output_dir ckpt/dp_rlbench_reach
 ```
 
 ## Available Tasks

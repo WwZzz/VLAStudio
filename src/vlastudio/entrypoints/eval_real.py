@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 """
-eval_real.py
+vlastudio infer
 
 Real robot evaluation with policy inference:
-1. Start robot/camera devices in subprocesses (like collect_data.py)
+1. Start robot/camera devices in subprocesses (like vlastudio collect)
 2. Run inference process to produce action chunks
 3. Use action manager to select and publish actions
-4. After start: Enter pauses policy publishing; Enter again resumes (same idea as collect_data.py)
+4. After start: Enter pauses policy publishing; Enter again resumes (same idea as vlastudio collect)
 
 Usage:
     # Local model evaluation
-    python eval_real.py -r robot/so101_follower -m /path/to/checkpoint
+    vlastudio infer --runtime current -r robot/so101_follower -m /path/to/checkpoint
     
     # Remote policy server evaluation
-    python eval_real.py -r robot/so101_follower -m localhost:5000
+    vlastudio infer --runtime current -r robot/so101_follower -m localhost:5000
     
     # Dummy policy for testing pipeline
-    python eval_real.py -r robot/so101_follower -m __dummy-random_7x16
+    vlastudio infer --runtime current -r robot/so101_follower -m __dummy-random_7x16
 
     # With -o: manifest + optional dataset (--save-as-dataset) and/or mosaic MP4 under video/
     # (recorder subprocess only; main process does not read device SHM for recording).
@@ -70,12 +70,12 @@ def parse_param():
     
     parser = argparse.ArgumentParser(description='Evaluate a policy model on real robot')
     
-    # Same primary flags as collect_data.py (-r / --robot); long --robot_config kept as alias.
+    # Same primary flags as vlastudio collect (-r / --robot); long --robot_config kept as alias.
     parser.add_argument(
         '-r', '--robot', '--robot-config', '--robot_config',
         type=str,
         default='robot/so101_follower',
-        help="Robot config (name under configs/robot or path to yaml; same as collect_data.py -r/--robot)",
+        help="Robot config (name under configs/robot or path to yaml; same as vlastudio collect -r/--robot)",
     )
     parser.add_argument('-pr', '--publish_rate', type=float, default=25,
                        help='Action publishing rate (Hz)')
@@ -103,7 +103,7 @@ def parse_param():
         default=-1,
         dest='episode_id',
         help='Starting episode index for eval recording (-1 = append after existing episodes). '
-             'Aliases: -s / --start-idx / --episode (same as collect_data.py).',
+             'Aliases: -s / --start-idx / --episode (same as vlastudio collect).',
     )
     parser.add_argument(
         '--save-as-dataset',

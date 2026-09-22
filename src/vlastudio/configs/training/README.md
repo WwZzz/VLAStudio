@@ -38,7 +38,7 @@ training_args = create_training_arguments('configs/training/default.yaml', hyper
 The training script (`train.py`) automatically loads the training configuration:
 
 ```bash
-python train.py --task_name sim_transfer_cube_scripted --training_config configs/training/default.yaml
+vlastudio train --runtime current --task_name sim_transfer_cube_scripted --training_config configs/training/default.yaml
 ```
 
 ### Command Line Overrides
@@ -46,7 +46,7 @@ python train.py --task_name sim_transfer_cube_scripted --training_config configs
 You can override core training parameters via command line:
 
 ```bash
-python train.py \
+vlastudio train --runtime current \
     --task_name sim_transfer_cube_scripted \
     --training_config configs/training/default.yaml \
     --output_dir my_output \
@@ -152,7 +152,7 @@ per_device_train_batch_size: 16
 Then use it in training:
 
 ```bash
-python train.py --training_config configs/training/my_config.yaml
+vlastudio train --runtime current --training_config configs/training/my_config.yaml
 ```
 
 ## Benefits

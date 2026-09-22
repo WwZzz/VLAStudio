@@ -4,7 +4,7 @@
 # Load cups into the dishwasher.
 #
 # Usage:
-#   python eval_sim.py -e bigym.dishwasher_load_cups -m <model>
+#   vlastudio evaluate -e bigym.dishwasher_load_cups -m <model>
 #
 # Observation/Action Structure:
 #   - observation.state (16 dims): [floating_base(4), left_arm(5), right_arm(5), grippers(2)]

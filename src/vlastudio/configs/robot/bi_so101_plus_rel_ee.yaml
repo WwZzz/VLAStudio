@@ -7,7 +7,7 @@
 # Example:
 #   bash scripts/bi_so101_plus_vr_tele.sh
 #   # or
-#   python collect_data.py \
+#   vlastudio collect \
 #     -r configs/robot/bi_so101_plus_rel_ee.yaml \
 #     -t configs/teleop/quest3_bi_so101_plus_rel_ee.yaml \
 #     -o data/bi_so101_plus_vr \

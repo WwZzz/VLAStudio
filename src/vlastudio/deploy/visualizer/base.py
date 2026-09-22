@@ -8,7 +8,7 @@ inherits from BaseVisualizer.
 Usage:
     1. Create a Visualizer class in your robot module (e.g., deploy/robot/so101_sim/visualizer.py)
     2. Export it in the module's __init__.py
-    3. collect_data.py will automatically detect and start the visualizer as a subprocess
+    3. vlastudio collect will automatically detect and start the visualizer as a subprocess
 """
 
 import time
@@ -149,7 +149,7 @@ def start_visualizer(visualizer_type: str, shm_name: str, **kwargs):
     """
     Start a visualizer by its type string.
     
-    This function is called by collect_data.py to start visualizers in subprocesses.
+    This function is called by vlastudio collect to start visualizers in subprocesses.
     
     Args:
         visualizer_type: Full module path to the Visualizer class

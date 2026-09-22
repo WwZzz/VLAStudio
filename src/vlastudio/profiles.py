@@ -3,6 +3,7 @@ import copy
 from pathlib import Path
 import yaml
 from .configuration import read_config
+from .paths import package_source_root
 
 TORCH = ["torch==2.4.0", "torchvision==0.19.0", "numpy==1.26.4", "transformers==4.45.2", "accelerate==1.0.1", "loguru==0.7.3", "h5py==3.12.1", "pillow==11.3.0", "opencv-python==4.9.0.80", "einops==0.8.1", "scipy==1.14.1", "timm==1.0.15", "torchdata==0.9.0", "matplotlib==3.9.4", "imageio==2.37.0", "imageio-ffmpeg==0.6.0", "websockets==13.1", "psutil==6.1.1", "tensorboardX==2.6.4"]
 BUILTINS = {name: {"python": "3.10", "requirements": TORCH} for name in ("policy.act", "policy.mlp")}
@@ -23,7 +24,7 @@ def environment_for(config, path, manifest=None):
                            'policy.diffusion_policy': 'base', 'policy.remote': 'base',
                            'policy.smolvla': 'smolvla'}.get(module)
         if family_manifest:
-            manifest_path = Path(__file__).parent / 'environments' / (family_manifest + '.yaml')
+            manifest_path = package_source_root() / 'environments' / (family_manifest + '.yaml')
             return environment_for({'runtime': str(manifest_path)}, path)
         if module not in BUILTINS:
             raise ValueError(f"No managed runtime for {module!r}. Declare runtime in the config, use --runtime-manifest, or --runtime current.")

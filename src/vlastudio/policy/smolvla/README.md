@@ -14,7 +14,7 @@ cd ../..
 # Examples
 ## Finetune on LIBERO-Object
 ```shell
-python train.py -p smolvla_libero -t libero_object -c default -o ckpt/smolvla_libero
+vlastudio train --runtime current -p smolvla_libero -t libero_object -c default -o ckpt/smolvla_libero
 
 ```
 

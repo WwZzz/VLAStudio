@@ -74,7 +74,7 @@ def _resolve_sim_cam_key(name: str) -> str:
 
 
 def create_env(config):
-    """Factory used by ``eval_sim.py`` and ``configs.loader``."""
+    """Factory used by ``vlastudio evaluate`` and ``configs.loader``."""
     return TabletopSimEnv(config)
 
 

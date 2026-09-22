@@ -5,7 +5,7 @@
 # Units: position in meters, rotation in radians (scaling done on controller side)
 # Uses Inverse Kinematics to convert EE deltas to joint positions
 #
-# Visualization: Use --visualize flag with collect_data.py to enable MuJoCo viewer
+# Visualization: Use --visualize flag with vlastudio collect to enable MuJoCo viewer
 
 type: vlastudio.deploy.robot.so101_sim.So101SimRobot
 name: so101_sim

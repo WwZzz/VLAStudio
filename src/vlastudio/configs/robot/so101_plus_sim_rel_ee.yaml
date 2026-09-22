@@ -1,7 +1,7 @@
 # SO101 Plus MuJoCo simulation — Quest3 relative EE (same teleop as real arm)
 #
 # Usage:
-#   python collect_data.py \
+#   vlastudio collect \
 #     -r configs/robot/so101_plus_sim_rel_ee.yaml \
 #     -t configs/teleop/quest3_so101_plus_rel_ee.yaml \
 #     -o data/so101_plus_sim_vr \
