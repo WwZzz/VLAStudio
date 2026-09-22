@@ -54,7 +54,7 @@ The framework is designed around a clear separation of concerns, managed by the 
               v
 +-------------+------------+
 |    Evaluation Scripts    |
-| (`eval_sim.py`, `eval_real.py`) |
+| (`vlastudio evaluate`, `vlastudio infer`) |
 +-------------+------------+
               |
               v

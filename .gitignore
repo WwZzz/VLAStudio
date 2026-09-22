@@ -31,6 +31,7 @@ gyx/*
 wyb/*
 num2words/
 .venv/
+checkpoints/*
 configs/policy/*gc*
 configs/action_manager/so101*
 benchmark/simplerenv/ManiSkill2_real2sim/*
@@ -48,3 +49,4 @@ configs/task/local/
 dist/
 /final-results/
 /tests/
+results/*

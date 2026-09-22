@@ -1,0 +1,20 @@
+type: examples/03_customize_policy/my_policy/
+name: my_resnet_policy
+args:
+  state_dim: 14 # aloha_sim
+  action_dim: 14 # aloha_sim
+  chunk_size: 50 # can be adjusted
+  # policy specific hyperparameters
+  hidden_dim: 512
+  vision_dim: 512
+  image_size: 224
+  use_images: true
+  vision_backbone: resnet18
+  pretrained: true
+  freeze_vision: false
+config_class: MyPolicyConfig  # use customized config class in 
+model_class: MyPolicy
+data_processor: get_data_processor
+data_collator: get_data_collator
+trainer_class: null # use base trainer class
+

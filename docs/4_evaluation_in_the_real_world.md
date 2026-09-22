@@ -1,6 +1,6 @@
 # 4. Evaluation in the Real World
 
-This guide covers how to deploy and evaluate a trained policy on a physical robot using the `eval_real.py` script.
+This guide covers how to deploy and evaluate a trained policy on a physical robot using the `vlastudio infer` script.
 
 ## ⚠️ Safety First!
 
@@ -11,7 +11,7 @@ This guide covers how to deploy and evaluate a trained policy on a physical robo
 
 ## System Architecture
 
-The current `eval_real.py` script uses a multi-process, shared-memory architecture:
+The current `vlastudio infer` script uses a multi-process, shared-memory architecture:
 
 1.  **Device Processes**: Robot and camera devices run in their own subprocesses and publish data into shared memory.
 2.  **Inference Worker**: A dedicated subprocess reads device shared memory directly, synchronizes observations, runs policy inference, and writes action chunks into its own shared-memory channel.
@@ -22,7 +22,7 @@ The current `eval_real.py` script uses a multi-process, shared-memory architectu
 This example shows how to run an evaluation on a real robot with the current CLI.
 
 ```bash
-python eval_real.py \
+vlastudio infer --runtime current \
     --model_name_or_path ckpt/act_sim_transfer_cube_scripted_zscore_example \
     -r agilex_aloha \
     --publish_rate 50 \
@@ -37,7 +37,7 @@ python eval_real.py \
     *   **Example (local)**: `ckpt/act_sim_transfer_cube_scripted_zscore_example`
     *   **Example (remote)**: `192.168.1.101:5000`
 
-*   `-r` / `--robot` (string), same as `collect_data.py`:
+*   `-r` / `--robot` (string), same as `vlastudio collect`:
     *   **Description**: Robot configuration name under `configs/robot/` or path to a YAML. Defines hardware, cameras, etc.
     *   **Example**: `agilex_aloha` → `configs/robot/agilex_aloha.yaml`
     *   **Alias**: `--robot_config` / `--robot-config` still accepted for older scripts.

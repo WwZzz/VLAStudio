@@ -1,6 +1,6 @@
 # 12. Action Manager
 
-The **Action Manager** is a critical component for successful real-world robot deployment in `eval_real.py`. It solves the fundamental mismatch between the *inference rate* of the policy and the *control rate* of the robot.
+The **Action Manager** is a critical component for successful real-world robot deployment in `vlastudio infer`. It solves the fundamental mismatch between the *inference rate* of the policy and the *control rate* of the robot.
 
 ## The Problem: Rate Mismatch
 
@@ -56,19 +56,19 @@ For detailed information about each manager and their parameters, see `configs/a
 
 ## Configuration
 
-You select and configure the Action Manager via command-line arguments or configuration files in `eval_real.py`.
+You select and configure the Action Manager via command-line arguments or configuration files in `vlastudio infer`.
 
 ### Using Config Names
 
 ```bash
 # Use older_first manager with default config values
-python eval_real.py --action_manager older_first
+vlastudio infer --runtime current --action_manager older_first
 
 # Use temporal aggregation with default config values
-python eval_real.py --action_manager temporal_agg
+vlastudio infer --runtime current --action_manager temporal_agg
 
 # Use delay-free manager with default config values
-python eval_real.py --action_manager delay_free
+vlastudio infer --runtime current --action_manager delay_free
 ```
 
 ### Using Custom Config Files
@@ -84,10 +84,10 @@ coef: 0.15
 EOF
 
 # Use the custom config
-python eval_real.py --action_manager my_tuned
+vlastudio infer --runtime current --action_manager my_tuned
 
 # Or use the full path
-python eval_real.py --action_manager configs/action_manager/my_tuned.yaml
+vlastudio infer --runtime current --action_manager configs/action_manager/my_tuned.yaml
 ```
 
 **Note:** All parameters must be defined in YAML config files. Command-line parameter overrides (like `--manager_coef`) are not supported to ensure reproducible, version-controlled configurations.
@@ -97,7 +97,7 @@ python eval_real.py --action_manager configs/action_manager/my_tuned.yaml
 For backward compatibility, you can still use class names:
 
 ```bash
-python eval_real.py --action_manager OlderFirstManager
+vlastudio infer --runtime current --action_manager OlderFirstManager
 ```
 
 This will use the default parameters for that manager class.
@@ -176,7 +176,7 @@ my_param: 2.0
 EOF
 
 # Use it
-python eval_real.py --action_manager my_custom
+vlastudio infer --runtime current --action_manager my_custom
 ```
 
 This allows you to experiment with different interpolation strategies (e.g., linear, spline) or buffering techniques to achieve the smoothest possible robot motion.

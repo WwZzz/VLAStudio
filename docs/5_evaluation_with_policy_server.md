@@ -15,9 +15,9 @@ The **Policy Server** is a key feature for robust and flexible deployment. It de
 |      Client Machine      |                           |      Server Machine     |
 | (e.g., Robot NUC or PC)  |                           | (e.g., Workstation w/ GPU)|
 +--------------------------+                           +-------------------------+
-|      `eval_real.py`      |                           | `start_policy_server.py`|
+|      `vlastudio infer`      |                           | `vlastudio serve`|
 |            or            |                           |                         |
-|      `eval_sim.py`       |                           |      Loads Model &      |
+|      `vlastudio evaluate`       |                           |      Loads Model &      |
 |                          |                           |       Normalizers       |
 |      `PolicyClient`      |                           |                         |
 |                          |                           |      `PolicyServer`     |
@@ -39,7 +39,7 @@ The **Policy Server** is a key feature for robust and flexible deployment. It de
 On a machine with a GPU and access to the model checkpoints:
 ```bash
 # Listen on all network interfaces on port 5000
-python start_policy_server.py \
+vlastudio serve --runtime current \
     -m ckpt/act_sim_transfer_cube_scripted_zscore_example \
     --host 0.0.0.0 \
     --port 5000
@@ -53,7 +53,7 @@ On the client machine (which can be the same machine or a different one on the s
 ### Example: Simulation Client
 ```bash
 # Replace 192.168.1.101 with your server's IP address
-python eval_sim.py \
+vlastudio evaluate --runtime current \
     -m 192.168.1.101:5000 \
     -e aloha \
     --num_rollout 10
@@ -62,7 +62,7 @@ python eval_sim.py \
 ### Example: Real-World Client
 ```bash
 # Replace 192.168.1.101 with your server's IP address
-python eval_real.py \
+vlastudio infer --runtime current \
     --model_name_or_path 192.168.1.101:5000 \
     -r agilex_aloha \
     --task agilex_transfer_cube
@@ -70,7 +70,7 @@ python eval_real.py \
 
 The scripts automatically detect that the `-m` argument is a network address and will instantiate `PolicyClient` instead of loading the model locally.
 
-## Key Arguments for `start_policy_server.py`
+## Key Arguments for `vlastudio serve`
 
 *   `-m, --model_name_or_path`: Path to the model checkpoint directory.
 *   `--host`: The IP address to bind to. `0.0.0.0` makes it accessible to other machines on the network.

@@ -1,68 +1,86 @@
 # Remote inference with separate environments
 
-这个例子把 policy 推理和仿真评测放进两个进程、两个 Python 环境。服务端只安装
-policy 依赖，客户端只安装远程评测和仿真依赖，因此两侧可以使用互不兼容的
-PyTorch、Transformers、MuJoCo 或其他运行库。
+This example runs policy inference and simulation evaluation in separate processes.
+The policy server uses policy dependencies; the evaluation client uses simulation
+and communication dependencies. The two environments may use incompatible versions
+of PyTorch, Transformers, MuJoCo, or other libraries.
 
-从仓库根目录执行以下命令。命令直接调用各环境的 Python，不需要反复切换
-`activate`。
-
-## 1. Policy 服务端
-
-第一个终端从仓库根目录运行；首次自动准备并缓存 base 环境：
+From the repository root:
 
 ```bash
-vlastudio env run --policy act -- python examples/02_remote_inference/serve.py
+examples/02_remote_inference/run.sh
 ```
 
-`serve.py` 从 `checkpoints/act_aloha` 加载 checkpoint，并在所有网卡的 TCP 5000
-端口监听。服务会持续运行，按 `Ctrl+C` 停止。
+`run.sh` starts `serve.py` in the background and then runs `evaluate.py`.
+It needs the ACT checkpoint from `examples/01_train_and_eval_act_on_aloha/run.sh`.
 
-## 2. 仿真评测端
+To run the two processes yourself:
 
-保持服务端运行，在第二个终端执行：
+## 1. Policy server
+
+In the first terminal:
 
 ```bash
-vlastudio env run --remote --env aloha_sim -- python examples/02_remote_inference/evaluate.py
+python serve.py
 ```
 
-ACT 与 ALOHA 使用相同 base 解释器，但运行在独立进程中。将服务端换成
-SmolVLA 或 OpenPI 时，分别使用 `--policy smolvla` 或 `--policy pi0`，
-服务端会自动切换到独立环境；同时修改 serve.py 中的 policy 配置和 checkpoint。
-Python 脚本本身沿用启动它的环境。
+`serve.py` loads `checkpoints/act_aloha` and listens on TCP port 5000 on all
+interfaces. The server continues running until interrupted with `Ctrl+C`.
 
-同一台机器使用 `127.0.0.1:5000`。跨机器运行时，将 `evaluate.py` 中的地址改为
-Policy 服务器可访问的 IP，例如：
+## 2. Simulation evaluation
+
+Keep the server running and use a second terminal:
+
+```bash
+python evaluate.py
+```
+
+ACT and ALOHA share the base interpreter but run in separate processes.
+Example 05 (π0.5 / Tabletop-Sim) uses the same serve plus evaluate split because
+those components cannot share an environment. Example 04 evaluates SmolVLA on
+LIBERO in-process and does not need a server.
+
+On one machine, connect to `127.0.0.1:5000`. Across machines, change the client
+address to a reachable policy-server IP:
 
 ```python
 policy = vla.connect_policy("192.168.1.20:5000")
 ```
 
-也可以直接把地址传给 `evaluate`：
+You can also pass an address directly to evaluation:
 
 ```python
 bench = vla.load_env("aloha_transfer")
 bench.evaluate("192.168.1.20:5000", output_dir="results/remote")
 ```
 
-## 支持的通信形式
+## Supported transports
 
-| 形式 | 服务端地址 | 评测端地址 | 适用范围 |
-|---|---|---|---|
-| TCP | `0.0.0.0:5000` | `host:5000` | 默认，支持跨机器 |
-| HTTP | `http://0.0.0.0:8000` | `http://host:8000` | JSON/HTTP，支持跨机器 |
-| HTTPS | `https://0.0.0.0:8443` | `https://host:8443` | 需要证书配置 |
-| SHM | `shm://act_policy` | `shm://act_policy` | 仅限同一台机器 |
+| Transport | Server address | Evaluation address | Scope |
+| --- | --- | --- | --- |
+| TCP | `0.0.0.0:5000` | `host:5000` | Default; local or across machines |
+| HTTP | `http://0.0.0.0:8000` | `http://host:8000` | JSON/HTTP; across machines |
+| HTTPS | `https://0.0.0.0:8443` | `https://host:8443` | Requires certificate configuration |
+| SHM | `shm://act_policy` | `shm://act_policy` | Same machine only |
 
-HTTP/HTTPS 服务端需要额外安装：
+HTTP/HTTPS servers need additional dependencies installed in the server environment:
 
 ```bash
-"$(vlastudio env path --policy act)" -m pip install -e ".[serve-http]"
+vlastudio env run --policy act -- python -m pip install -e ".[serve-http]"
 ```
 
-然后同时修改两个脚本中的地址。HTTPS 证书路径使用仓库已有的
-`ILSTD_SSL_KEYFILE` 和 `ILSTD_SSL_CERTFILE` 环境变量。SHM 不经过网络，两个进程
-必须能访问同一套共享内存。
+Update the address in both scripts. For HTTPS, set `ILSTD_SSL_KEYFILE` and
+`ILSTD_SSL_CERTFILE` to the certificate paths. SHM does not use the network;
+both processes must have access to the same shared memory.
 
-TCP 传输使用 Python pickle，适合可信网络或本机隔离环境。跨不可信网络时应使用
-HTTPS 或在可信隧道中运行。
+TCP transport uses Python pickle and should run on a trusted network or locally.
+For untrusted networks, use HTTPS or a trusted tunnel.
+
+## Troubleshooting
+
+- `vlastudio: command not found`: from the repository root, `python -m pip install -e .`
+- `python: can't open file 'examples/...'`: run `run.sh` from the repository root, not from this directory.
+- Missing `checkpoints/act_aloha`: run `examples/01_train_and_eval_act_on_aloha/run.sh` first.
+- `Connection refused` / evaluate starts before the server listens: start `serve.py` in another terminal and wait until it is listening, then run `evaluate.py`.
+- Port 5000 already in use: stop the leftover server (`kill %1` from the same shell, or kill the process bound to 5000).
+- Stale `No module named 'examples/...'` imports: `unset PYTHONPATH` and rerun.

@@ -15,10 +15,10 @@ vlastudio train --policy act --runtime current
 vlastudio serve -m /checkpoints/run1
 ```
 
-The training arguments are forwarded unchanged to the existing `train.py`.
+The training arguments are forwarded unchanged to `vlastudio.entrypoints.train`.
 `--policy` remains a config name or YAML path, not a restricted model identifier.
 The working directory never changes. Relative dataset/checkpoint/plugin file paths
-remain relative to the caller. Existing `python train.py` workflows remain available.
+remain relative to the caller. Use `vlastudio train --runtime current` with an existing Python environment. The root compatibility scripts have been removed.
 Install the light package into a source environment to enable new plugin references.
 
 The default `managed` mode resolves a profile before importing the policy, prepares
@@ -90,7 +90,8 @@ Supported references:
 
 - Existing dotted path: `my_package.devices.Camera`.
 - Module and object: `my_package.devices:Camera`.
-- A local file: `/my/project/device.py:Camera` (a policy module can use `policy.py:`).
+- A local file: `/my/project/device.py:Camera` or `/my/project/device.py`.
+- A local package directory: `/my/project/my_policy/` (loads `__init__.py`).
 - Registered plugin: `@device/camera`, `@robot/arm`, `@policy/model`,
   `@dataset/episodes`, `@action_manager/chunks`.
 
@@ -218,7 +219,7 @@ vlastudio train -p examples/policy_mlp.yaml -t examples/task_mlp.yaml -c example
 Install the wheel, then run from the source distribution or a checkout:
 
 ```sh
-python examples/_01_train_and_eval_act_on_aloha.py
+examples/01_train_and_eval_act_on_aloha/run.sh
 ```
 
 Each case uses a managed worker with the corresponding policy environment. Tests

@@ -37,7 +37,7 @@ class MyBenchmarkEnv(gym.Env):
 
 ## Step 2: Create the Factory Function
 
-In `benchmark/my_benchmark/__init__.py`, create the `create_env` function. The `eval_sim.py` script will call this function to create instances of your environment.
+In `benchmark/my_benchmark/__init__.py`, create the `create_env` function. The `vlastudio evaluate` script will call this function to create instances of your environment.
 
 ```python
 # In benchmark/my_benchmark/__init__.py
@@ -64,5 +64,5 @@ max_timesteps: 500
 You can now use your new benchmark in evaluation scripts by referencing its configuration name. The script will look for a directory in `benchmark/` that matches the `type` field in the YAML file.
 
 ```bash
-python eval_sim.py -m <model_path> -e my_benchmark
+vlastudio evaluate --runtime current -m <model_path> -e my_benchmark
 ```

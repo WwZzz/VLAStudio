@@ -1,17 +1,17 @@
 # 3. Evaluation in Simulation
 
-This document explains how to evaluate a trained policy in a simulated environment using the `eval_sim.py` script.
+This document explains how to evaluate a trained policy in a simulated environment using the `vlastudio evaluate` script.
 
 ## Core Script
 
-`eval_sim.py` is the entry point for running evaluations. It orchestrates loading the policy, setting up the vectorized simulation environments, running the evaluation loop, and saving the results.
+`vlastudio evaluate` is the entry point for running evaluations. It orchestrates loading the policy, setting up the vectorized simulation environments, running the evaluation loop, and saving the results.
 
 ## Example Usage
 
 Here is a concrete example of how to run the evaluation for the `sim_transfer_cube_scripted` task in the `aloha` benchmark. This command will run 10 episodes in parallel using 2 environments.
 
 ```bash
-python eval_sim.py \
+vlastudio evaluate --runtime current \
     -m ckpt/act_sim_transfer_cube_scripted_zscore_example \
     -e aloha \
     --num_rollout 10 \
@@ -56,7 +56,7 @@ You can override parameters in the environment configuration file directly from 
 For example, the `aloha.yaml` file specifies a default task. To evaluate on a different task like `sim_insertion`, you can do the following:
 
 ```bash
-python eval_sim.py \
+vlastudio evaluate --runtime current \
     -m <model_path> \
     -e aloha \
     --env.task sim_insertion

@@ -78,7 +78,7 @@ If `uv` is not preferred, just use `pip install -r requirements.txt` to use this
 ### ACT on AlohaSim
 
 ```shell
-python train.py --policy act --task sim_transfer_cube_scripted --output_dir ckpt/act_aloha_sim_transfer
+vlastudio train --runtime current --policy act --task sim_transfer_cube_scripted --output_dir ckpt/act_aloha_sim_transfer
 
 # Evaluation at local
 
@@ -87,35 +87,35 @@ python train.py --policy act --task sim_transfer_cube_scripted --output_dir ckpt
 # If you are running this code on a local computer or workstation, you need to perform the following additional steps:
 # Option 0 [Headless server with GPU]
 export MUJOCO_GL=egl
-python eval_sim.py -m  ckpt/act_aloha_sim_transfer -e aloha_transfer -o results/test_ --use_spawn
+vlastudio eval-sim --runtime current -m  ckpt/act_aloha_sim_transfer -e aloha_transfer -o results/test_ --use_spawn
 # Option 1 [without GPU]
 export MUJOCO_GL=osmesa
-python eval_sim.py -m ckpt/act_aloha_sim_transfer -e aloha_transfer -o results/test_
+vlastudio eval-sim --runtime current -m ckpt/act_aloha_sim_transfer -e aloha_transfer -o results/test_
 # Option 2 [with GPU]
 export MUJOCO_GL=glfw
-python eval_sim.py -m ckpt/act_aloha_sim_transfer -e aloha_transfer -o results/test_ --use_spawn
+vlastudio eval-sim --runtime current -m ckpt/act_aloha_sim_transfer -e aloha_transfer -o results/test_ --use_spawn
 ```
 
 ### DP on AlohaSim
 
 ```shell
 # You can use --training.xxx to update the training parameters
-python train.py -p diffusion_policy -t sim_transfer_cube_scripted -o ckpt/dp_aloha_sim_transfer --training.max_steps 200000 --training.save_steps 10000 -c dp
+vlastudio train --runtime current -p diffusion_policy -t sim_transfer_cube_scripted -o ckpt/dp_aloha_sim_transfer --training.max_steps 200000 --training.save_steps 10000 -c dp
 
 # Evaluation at local
 
-python eval_sim.py --model_name_or_path ckpt/dp_aloha_sim_transfer --env_name aloha --task sim_transfer_cube_scripted
+vlastudio eval-sim --runtime current --model_name_or_path ckpt/dp_aloha_sim_transfer --env_name aloha --task sim_transfer_cube_scripted
 ```
 
 ### SmolVLA on MetaWorld
 ```shell
 # train
-python train.py --policy smolvla --task metaworld --output_dir ckpt/smolvla_metaworld --training.max_steps 100000 --training.per_device_train_batch_size 64
+vlastudio train --runtime current --policy smolvla --task metaworld --output_dir ckpt/smolvla_metaworld --training.max_steps 100000 --training.per_device_train_batch_size 64
 
 # eval with policy server
 # Terminal 1
 # the default server address is localhost:5000
-python start_policy_server.py -m ckpt/smolvla_metaworld
+vlastudio serve --runtime current -m ckpt/smolvla_metaworld
 
 # Terminal 2
 # Follow benchmark/metaworld/README.md to install the virtual environment for metaworld before evalution
@@ -124,7 +124,7 @@ python start_policy_server.py -m ckpt/smolvla_metaworld
 # -bs denotes the number of rollouts in parallel for acceleration
 # the default address is localhost:5000. You can use other address or /path/to/ckpt to evaluate locally without policy server
 source benchmark/metaworld/.venv/bin/activate
-python eval_sim.py -o results/smolvla_mw_easy -e metaworld.easy -n 10 -bs 10
+vlastudio eval-sim --runtime current -o results/smolvla_mw_easy -e metaworld.easy -n 10 -bs 10
 ```
 
 ## Overview
@@ -147,13 +147,13 @@ To eval policy running on the server, please run command below
 
 ```shell
 # aloha corresponds to configs/env/aloha.yaml
-python eval_sim.py -e aloha -m localhost:5000
+vlastudio eval-sim --runtime current -e aloha -m localhost:5000
 ```
 
 ## 🤖 Deploy in the Real World
 ```shell
 # aloha corresponds to configs/env/aloha.yaml
-python eval_real.py -m /path/to/ckpt -c so101_follower
+vlastudio eval-real --runtime current -m /path/to/ckpt -c so101_follower
 ```
 
 ## 🎮 Teleoperation for Data Collection
@@ -254,7 +254,7 @@ uv pip install robomimic==0.3.0
 export CMAKE_POLICY_VERSION_MINIMUM=X.X # your cmake version, e.g., 3.5 or 4.0
 ```
 
-- when `eval_sim.py` raises errors like `malloc(): unaligned tcache chunk detected`, please add `--use_spawn` at the end fo the evaluation command.
+- when `vlastudio eval-sim` raises errors like `malloc(): unaligned tcache chunk detected`, please add `--use_spawn` at the end fo the evaluation command.
 
 - **Failed to build `evdev` on Ubuntu**:  `sudo apt-get update && sudo apt-get install -y python3.10-dev`
 

@@ -48,7 +48,7 @@ Once the models are available, you can run an evaluation in the `aloha` simulati
 
 ```bash
 # Run the simulation evaluation script for 4 episodes
-python eval_sim.py \
+vlastudio evaluate --runtime current \
     -m ckpt/act_sim_transfer_cube_scripted_zscore_example \
     -e aloha \
     --num_rollout 4 \

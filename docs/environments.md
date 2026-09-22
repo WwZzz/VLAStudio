@@ -1,5 +1,11 @@
 # 环境管理
 
+base 默认存在：首次执行环境管理命令时，自动记录启动器所在的 Python 环境。
+这一步不安装依赖；`env activate` 与 `env deactivate` 默认返回该环境。
+已有 base 记录不会被自动覆盖，`VLASTUDIO_BASE_PYTHON` 可显式指定初始解释器。
+`env install` 默认在当前环境安装并更新 base；`env create` 默认创建并准备
+托管 base，已有用户登记的 base 则继续复用。
+
 首次给当前终端加载 shell 支持：
 
 ```bash
@@ -18,6 +24,7 @@ vlastudio env init --shell powershell | Out-String | Invoke-Expression
 ```bash
 vlastudio env create                   # 默认创建/复用 base；ACT 无需单独 create
 vlastudio env create --policy smolvla
+vlastudio env create --policy smolvla -n smol_work
 vlastudio env create --env robotwin
 vlastudio env install                  # 安装到当前环境，并登记为 base
 vlastudio env install --policy smolvla -n work
@@ -29,6 +36,26 @@ vlastudio env deactivate               # 同样切换到 base
 
 未初始化 shell 时，create 完成创建和安装，但不能切换父终端。
 install 不创建 venv，使用增量安装；版本约束可能升级或降级现有包。
+
+`-n` 与 `--name` 等价。显式命名的新环境使用独立目录
+`$VLASTUDIO_CACHE/envs/named-<名称>`；两个名称不会因依赖相同而共用目录。
+重复 create 会复用已登记环境，保留后续手动修改。旧记录仍沿用原路径。
+不传名称时继续按依赖哈希复用缓存，默认仍为 base。
+
+可以先激活环境再安装，也可以直接指定已登记的环境名称：
+
+```bash
+vlastudio env activate smol_work
+vlastudio env install --policy smolvla
+vlastudio env install -n act_work --policy act --env aloha_sim
+```
+
+install 指定已有 `-n` 时直接安装到该解释器，无需先激活。
+指定尚未登记的名称时，将当前解释器登记为该名称，不创建新环境。
+不指定 `-n` 时仍安装到当前环境并登记为 base。
+`--policy` 和 `--env` 可同时用于 install，合并两份依赖声明；解析器会报告
+版本冲突，不会静默覆盖约束。存在完整 lockfile 时需提供合并后的
+`--runtime-manifest`。不能兼容的依赖仍应分开运行服务端和仿真端。
 安装成功后登记到 `$VLASTUDIO_CACHE/environments.json`，保存环境名、解释器路径和来源。
 list 也显示缓存中的旧环境，以及已删除解释器的 missing 状态。`-n` 指定环境名。
 省略组件或环境名时，create、install、prepare、path、run、activate 均默认使用 base。
@@ -42,7 +69,7 @@ RoboTwin 和 BEHAVIOR 清单安装 Python 依赖；仿真资源、SDK 和系统�
 
 ```bash
 pip install -e .
-vlastudio env run --policy act -- python examples/_01_train_and_eval_act_on_aloha.py
+vlastudio env run --policy act -- examples/01_train_and_eval_act_on_aloha/run.sh
 vlastudio env run --policy smolvla -- python my_smolvla_script.py
 vlastudio env run --policy pi0 -- python my_openpi_script.py
 vlastudio env run --remote --env aloha_sim -- python examples/02_remote_inference/evaluate.py
@@ -64,6 +91,17 @@ vlastudio env prepare --policy act --dry-run
 默认目录是 `~/.cache/vlastudio/envs/<依赖哈希>`，设置 `VLASTUDIO_CACHE`
 修改缓存根目录。环境清单变化生成新目录，已有环境保持原样。
 下载源继承进程环境和安装工具自身配置；VLAStudio 不指定镜像。
+
+需要为本次创建或安装指定源时，使用 `-i`（等价于 `--index-url`）：
+
+```bash
+vlastudio env create --policy smolvla -i http://nexus.sii.shaipower.online/repository/pypi/simple/
+vlastudio env install -i http://nexus.sii.shaipower.online/repository/pypi/simple/
+```
+
+`prepare` 和 `run` 首次准备环境时也支持这个参数。源地址只传给本次
+依赖解析与安装，不写入全局配置，也不改变环境的依赖哈希。
+命令中的地址应为纯 URL，不要包含 Markdown 的 `[地址](地址)` 格式。
 
 已有准备好的 base 环境可以直接复用：
 

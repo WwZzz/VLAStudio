@@ -1,7 +1,0 @@
-# Paths to external Python files are relative to the invoking working directory.
-type: "examples/components.py:"
-name: example
-runtime:
-  python: "3.11"
-  requirements: []
-  entrypoint: components.py:run
