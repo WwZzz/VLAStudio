@@ -77,6 +77,8 @@ def pad_to_dim(x: np.ndarray, target_dim: int, axis: int = -1, value: float = 0.
 
 class OpenPiProcessor:
     def __init__(self, max_token_len:int=48, image_size=[224,224], discrete_state_input: bool = False, model_action_dim: int=32, pi05: bool = False):
+        from .cache_utils import ensure_paligemma_tokenizer
+        ensure_paligemma_tokenizer()
         self.image_size = image_size
         self.tokenizer = _tokenizer.PaligemmaTokenizer(max_token_len)
         self.discrete_state_input = discrete_state_input

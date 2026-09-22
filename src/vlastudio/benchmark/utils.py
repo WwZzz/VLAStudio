@@ -414,7 +414,7 @@ def evaluate(
     # Start evaluation
     with torch.inference_mode():
         time_start_eval = time.time()
-        success = np.zeros(len(env)).astype(np.bool8)
+        success = np.zeros(len(env), dtype=np.bool_)
         obs = env.reset()
         obs = organize_obs(obs)
         
