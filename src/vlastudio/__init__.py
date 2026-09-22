@@ -1,13 +1,15 @@
 """VLAStudio's lightweight public API. Importing it never installs dependencies."""
 from .extensions import register, resolve, create
 from .api import (load_dataset, load_policy, load_env, connect_policy, train, serve,
+                  show_camera,
                   Dataset, Policy, RemotePolicy, Environment, TrainingResult,
                   EvaluationResult, TaskError)
 
 __version__ = "0.2.0.dev0"
 __all__ = ["register", "resolve", "create", "load_dataset", "load_policy", "load_env",
-           "connect_policy", "train", "serve", "Dataset", "Policy", "RemotePolicy",
-           "Environment", "TrainingResult", "EvaluationResult", "TaskError"]
+           "connect_policy", "train", "serve", "show_camera",
+           "Dataset", "Policy", "RemotePolicy", "Environment", "TrainingResult",
+           "EvaluationResult", "TaskError"]
 
 
 def run(command, args=(), **options):

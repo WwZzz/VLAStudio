@@ -1,0 +1,37 @@
+# Slider teleop for the custom SO101 in qpos mode (6D, lerobot normalized).
+#
+# Action: [base rotation, shoulder pitch, elbow, wrist pitch, wrist roll, gripper]
+#   - joints 0-4: normalized [-100, 100] mapped to qlimits
+#   - gripper (5): normalized [0, 100]
+#
+# Use with: examples/06_custom_robot/my_robot_qpos.yaml
+#   run.py slider  ->  opens the 6D slider + live camera + robot sim
+
+type: vlastudio.deploy.teleoperator.tk_slider.SliderTeleop
+name: slider_so101
+args:
+  name: slider_so101
+  max_size_mb: 1
+  fps: 100.0
+  action_dim: 6
+  initial_values:
+    - 0.0      # base rotation (~0)
+    - -100.0   # shoulder pitch at lower limit (~-3.1 rad)
+    - 100.0    # elbow at upper limit (~3.1 rad)
+    - -3.5     # wrist pitch ~0
+    - -100.0   # wrist roll at lower limit (~-1.57)
+    - 0.0      # gripper closed
+  slider_ranges:
+    - [-100.0, 100.0]
+    - [-100.0, 100.0]
+    - [-100.0, 100.0]
+    - [-100.0, 100.0]
+    - [-100.0, 100.0]
+    - [0.0, 100.0]
+  slider_labels:
+    - "Base rotation (pan)"
+    - "Shoulder pitch (lift)"
+    - "Elbow"
+    - "Wrist pitch"
+    - "Wrist roll"
+    - "Gripper (jaw)"

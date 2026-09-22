@@ -24,9 +24,13 @@ DEFAULT_QLIMIT_MAX = [2.1, 0.0, 3.1, 1.475, 3.1, 1.5]
 # Default joint signs (1 = normal, -1 = reversed)
 DEFAULT_JOINT_SIGNS = [1, 1, 1, 1, 1, 1]
 
-# Default gpos limits (end-effector pose limits)
-DEFAULT_GLIMIT_MIN = [0.125, -0.4, 0.046, -3.1, -0.75, -1.5]
-DEFAULT_GLIMIT_MAX = [0.340, 0.4, 0.23, 2.0, 1.57, 1.5]
+# Default gpos limits (end-effector pose limits).
+# These must cover the arm's reachable pose set (sampled over the joint limits).
+# If the box is tighter than the reachable set, _process_delta_ee_action clips a
+# target away from the current pose to an unreachable box face, the IK fails, and
+# the arm freezes permanently. Keep them at/above the reachable range.
+DEFAULT_GLIMIT_MIN = [-0.28, -0.4, -0.17, -3.15, -1.58, -0.05]
+DEFAULT_GLIMIT_MAX = [0.34, 0.4, 0.37, 3.15, 1.58, 3.16]
 
 # Default initial positions
 DEFAULT_INIT_QPOS = [0.0, -3.14, 3.14, 0.0, -1.57, -0.157]

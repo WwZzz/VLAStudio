@@ -158,6 +158,76 @@ def load_env(config, **runtime_options):
     return Environment(_config(config, "env"), options)
 
 
+def show_camera(config, *, camera_names=None, fps=30.0, title="Camera",
+                window_scale=1.0, max_frames=None, show=True,
+                enable_viewer=False, **runtime_options):
+    """Start a (simulated) robot device and display its live camera feed.
+
+    The robot device runs in a subprocess, publishes observations to its shared
+    memory, and this function shows the camera frames in a window in real time.
+
+    Platform / headless behaviour (see ``vlastudio.deploy.camera_viewer``):
+    - Windows opens a window.
+    - POSIX opens a window only when ``DISPLAY`` is set (physical X server or
+      Xvfb); a headless session without ``DISPLAY`` reads frames without a
+      window. Pass ``show=False`` to force headless.
+
+    Args:
+        config: Robot config name or YAML path (same as ``vlastudio collect -r``).
+        camera_names: Which camera keys to display; default all present per frame.
+        fps: Target display frame rate.
+        title: OpenCV window title.
+        window_scale: Scale factor for the displayed frames.
+        max_frames: Stop after this many frames (None = run until interrupted).
+        show: Set False to never open a window.
+        enable_viewer: Open the MuJoCo 3D viewer as well (default off).
+
+    Returns:
+        Number of frames processed.
+    """
+    import multiprocessing as mp
+
+    from .configs.loader import ConfigLoader
+    from .deploy.base import _get_device_shm_name, start_device
+    from .deploy.camera_viewer import LiveCameraViewer
+
+    cfg, path = ConfigLoader().load_robot(config)
+    if isinstance(cfg, list):
+        # Multi-row YAML: pick the robot device, skip visualizer rows.
+        from .deploy.utils import is_visualizer_config
+
+        robot_rows = [row for row in cfg if isinstance(row, dict) and not is_visualizer_config(row)]
+        if not robot_rows:
+            raise ValueError(f"No robot device found in config: {path}")
+        cfg = robot_rows[0]
+    cfg = dict(cfg)
+    args = dict(cfg.get("args", {}))
+    args["enable_viewer"] = bool(enable_viewer)  # camera feed only unless asked
+    cfg["args"] = args
+    shm_name = _get_device_shm_name(cfg)
+
+    print(f"[show_camera] robot config: {path}", flush=True)
+    print(f"[show_camera] reading observations from SHM '{shm_name}'", flush=True)
+
+    proc = mp.Process(target=start_device, args=(cfg,), daemon=True)
+    proc.start()
+    try:
+        viewer = LiveCameraViewer(
+            shm_name,
+            camera_names=camera_names,
+            fps=fps,
+            title=title,
+            window_scale=window_scale,
+            show=show,
+        )
+        return viewer.run(max_frames=max_frames)
+    finally:
+        proc.terminate()
+        proc.join(timeout=2.0)
+        if proc.is_alive():
+            proc.kill()
+
+
 def serve(policy, *, address="0.0.0.0", port=None, device="cuda",
           dataset_id="", chunk_size=-1, **runtime_options):
     """Serve a local policy checkpoint until interrupted.

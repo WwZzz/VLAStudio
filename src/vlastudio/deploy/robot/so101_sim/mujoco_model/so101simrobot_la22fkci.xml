@@ -1,4 +1,0 @@
-<mujoco model="so101simrobot">
-  <include file="so_101.xml"/>
-  <include file="../../../simulation/mujoco/scenes/empty.xml"/>
-</mujoco>

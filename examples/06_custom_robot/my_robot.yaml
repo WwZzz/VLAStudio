@@ -1,0 +1,41 @@
+# External custom SO101 simulation robot + camera visualizer.
+#
+# A YAML list: the first row is the robot device (an external class referenced
+# by a local file path, so no VLAStudio source change is needed); the second row
+# is a camera-feed visualizer that `vlastudio collect --visualize` starts as a
+# subprocess and shows the robot's camera in real time.
+#
+# ``type`` supports several external references:
+#   - file:            examples/06_custom_robot/my_robot.py:MySimSo101
+#   - package dir:     examples/06_custom_robot/:MySimSo101   (needs __init__.py)
+#   - installed plugin:@robot/my_sim_so101                     (entry point group vlastudio.robot)
+#   - dotted / module: my_pkg.my_robot:MySimSo101
+
+- type: examples/06_custom_robot/my_robot.py:MySimSo101
+  name: my_so101_sim
+  args:
+    name: my_so101_sim
+    max_size_mb: 64
+    fps: 50.0
+    scene_name: empty
+    enable_viewer: false
+    camera_names: [frontview]
+    camera_width: 640
+    camera_height: 480
+    # Arbitrary custom hardware parameter, passed straight to __init__:
+    custom_serial: "SO101-CUSTOM-06"
+    # control_mode: delta_ee  -> 7D [dx, dy, dz, d_roll, d_pitch, d_yaw, d_gripper]
+    control_mode: delta_ee
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    # control_shm_name is auto-filled from the first teleop device when using
+    # `vlastudio collect -t <teleop>`; no need to set it here.
+
+- type: vlastudio.deploy.visualizer.camera_view.CameraViewVisualizer
+  name: my_so101_sim_view
+  args:
+    shm_name: my_so101_sim
+    camera_names: [frontview]
+    fps: 30
+    window_name: "SO101 Sim - frontview (live)"

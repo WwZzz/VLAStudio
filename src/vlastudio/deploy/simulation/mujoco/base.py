@@ -271,6 +271,14 @@ class MujocoDeviceBase(BaseRobot):
 
         print(f"[{self.__class__.__name__}] Loading MuJoCo model from {loaded_xml_path}")
         self.mjmodel = mujoco.MjModel.from_xml_path(loaded_xml_path)
+        if generated_xml_path is not None:
+            # The composed scene XML is a temp file; drop it now that the model
+            # is in memory so it does not accumulate in the source tree.
+            try:
+                os.remove(generated_xml_path)
+            except OSError:
+                pass
+            self._generated_xml_path = None
         self._configure_loaded_model()
         self.mjdata = mujoco.MjData(self.mjmodel)
 

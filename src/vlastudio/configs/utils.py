@@ -130,6 +130,17 @@ def parse_overrides(unknown_args):
     return overrides
 
 
+# Keys that are semantically strings and must never be type-coerced, even when
+# their value looks numeric (e.g. ``reset_key: "0"``, camera ``index_or_path: "0"``).
+_STRING_KEEP_KEYS = {
+    "reset_key", "name", "title", "type", "class", "target",
+    "key_positive", "key_negative", "index_or_path", "com", "robot_id",
+    "serial", "topic", "namespace", "host", "address", "path", "mode",
+    "control_mode", "qpos_input_unit", "scene_name", "xml_path", "scene_xml_path",
+    "camera_names", "joint_signs",
+}
+
+
 def convert_yaml_string_types(config_dict):
     """
     Recursively convert string values in a config dict to appropriate types.
@@ -137,6 +148,9 @@ def convert_yaml_string_types(config_dict):
     
     This is needed because yaml.safe_load() sometimes parses scientific notation
     as strings (e.g., '1e-8' instead of 1e-08).
+    
+    Keys listed in ``_STRING_KEEP_KEYS`` keep their string value so config values
+    such as ``reset_key: "0"`` or a device path are not coerced to numbers.
     
     Args:
         config_dict: Configuration dictionary (modified in-place)
@@ -165,7 +179,7 @@ def convert_yaml_string_types(config_dict):
         """Recursively convert all string values in nested dict/list structures."""
         if isinstance(obj, dict):
             for key, value in obj.items():
-                if isinstance(value, str):
+                if isinstance(value, str) and key not in _STRING_KEEP_KEYS:
                     obj[key] = convert_value(value)
                 elif isinstance(value, (dict, list)):
                     recursive_convert(value)

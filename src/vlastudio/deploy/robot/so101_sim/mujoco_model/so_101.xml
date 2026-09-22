@@ -30,7 +30,7 @@
   <default>
     <default class="so_arm101">
       <joint frictionloss="0.1" armature="0.1"/>
-      <position kp="50" forcerange="-35 35" ctrlrange="-3.14158 3.14158"/>
+      <position kp="50" kv="5" forcerange="-35 35" ctrlrange="-3.14158 3.14158"/>
       <default class="Rotation">
         <joint axis="0 1 0" range="-2.2 2.2"/>
       </default>
@@ -144,7 +144,7 @@
     <position class="Elbow" name="Elbow" joint="Elbow"/>
     <position class="Wrist_Pitch" name="Wrist_Pitch" joint="Wrist_Pitch"/>
     <position class="Wrist_Roll" name="Wrist_Roll" joint="Wrist_Roll"/>
-    <position class="Jaw" name="Jaw" joint="Jaw" kp="300" forcerange="-120 120"/>
+    <position class="Jaw" name="Jaw" joint="Jaw" kp="300" kv="11" forcerange="-120 120"/>
   </actuator>
 
   <contact>

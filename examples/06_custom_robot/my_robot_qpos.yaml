@@ -1,0 +1,31 @@
+# External custom SO101 simulation robot in qpos (joint position) mode + camera.
+#
+# Same external robot class as my_robot.yaml (examples/06_custom_robot/my_robot.py)
+# but driven in ``qpos`` mode: the teleop (a 6D slider) sets joint positions
+# directly, bypassing the delta_ee end-effector IK. Use this to compare against
+# the delta_ee keyboard example and see whether any control dead-zone is
+# specific to the EE mapping.
+
+- type: examples/06_custom_robot/my_robot.py:MySimSo101
+  name: my_so101_sim_qpos
+  args:
+    name: my_so101_sim_qpos
+    max_size_mb: 64
+    fps: 50.0
+    scene_name: empty
+    enable_viewer: false
+    camera_names: [frontview]
+    camera_width: 640
+    camera_height: 480
+    custom_serial: "SO101-QPOS-06"
+    control_mode: qpos            # direct joint position control (6D)
+    qpos_input_unit: normalized   # lerobot format
+    joint_signs: [-1, 1, 1, 1, 1, 1]
+
+- type: vlastudio.deploy.visualizer.camera_view.CameraViewVisualizer
+  name: my_so101_sim_qpos_view
+  args:
+    shm_name: my_so101_sim_qpos
+    camera_names: [frontview]
+    fps: 30
+    window_name: "SO101 Sim qpos - frontview (live)"

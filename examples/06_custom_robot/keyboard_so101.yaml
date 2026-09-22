@@ -1,0 +1,27 @@
+# Keyboard teleoperator for the 7-DOF SO101 delta end-effector robot.
+#
+# Matches So101SimRobot control_mode=delta_ee:
+#   [dx, dy, dz, d_roll, d_pitch, d_yaw, d_gripper]
+#
+# Scale units: position in meters, rotation in radians, gripper in normalized
+# gripper units. Adjust to taste.
+#
+# Note: click on the teleop window to give it keyboard focus first.
+
+type: vlastudio.deploy.teleoperator.keyboard.Keyboard
+name: keyboard
+args:
+  name: keyboard
+  max_size_mb: 1
+  fps: 50.0
+  title: "SO101 Sim Keyboard Teleop"
+  reset_key: "0"
+  debug: true
+  key_mappings:
+    - {name: "X forward/back", key_positive: "w", key_negative: "s", scale: 0.005}
+    - {name: "Y left/right",   key_positive: "a", key_negative: "d", scale: 0.005}
+    - {name: "Z up/down",      key_positive: "r", key_negative: "f", scale: 0.005}
+    - {name: "Roll",           key_positive: "u", key_negative: "j", scale: 0.05}
+    - {name: "Pitch",          key_positive: "i", key_negative: "k", scale: 0.05}
+    - {name: "Yaw",            key_positive: "o", key_negative: "l", scale: 0.05}
+    - {name: "Gripper open/close", key_positive: "g", key_negative: "h", scale: 0.05}
