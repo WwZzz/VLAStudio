@@ -24,11 +24,10 @@ DEFAULT_QLIMIT_MAX = [2.1, 0.0, 3.1, 1.475, 3.1, 1.5]
 # Default joint signs (1 = normal, -1 = reversed)
 DEFAULT_JOINT_SIGNS = [1, 1, 1, 1, 1, 1]
 
-# Default gpos limits (end-effector pose limits).
-# These must cover the arm's reachable pose set (sampled over the joint limits).
-# If the box is tighter than the reachable set, _process_delta_ee_action clips a
-# target away from the current pose to an unreachable box face, the IK fails, and
-# the arm freezes permanently. Keep them at/above the reachable range.
+# Reachable end-effector pose bounds, sampled over the joint limits
+# [forward, y, height, roll, pitch, yaw]. Informational: the delta_ee control now
+# maps Cartesian deltas through the Jacobian (see _process_delta_ee_action), so
+# these are not used to clamp an IK target.
 DEFAULT_GLIMIT_MIN = [-0.28, -0.4, -0.17, -3.15, -1.58, -0.05]
 DEFAULT_GLIMIT_MAX = [0.34, 0.4, 0.37, 3.15, 1.58, 3.16]
 
@@ -436,43 +435,37 @@ class So101SimRobot(MujocoDeviceBase):
             theta_update = np.arctan2(y_new, x_new) - np.arctan2(y_curr, x_curr)
             forward_update = np.sqrt(x_new**2 + y_new**2) - np.sqrt(x_curr**2 + y_curr**2)
             
-            # Update target gpos
-            target_gpos = current_gpos.copy()
-            target_gpos[0] += forward_update  # Forward
-            target_gpos[2] += delta_pos[2]  # Height (Z)
-            target_gpos[3] += delta_rot[0]  # Roll
-            target_gpos[4] += delta_rot[1]  # Pitch
-            # target_gpos[5] unused here, handled by wrist roll joint
-            
-            # Update base rotation
-            target_qpos = current_qpos.copy()
-            target_qpos[0] += theta_update
-            
-            # Clip to limits
-            target_qpos[0] = np.clip(target_qpos[0], self.qlimit_min[0], self.qlimit_max[0])
-            for i in range(6):
-                target_gpos[i] = np.clip(target_gpos[i], DEFAULT_GLIMIT_MIN[i], DEFAULT_GLIMIT_MAX[i])
-            
-            # Compute IK for joints 1-4 (Pitch, Elbow, Wrist_Pitch, Wrist_Roll)
+            # Differential IK: map the Cartesian delta straight to a joint delta
+            # with the geometric Jacobian, instead of solving an absolute-pose IK.
+            # This arm has 4 joints, so a target built as "current pose + delta"
+            # generally leaves the reachable 4-D manifold; the absolute IK then
+            # either returns the seed (no motion) or fails, and the arm freezes.
+            # The differential form always yields a best-effort joint step and
+            # cannot wedge.
             fd_qpos = current_qpos[1:5]
-            qpos_inv, ik_success = lerobot_IK(fd_qpos, target_gpos, robot=self.robot_kin)
-            
-            if ik_success:
-                # Update target joint positions
-                target_qpos[1:5] = qpos_inv[:4]
-                
-                # Update gripper
-                target_qpos[5] = current_qpos[5] + delta_gripper
-                target_qpos[5] = np.clip(target_qpos[5], self.qlimit_min[5], self.qlimit_max[5])
-                
-                # Store new state
-                self.target_gpos = target_gpos.copy()
-                
-                # Return joint position action
-                action_dict['action'] = target_qpos
-            else:
-                # IK failed, keep current position
-                action_dict['action'] = current_qpos
+            delta_twist = np.array([
+                forward_update,   # base-frame radial (forward)
+                0.0,              # base-frame Y
+                delta_pos[2],     # base-frame height (Z)
+                delta_rot[0],     # roll
+                delta_rot[1],     # pitch
+                delta_rot[2],     # yaw
+            ], dtype=np.float64)
+            jac = self.robot_kin.jacob0(fd_qpos)
+            dq = np.linalg.lstsq(jac, delta_twist, rcond=None)[0]
+
+            target_qpos = current_qpos.copy()
+            target_qpos[0] = np.clip(current_qpos[0] + theta_update,
+                                     self.qlimit_min[0], self.qlimit_max[0])
+            target_qpos[1:5] = np.clip(fd_qpos + dq,
+                                       self.qlimit_min[1:5], self.qlimit_max[1:5])
+            target_qpos[5] = np.clip(current_qpos[5] + delta_gripper,
+                                     self.qlimit_min[5], self.qlimit_max[5])
+
+            # Keep the stored end-effector target pose in sync (state/debug).
+            self.target_gpos = lerobot_FK(target_qpos[1:5], robot=self.robot_kin).copy()
+
+            action_dict['action'] = target_qpos
         
         return action_dict
     
