@@ -11,7 +11,7 @@ python examples/07_custom_sim_env_libero_plus/train_and_evaluate.py
 - Cache: `~/.cache/vlastudio`; override with `VLASTUDIO_CACHE`.
 - Setup options and native dependencies: [setup.sh](setup.sh) (`--help`, `-i URL`).
 - Training budget and output paths: [train_and_evaluate.py](train_and_evaluate.py). Use fresh evaluation outputs.
-- Custom benchmark: implement [libero_plus_env.py](libero_plus_env.py), reference it in [env_object.yaml](env_object.yaml).
+- Custom benchmark: implement [libero_plus_env.py](libero_plus_env.py), reference it in [env_object.yaml](config/env_object.yaml).
 
 ## Verified results · 2026-10-08
 
