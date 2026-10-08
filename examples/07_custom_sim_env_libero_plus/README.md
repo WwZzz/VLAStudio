@@ -66,6 +66,46 @@ selects the policy. Training and evaluation both use main + wrist images rotated
 16 of each 50 predicted actions. Keep these settings aligned with your checkpoint.
 `runtime.yaml` and `setup.py` prepare the dependencies and simulator assets.
 
-The seven variants form a teaching subset, not the full LIBERO-Plus benchmark.
-The recorded 5,000-step run scored 2/7 on this subset; it does not promise a 90%+
-success rate. The detailed validation history is preserved in Git commit `6b455b9`.
+## Verified run (2026-10-08)
+
+The five-line example at commit [3d549ed](https://github.com/WwZzz/VLAStudio/commit/3d549ed47f7b2e829697f2fda4fe818f3fcb1f97)
+completed 5,000 training steps and automatic evaluation on one RTX 4090,
+exiting with code 0 and saving the policy checkpoint and normalization statistics.
+Training used batch size 16, seed 0 and the original ten-task Object demonstrations;
+it took 28.8 minutes with mean training loss 0.1596. The seven default teaching
+scenes scored **2/7 (28.6%)**.
+
+The run used Python 3.10, PyTorch 2.7.1/CUDA 12.6 and LeRobot 0.3.3.
+Dependencies, simulator assets and the pretrained backbone were reused from cache;
+training started with a fresh output directory without resuming an action-policy
+checkpoint. A fresh dependency installation was not part of this validation.
+
+A separate evaluation of the same saved checkpoint covered all ten Object tasks,
+with five trials per task in each condition (50 rollouts per row). Cases were
+selected before evaluation, using initial-state offsets and seeds 0 through 4.
+
+| Condition | Successful rollouts | Success rate |
+| --- | ---: | ---: |
+| Standard LIBERO-Object | 19/50 | 38% |
+| Background textures | 7/50 | 14% |
+| Camera viewpoints | 3/50 | 6% |
+| Language instructions | 0/50 | 0% |
+| Light conditions | 15/50 | 30% |
+| Object layouts | 16/50 | 32% |
+| Robot initial states | 3/50 | 6% |
+| Sensor noise | 8/50 | 16% |
+
+In a separate language control, restoring the canonical training instruction in
+the same 50 language-variant scenes and initial states raised success from 0/50
+to **17/50 (34%)**. This indicates sensitivity to the tested paraphrases; the
+control is diagnostic and is excluded from the LIBERO-Plus scores above.
+
+The completed runs produced 457 rollout videos: 7 from the example, 400 from the
+condition comparison and 50 from the language control. The checkpoint hash stayed
+unchanged throughout evaluation. Sensor-noise evaluation used a test-only
+acceleration of glass blur, verified to preserve exact pixels and NumPy RNG state
+in 30 comparisons; the complete 50-case rerun supplies the reported score.
+
+These results demonstrate successful training, checkpoint loading and evaluation.
+The condition comparison is a sampled robustness test, not a full LIBERO-Plus
+benchmark result. Checkpoints, videos and raw evaluation outputs are kept outside Git.
