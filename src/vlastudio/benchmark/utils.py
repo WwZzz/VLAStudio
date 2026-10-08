@@ -453,8 +453,9 @@ def evaluate(
                     if horizons[sidx] > t:
                         horizons[sidx] = t
 
-    # Cleanup
-    env.close()
+    # The caller owns reusable environments across sequential rollouts.
+    if not getattr(args, "reuse_env", False):
+        env.close()
     
     # Compute metrics
     total_successes = int(success.sum().item())

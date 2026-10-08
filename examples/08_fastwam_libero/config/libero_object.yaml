@@ -1,0 +1,80 @@
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_0
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_1
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_2
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_3
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_4
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_5
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_6
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_7
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_8
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta
+- type: vlastudio.benchmark.libero.fastwam:FastWAMLiberoEnv
+  args:
+    reuse_env: true
+    task: libero_object_9
+    max_timesteps: 400
+    seed: 42
+    ctrl_space: ee
+    ctrl_type: delta

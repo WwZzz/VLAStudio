@@ -1,0 +1,7 @@
+type: vlastudio.policy.fastwam
+name: fastwam
+args:
+  seed: 42
+  num_inference_steps: 10
+  sigma_shift: 5.0
+  compile_action_infer: false

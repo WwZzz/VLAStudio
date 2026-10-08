@@ -147,6 +147,9 @@ To add your own simulation benchmark, follow the
 [LIBERO-Plus adapter example](examples/07_custom_sim_env_libero_plus/README.md),
 which includes a minimal Python training and evaluation script.
 
+For the released FastWAM Base checkpoint on all four LIBERO suites, see the
+[FastWAM example](examples/08_fastwam_libero/README.md).
+
 If a command fails, see that example's README. You can also run a script in a
 selected environment without `run.sh`:
 

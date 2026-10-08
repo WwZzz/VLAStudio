@@ -138,6 +138,7 @@ if __name__=='__main__':
     
     # Store results for all environments
     all_env_results = {}
+    retained_env = None
     
     try:
         # Iterate through each environment configuration
@@ -157,6 +158,9 @@ if __name__=='__main__':
             # When batch_size=0, run sequentially without SubprocVectorEnv (useful for environments with multiprocessing issues)
             # Determine execution mode and batch configuration
             use_sequential = (args.batch_size == 0)
+            args.reuse_env = bool(getattr(env_cfg, "reuse_env", False))
+            if args.reuse_env and not use_sequential:
+                raise ValueError("reuse_env requires batch_size=0")
             if use_sequential:
                 logger.info(f"Running in sequential mode (batch_size=0, no SubprocVectorEnv)")
                 num_iters = args.num_rollout
@@ -191,7 +195,13 @@ if __name__=='__main__':
                 env_fns = [env_fn(env_cfg, env_module.create_env, rollout_start + j)
                            for j in range(num_envs)]
                 if use_sequential:
-                    env = SequentialVectorEnv(env_fns)
+                    if args.reuse_env and retained_env is not None:
+                        env = retained_env
+                        env.envs[0].config.rollout_index = rollout_start
+                    else:
+                        env = SequentialVectorEnv(env_fns)
+                        if args.reuse_env:
+                            retained_env = env
                 else:
                     try:
                         from tianshou.env import SubprocVectorEnv
@@ -224,6 +234,10 @@ if __name__=='__main__':
                 if video_writer is not None:
                     video_writer.close()
             
+            if retained_env is not None:
+                retained_env.close()
+                retained_env = None
+
             eval_result = {
                 'total_success': sum(eri['total_success'] for eri in all_eval_results),
                 'total': sum(eri['total'] for eri in all_eval_results),
@@ -319,5 +333,9 @@ if __name__=='__main__':
                     json.dump(summary_data, f, indent=2)
     
     finally:
-        # Always cleanup inference process
-        stop_inference_process(inference_ctx)
+        # Release a retained simulator even when evaluation raises.
+        try:
+            if retained_env is not None:
+                retained_env.close()
+        finally:
+            stop_inference_process(inference_ctx)

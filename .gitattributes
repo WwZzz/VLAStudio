@@ -1,1 +1,2 @@
 examples/07_custom_sim_env_libero_plus/setup.sh text eol=lf
+examples/08_fastwam_libero/setup.sh text eol=lf
