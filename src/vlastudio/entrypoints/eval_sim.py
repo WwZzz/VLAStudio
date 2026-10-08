@@ -1,5 +1,6 @@
 from vlastudio import configs  # Must be first to suppress TensorFlow logs
 import os
+import copy
 import json
 import importlib
 import imageio
@@ -12,9 +13,11 @@ from vlastudio.benchmark.utils import evaluate as default_evaluate, SequentialVe
 from vlastudio.deploy.action_manager import load_action_manager
 from vlastudio.deploy.inference import start_inference_process, stop_inference_process
 
-def env_fn(env_config, env_handler):
+def env_fn(env_config, env_handler, rollout_index=0):
     def create_env():
-        return env_handler(env_config)
+        config = copy.deepcopy(env_config)
+        config.rollout_index = rollout_index
+        return env_handler(config)
     return create_env
 
 def load_env_module(env_cfg):
@@ -185,7 +188,8 @@ if __name__=='__main__':
                     video_writer = None
                 
                 # Create environment(s)
-                env_fns = [env_fn(env_cfg, env_module.create_env) for _ in range(num_envs)]
+                env_fns = [env_fn(env_cfg, env_module.create_env, rollout_start + j)
+                           for j in range(num_envs)]
                 if use_sequential:
                     env = SequentialVectorEnv(env_fns)
                 else:

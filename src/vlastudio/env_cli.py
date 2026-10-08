@@ -44,7 +44,7 @@ def installation_env(cache, index_url=None, offline=False):
 def select_profile(policy=None, environment=None, manifest=None, remote=False):
     base_path = package_source_root() / 'environments' / 'base.yaml'
     if manifest:
-        return 'custom', environment_for({}, base_path, manifest)
+        return 'custom', environment_for({}, base_path, str(Path(manifest).expanduser().resolve()))
     selected = []
     if policy and not remote:
         policy = {'openpi': 'pi0'}.get(policy, policy)

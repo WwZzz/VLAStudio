@@ -10,6 +10,19 @@ import numpy as np
 from loguru import logger
 
 
+def _is_rank_sharded_dataloader(loader):
+    """Avoid partitioning a rank-local sampler a second time in Accelerate."""
+    dist = torch.distributed
+    if not dist.is_available() or not dist.is_initialized() or dist.get_world_size() <= 1:
+        return False
+    sampler = getattr(loader, 'sampler', None)
+    if (getattr(sampler, 'num_replicas', None) == dist.get_world_size()
+            and getattr(sampler, 'rank', None) == dist.get_rank()):
+        return True
+    children = getattr(loader, 'loaders', None)
+    return bool(children) and all(_is_rank_sharded_dataloader(child) for child in children)
+
+
 class BaseTrainer(Trainer):
     def __init__(self, *, train_loader=None, eval_loader=None, **kwargs):
         # If no eval dataset/loader is provided, force evaluation off to avoid HF Trainer errors
@@ -120,9 +133,8 @@ class BaseTrainer(Trainer):
         # RLDS datasets use tensorflow and don't work well with accelerator.prepare
         is_rlds = self._is_rlds_dataloader(self._train_loader)
         
-        if is_rlds:
-            # For RLDS datasets, return the loader without accelerator.prepare
-            # This is because tensorflow datasets handle distributed training internally
+        if is_rlds or _is_rank_sharded_dataloader(self._train_loader):
+            # RLDS and rank-local samplers already own distributed partitioning.
             return self._train_loader
         else:
             # For regular PyTorch datasets, use accelerator.prepare
@@ -169,7 +181,7 @@ class BaseTrainer(Trainer):
         # If we have an eval_loader from initialization, use it
         if self._eval_loader is not None:
             is_rlds = self._is_rlds_dataloader(self._eval_loader)
-            if is_rlds:
+            if is_rlds or _is_rank_sharded_dataloader(self._eval_loader):
                 return self._eval_loader
             else:
                 # accelerator.prepare() might return a tuple if multiple items are passed

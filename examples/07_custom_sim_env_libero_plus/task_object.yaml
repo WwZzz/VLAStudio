@@ -1,0 +1,19 @@
+# Original LIBERO-Object demonstrations, not Plus perturbation training data.
+datasets:
+- type: examples/07_custom_sim_env_libero_plus/dataset.py:ObjectDataset
+  name: libero_object
+  args:
+    root: ""  # LIBERO_DATASET_ROOT or $VLASTUDIO_CACHE/data/libero
+    split: object
+    camera_names: [image_primary, image_wrist]
+    chunk_size: 50
+    image_size: [256, 256]
+    preload_data: false
+meta:
+  action_dim: 7
+  state_dim: 8
+  image_size: [256, 256]
+  action_normalize: zscore
+  state_normalize: zscore
+  ctrl_space: ee
+  ctrl_type: delta
