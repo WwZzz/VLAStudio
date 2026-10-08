@@ -3,47 +3,48 @@
 This example connects an external LIBERO-Plus adapter to VLAStudio through a
 YAML `type:` path. Run all commands from the repository root on a Linux GPU machine.
 
-## Install once
+## Install and run
 
 ```bash
-sudo apt-get install libmagickwand-6.q16-6 libgl1 libegl1 libopengl0
-pip install -e .
-vlastudio env create -n example07 --runtime-manifest examples/07_custom_sim_env_libero_plus/runtime.yaml
-vlastudio env run -n example07 -- python examples/07_custom_sim_env_libero_plus/setup.py --download-assets
-source "${VLASTUDIO_CACHE:-$HOME/.cache/vlastudio}/libero-plus/env.sh"
+bash examples/07_custom_sim_env_libero_plus/setup.sh
+source "${VLASTUDIO_CACHE:-$HOME/.cache/vlastudio}/envs/example07/activate.sh"
+python examples/07_custom_sim_env_libero_plus/train_and_evaluate.py
 ```
 
-Setup downloads a pinned simulator and approximately 6.4 GB of assets, using
-`~/.cache/vlastudio` by default. Set `VLASTUDIO_CACHE` to use another cache.
-To reuse existing files, replace `--download-assets` with
-`--root /path/to/LIBERO-plus --assets /path/to/assets`.
-Package indexes follow your system configuration; environment creation accepts
-`-i URL`. If a native dependency needs compilation, install a C compiler and
-matching Python headers (for Python 3.10: `python3.10-dev build-essential`).
+Setup creates a Python 3.10 virtual environment, installs VLAStudio and the pinned
+policy/simulator dependencies, then downloads the simulator and approximately
+6.4 GB of assets. It installs native libraries through `apt-get` (using `sudo`
+when needed). A Linux machine with Python 3.10 and an NVIDIA GPU is required.
+Package indexes follow your pip configuration; pass `-i URL` to override the index.
 
-## Train and evaluate
+Everything is cached under `~/.cache/vlastudio` by default. Set `VLASTUDIO_CACHE`
+before setup to change that location, `PYTHON` to choose a Python 3.10 interpreter,
+or `VENV_DIR` to choose the virtual environment directory. Setup prints the exact
+activation command; run it again in each new shell. Existing environments are reused.
+To reuse simulator files:
 
 ```bash
-vlastudio env run -n example07 -- python examples/07_custom_sim_env_libero_plus/train_and_evaluate.py
+bash examples/07_custom_sim_env_libero_plus/setup.sh --root /path/to/LIBERO-plus --assets /path/to/assets
 ```
 
-The five-line script loads the dataset and policy, trains for 5,000 steps with
-batch size 16, then evaluates seven Plus variants. Edit that script to change
-the training budget, checkpoint directory or results directory. Use a fresh
-results directory for each evaluation.
+Use `--skip-system` when native dependencies are already installed. On systems
+without `apt-get`, install a C compiler, matching Python development headers and
+venv support, Git, MagickWand, GL, EGL and OpenGL libraries before using that option.
 
-Training uses the original ten-task Object demonstrations. They download to
-`$VLASTUDIO_CACHE/data/libero`; set `LIBERO_DATASET_ROOT` to an existing directory
-containing `libero_object/*.hdf5`. Source the generated `env.sh` again in each new shell.
+The five-line Python script trains for 5,000 steps with batch size 16, then evaluates
+seven Plus variants in the activated environment. Edit it to change the training
+budget, checkpoint directory or results directory. Use a fresh results directory
+for each evaluation. Original ten-task Object demonstrations download to
+`${VLASTUDIO_CACHE:-$HOME/.cache/vlastudio}/data/libero`; set `LIBERO_DATASET_ROOT`
+to an existing directory containing `libero_object/*.hdf5` to reuse them.
 
-To evaluate an existing checkpoint without training:
+To evaluate an existing checkpoint without training, run this Python code from
+the repository root in the same activated environment:
 
-```bash
-vlastudio env run -n example07 -- python -m vlastudio evaluate --runtime current \
-  -m checkpoints/example07_smolvla \
-  -e examples/07_custom_sim_env_libero_plus/env_object.yaml \
-  -am examples/07_custom_sim_env_libero_plus/action_manager.yaml \
-  -o results/example07_existing -n 1 -bs 0
+```python
+import vlastudio as vla
+policy = vla.load_policy("examples/07_custom_sim_env_libero_plus/smolvla.yaml", checkpoint="checkpoints/example07_smolvla")
+vla.load_env("examples/07_custom_sim_env_libero_plus/env_object.yaml").evaluate(policy, output_dir="results/example07_existing", num_rollout=1, action_manager="examples/07_custom_sim_env_libero_plus/action_manager.yaml")
 ```
 
 ## Add your own benchmark
@@ -64,7 +65,8 @@ The adapter restores the selected initial state after reset and uses
 selects the policy. Training and evaluation both use main + wrist images rotated
 180 degrees, 8D end-effector state and 7D actions. `action_manager.yaml` executes
 16 of each 50 predicted actions. Keep these settings aligned with your checkpoint.
-`runtime.yaml` and `setup.py` prepare the dependencies and simulator assets.
+`setup.sh` installs dependencies from `runtime.yaml` and calls `setup.py` to prepare
+the simulator assets and configuration.
 
 ## Verified run (2026-10-08)
 
