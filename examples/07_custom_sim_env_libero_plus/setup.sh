@@ -67,7 +67,7 @@ python="$venv_dir/bin/python"
 "$python" -m pip install "${pip_args[@]}" 'PyYAML==6.0.2'
 requirements="$(mktemp)"
 trap 'rm -f -- "$requirements"' EXIT
-"$python" - "$example_dir/config/runtime.yaml" "$requirements" <<'PY'
+"$python" - "$example_dir/runtime.yaml" "$requirements" <<'PY'
 import sys
 from pathlib import Path
 import yaml
