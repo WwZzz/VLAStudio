@@ -145,7 +145,7 @@ examples/05_finetune_vla_pi05/run.sh
 
 To add your own simulation benchmark, follow the
 [LIBERO-Plus adapter example](examples/07_custom_sim_env_libero_plus/README.md),
-which includes training, standard Object controls, and robustness evaluation.
+which includes a minimal Python training and evaluation script.
 
 If a command fails, see that example's README. You can also run a script in a
 selected environment without `run.sh`:
