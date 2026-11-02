@@ -1,6 +1,7 @@
 """VLAStudio's lightweight public API. Importing it never installs dependencies."""
 from .extensions import register, resolve, create
 from .dependencies import DependencyError, environment_plan
+from .execution import open_execution, connect_target
 from .api import (load_dataset, load_policy, load_env, connect_policy, train, serve,
                   show_camera, collect, infer,
                   Dataset, Policy, RemotePolicy, Environment, TrainingResult,
@@ -10,7 +11,7 @@ __version__ = "0.2.2"
 __all__ = ["register", "resolve", "create", "load_dataset", "load_policy", "load_env",
            "connect_policy", "train", "serve", "show_camera", "collect", "infer",
            "Dataset", "Policy", "RemotePolicy", "Environment", "TrainingResult",
-           "EvaluationResult", "TaskError"]
+           "EvaluationResult", "TaskError", "open_execution", "connect_target"]
 
 
 def run(command, args=(), **options):

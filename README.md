@@ -193,6 +193,12 @@ Each example shows its own environment setup and Python files. Run from the repo
 | Train and evaluate FastWAM | [08 · FastWAM on LIBERO](examples/08_fastwam_libero) |
 | Train and evaluate navigation policies | [09 · Navigation](examples/09_navigation) |
 
+## Persistent execution
+
+Use lastudio.open_execution() for live policy context updates and native action
+execution, and lastudio.connect_target() to reuse a robot or simulation connection.
+See [the API and lifecycle guide](docs/execution_session.md).
+
 ## Overview
 
 ![framework](https://raw.githubusercontent.com/WwZzz/myfigs/refs/heads/master/fig_1_ilstudio.png)

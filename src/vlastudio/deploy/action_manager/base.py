@@ -101,6 +101,7 @@ class BasicActionManager(AbstractActionManager):
         self._buffer = None
         self._chunk_buffer = None
         self._inference_ctx: Optional["InferenceContext"] = None
+        self._pending_epoch = None
         self._debug = bool(debug or _env_flag("ILSTUDIO_ACTION_DEBUG"))
         
         # Lightweight statistics — always tracked, printed on reset() if debug=True
@@ -149,7 +150,7 @@ class BasicActionManager(AbstractActionManager):
         self._inference_ctx = inference_ctx
         self._log_debug("bound inference context")
 
-    def select_action(self):
+    def select_action(self, *, block=True):
         """
         Get single-step action, triggering inference if needed.
         
@@ -166,6 +167,7 @@ class BasicActionManager(AbstractActionManager):
         # Step 1: Poll for new action chunks (non-blocking)
         mact_list = self._inference_ctx.poll_action_chunks()
         if mact_list:
+            self._pending_epoch = None
             self._stats["chunks_received"] += 1
             step_idx, chunk_len = self._buffer_status()
             self._log_debug(
@@ -179,8 +181,9 @@ class BasicActionManager(AbstractActionManager):
         # Step 2: Check if we need to trigger inference
         buffer_empty = self.is_empty()
         need_infer = self.should_infer()
-        if buffer_empty or need_infer:
+        if (buffer_empty or need_infer) and (block or self._pending_epoch != self._inference_ctx._epoch):
             self._inference_ctx.send_trigger(self.t)
+            self._pending_epoch = self._inference_ctx._epoch
             self._stats["triggers_sent"] += 1
             self._log_debug(
                 "sent trigger at t={} reason={}",
@@ -190,6 +193,8 @@ class BasicActionManager(AbstractActionManager):
         
         # Step 3: If buffer empty, block-wait for inference result
         if buffer_empty:
+            if not block:
+                return None
             self._wait_for_action_chunk(timeout=3600.0)
         
         # Step 4: Get single-step action
@@ -210,6 +215,13 @@ class BasicActionManager(AbstractActionManager):
         
         return action
 
+    def select_action_nonblocking(self):
+        # Derived managers that override selection must explicitly implement this
+        # capability; do not silently replace their scheduling semantics.
+        if type(self).select_action is not BasicActionManager.select_action:
+            raise NotImplementedError("This ActionManager needs native nonblocking selection support")
+        return self.select_action(block=False)
+
     def _wait_for_action_chunk(self, timeout: float = 30.0):
         """Block until a new action chunk is available."""
         t_start = time.perf_counter()
@@ -218,6 +230,7 @@ class BasicActionManager(AbstractActionManager):
         while self.is_empty():
             mact_list = self._inference_ctx.poll_action_chunks()
             if mact_list:
+                self._pending_epoch = None
                 wait_ms = (time.perf_counter() - t_start) * 1000
                 self._stats["cumulative_wait_ms"] += wait_ms
                 self._stats["chunks_received"] += 1
@@ -273,6 +286,7 @@ class BasicActionManager(AbstractActionManager):
         return False
 
     def reset(self):
+        self._pending_epoch = None
         with self._lock:
             self._chunk_buffer = None
             self._buffer = None
