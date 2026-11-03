@@ -4,6 +4,7 @@ Observations, low-rate intent snapshots and control requests are independent.
 This module deliberately does not invoke eval_sim/eval_real entrypoint loops.
 """
 from dataclasses import asdict
+from copy import deepcopy
 import math
 import os
 from pathlib import Path
@@ -33,6 +34,7 @@ class Runtime:
         self.context = None
         self.manager = None
         self.recorder = None
+        self.episode_sink = None
         self.observation_writer = None
         self.intent = {}
         self.limits = {}
@@ -63,6 +65,11 @@ class Runtime:
             raise ValueError('stop_on_environment_done must be a boolean')
         self.state['stop_on_environment_done'] = self.stop_on_environment_done
         self.recorder = Recorder(self.output, 1 / self.record_period)
+        sink = self.config.get('episode_sink')
+        if sink:
+            from vlastudio.extensions import resolve
+            self.episode_sink = resolve(sink['type'], kind='episode_sink')(
+                output=self.output, **sink.get('args', {}))
         self.backend = create_backend(self.config['backend'], uuid.uuid4().hex[:12])
         self.backend.open()
         self.state['environment_result'] = getattr(self.backend, 'initial_result', {})
@@ -256,7 +263,16 @@ class Runtime:
             shape = self.config.get('action_shape')
             if shape is not None and tuple(value.shape) != tuple(shape):
                 raise ValueError(f'Action shape {value.shape} does not match {shape}')
+        # A simulator can mutate its observation buffers during step().
+        if self.episode_sink is not None:
+            observation = asdict(self.observation)
+            published_action = deepcopy(action)
         result = self.backend.publish(action)
+        if self.episode_sink is not None:
+            self.episode_sink.append(observation, published_action, dict(self.intent),
+                version=self.state['version'], epoch=self.state.get('epoch', 0),
+                captured_at=self.captured_at, published_at=time.perf_counter(),
+                observation_seq=self.sequence, policy_observed_at=self.context.last_observed_at)
         self.state['context_applied'] = self.context.last_context_version == self.state['version']
         self.state['control_cycles'] += 1
         self.recorder.action(version=self.state['version'], observation_seq=self.sequence,
@@ -314,6 +330,12 @@ class Runtime:
             self.state['recording_dropped_frames'] = self.recorder.dropped_frames
             if errors:
                 self.state['close_errors'] = errors
+            if self.episode_sink is not None:
+                try:
+                    self.state['episode'] = self.episode_sink.close(self.snapshot())
+                except Exception as exc:
+                    errors.append(str(exc))
+                    self.state['close_errors'] = errors
             self.recorder.result(self.snapshot())
 
 
