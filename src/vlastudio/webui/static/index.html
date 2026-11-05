@@ -1,16 +1,134 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VLAStudio · 操作台</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head><body>
-<header><a class="brand" href="/collect"><svg viewBox="0 0 32 32" width="32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#b8ef67"/><path d="m5 9 9 17 12-21-12 13-5-9z" fill="#172021"/></svg>VLA<span>Studio</span></a><nav><a href="/collect" id="navCollect">数据采集</a><a href="/infer" id="navInfer">策略推理</a></nav><span class="chip" id="link">连接中</span></header>
-<main><div class="title"><div><small id="section"></small><h1 id="title"></h1></div><span id="phase" class="badge">未启动</span></div>
-<div class="layout"><aside class="panel"><h2>会话配置</h2><form id="form">
-<label>机器人配置<select id="robot"></select></label><div id="collectFields"><label>遥操作设备<select id="teleop"></select></label><label>录制同步配置<select id="sync"></select></label></div>
-<div id="inferFields"><label>策略服务器或模型路径<input id="policy" placeholder="localhost:5000"></label><label>动作管理器<select id="manager"></select></label></div>
-<label id="outLabel">数据集名称<input id="output"></label><label><span id="rateLabel">采集频率</span><div class="unit"><input id="rate" type="number" min="1" max="120" value="30"><span>Hz</span></div></label>
-<button class="primary" id="launch" type="submit">加载设备</button></form><button id="observe" class="plain">只读预览</button>
-<div class="controls"><h2>运行控制</h2><div id="buttons"></div><p id="status"></p></div></aside>
-<section class="workspace"><article class="panel"><div class="heading"><h2>摄像头</h2><small>共享内存 · 只读</small></div><div class="feeds" id="feeds"></div></article>
-<article class="panel"><div class="heading"><h2>关节反馈</h2><small>最近 30 秒 · 原始观测值</small></div><div id="axes"></div></article>
-<article class="panel" id="modelPanel" hidden><div class="heading"><h2>URDF 运动学骨架</h2><select id="arm"></select></div><canvas id="model" height="220" aria-label="可拖动旋转的 URDF 关节模型"></canvas><small id="modelName"></small></article>
-<article class="terminal"><div class="heading"><h2>终端输出</h2><label><input type="checkbox" checked id="follow"> 跟随日志</label></div><pre id="log">等待启动会话</pre></article></section></div></main>
-<dialog id="auth"><form id="login"><h2>连接 Jetson</h2><label>访问密钥<input id="key" type="password" required autocomplete="current-password"></label><p>密钥保存在 Jetson 的 ~/.config/vlastudio/webui.token</p><button class="primary">连接</button><p id="loginError"></p></form></dialog>
-<dialog id="confirm"><h2 id="confirmTitle"></h2><p id="confirmText"></p><div class="row"><button id="cancel">取消</button><button id="accept" class="primary">确认</button></div></dialog>
-<div id="error" role="alert" hidden></div></body></html>
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VLAStudio · 操作台</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/collect"
+        ><svg viewBox="0 0 32 32" width="32" aria-hidden="true">
+          <rect width="32" height="32" rx="8" fill="#b8ef67" />
+          <path d="m5 9 9 17 12-21-12 13-5-9z" fill="#172021" /></svg
+        >VLA<span>Studio</span></a
+      >
+      <nav>
+        <a href="/collect" id="navCollect">数据采集</a
+        ><a href="/infer" id="navInfer">策略推理</a>
+      </nav>
+      <span class="chip" id="link">连接中</span>
+    </header>
+    <main>
+      <div class="title">
+        <div>
+          <small id="section"></small>
+          <h1 id="title"></h1>
+        </div>
+        <span id="phase" class="badge">未启动</span>
+      </div>
+      <div class="layout">
+        <aside class="panel">
+          <h2>会话配置</h2>
+          <form id="form">
+            <label>机器人配置<select id="robot"></select></label>
+            <div id="collectFields">
+              <label>遥操作设备<select id="teleop"></select></label
+              ><label>录制同步配置<select id="sync"></select></label>
+            </div>
+            <div id="inferFields">
+              <label
+                >策略服务器或模型路径<input
+                  id="policy"
+                  placeholder="localhost:5000" /></label
+              ><label>动作管理器<select id="manager"></select></label>
+            </div>
+            <label id="outLabel">数据集名称<input id="output" /></label
+            ><label
+              ><span id="rateLabel">采集频率</span>
+              <div class="unit">
+                <input
+                  id="rate"
+                  type="number"
+                  min="1"
+                  max="120"
+                  value="30"
+                /><span>Hz</span>
+              </div></label
+            >
+            <button class="primary" id="launch" type="submit">加载设备</button>
+          </form>
+          <button id="observe" class="plain">只读预览</button>
+          <div class="controls">
+            <h2>运行控制</h2>
+            <div id="buttons"></div>
+            <p id="status"></p>
+          </div>
+        </aside>
+        <section class="workspace">
+          <article class="panel">
+            <div class="heading">
+              <h2>摄像头</h2>
+              <small>共享内存 · 只读</small>
+            </div>
+            <div class="feeds" id="feeds"></div>
+          </article>
+          <article class="panel">
+            <div class="heading">
+              <h2>关节反馈</h2>
+              <small>最近 30 秒 · 原始观测值</small>
+            </div>
+            <div id="axes"></div>
+          </article>
+          <article class="panel" id="modelPanel" hidden>
+            <div class="heading">
+              <h2>URDF 运动学骨架</h2>
+              <select id="arm"></select>
+            </div>
+            <canvas
+              id="model"
+              height="220"
+              aria-label="可拖动旋转的 URDF 关节模型"
+            ></canvas
+            ><small id="modelName"></small>
+          </article>
+          <article class="terminal">
+            <div class="heading">
+              <h2>终端输出</h2>
+              <label
+                ><input type="checkbox" checked id="follow" /> 跟随日志</label
+              >
+            </div>
+            <pre id="log">等待启动会话</pre>
+          </article>
+        </section>
+      </div>
+    </main>
+    <dialog id="auth">
+      <form id="login">
+        <h2>连接 Jetson</h2>
+        <label
+          >访问密钥<input
+            id="key"
+            type="password"
+            required
+            autocomplete="current-password"
+        /></label>
+        <p>密钥保存在 Jetson 的 ~/.config/vlastudio/webui.token</p>
+        <button class="primary">连接</button>
+        <p id="loginError"></p>
+      </form>
+    </dialog>
+    <dialog id="confirm">
+      <h2 id="confirmTitle"></h2>
+      <p id="confirmText"></p>
+      <div class="row">
+        <button id="cancel">取消</button
+        ><button id="accept" class="primary">确认</button>
+      </div>
+    </dialog>
+    <div id="error" role="alert" hidden></div>
+  </body>
+</html>
