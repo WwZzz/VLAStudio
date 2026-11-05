@@ -1,0 +1,9 @@
+required: [head_camera, rebot_b601rs]
+optional:
+  quest3_rebot_b601rs:
+    fields:
+      action: {shape: [7], dtype: float64}
+      unsqueeze_active: bool
+      left_unsqueeze_active: bool
+      right_unsqueeze_active: bool
+    events: [go_home, anchor_just_set]

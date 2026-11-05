@@ -38,6 +38,7 @@ import vlastudio.deploy.shm_utils; from vlastudio import deploy  # noqa: F401 - 
 
 import argparse
 from contextlib import ExitStack
+from pathlib import Path
 import signal
 import time
 from typing import List, Optional, Tuple
@@ -135,13 +136,18 @@ def main():
         help="Generate task config YAML. Supports: 'local.my_task' -> configs/task/local/my_task.yaml, "
              "'xxx.task' -> configs/task/xxx/task.yaml, or full path. Won't overwrite existing files.",
     )
-    parser.add_argument("--sample-quest-actions", action="store_true",
-                        help="Sample single-arm Quest relative poses at the robot/camera frame rate.")
+    sync_args = parser.add_mutually_exclusive_group()
+    sync_args.add_argument("--sync-config", metavar="YAML",
+                           help="Recording groups: required channels set the frame rate; missing optional samples are zero-filled.")
+    sync_args.add_argument("--sample-quest-actions", action="store_true",
+                           help="Use the single-arm Quest zero-fill recording preset.")
     args, unknown_args = parser.parse_known_args()
 
     all_configs, all_shm_names, teleop_configs, visualizer_configs = load_device_configs(
         args, unknown_args
     )
+    preset_name = None
+    sync_path = args.sync_config
     if args.sample_quest_actions and not args.no_record_teleop:
         cfg = teleop_configs[0] if len(teleop_configs) == 1 else {}
         opts = cfg.get("args", {})
@@ -149,6 +155,15 @@ def main():
                 or opts.get("arm_mode") not in ("left", "right") or opts.get("mode") != "rel_ee"
                 or opts.get("publish_thumbsticks")):
             parser.error("--sample-quest-actions requires a single-arm relative-EE Quest profile")
+        sync_path = Path(__file__).resolve().parents[1] / "configs/recording/rebot_b601rs_head.yaml"
+        preset_name = get_shm_name(cfg)
+    optional_inputs = {}
+    if sync_path:
+        from vlastudio.deploy.recording_sync import load_optional_inputs
+        recorded = set(all_shm_names)
+        if args.no_record_teleop:
+            recorded -= {get_shm_name(cfg) for cfg in teleop_configs}
+        optional_inputs = load_optional_inputs(sync_path, recorded, single_quest_name=preset_name)
 
     # Clean orphaned SHM
     cleanup_all_shm(all_shm_names)
@@ -167,10 +182,10 @@ def main():
             timeout = getattr(resolve(cfg["type"]), "process_shutdown_timeout_s", 8.0)
             process, = start_devices([cfg])
             workers.append((get_shm_name(cfg), process, timeout))
-        _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices)
+        _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices, optional_inputs)
 
 
-def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices):
+def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices, optional_inputs):
     time.sleep(1.0)
     
     # Start visualizer subprocesses if requested
@@ -199,7 +214,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
 
     # Create synchronizer
     valid_channels = [(n, ch) for n, ch in shm_channels if ch is not None]
-    if any(timeout is None for _, _, timeout in workers):
+    if args.sync_config or optional_inputs or any(timeout is None for _, _, timeout in workers):
         missing = [name for name, channel in shm_channels if channel is None]
         if missing:
             raise RuntimeError(f"Required device channels unavailable: {missing}")
@@ -217,10 +232,11 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         return
 
     sync_options = dict(shm_channels=valid_channels, buffer_maxlen=200, max_tolerance_s=0.05)
-    if args.sample_quest_actions and not args.no_record_teleop:
-        from vlastudio.deploy.quest_recording import QuestRecordingSynchronizer
-        sync = QuestRecordingSynchronizer(quest_name=get_shm_name(teleop_configs[0]), **sync_options)
-        logger.info("Recording Quest actions at the sensor frame rate (with source timestamp and age).")
+    if optional_inputs:
+        from vlastudio.deploy.recording_sync import RecordingSynchronizer
+        teleop = get_shm_name(teleop_configs[0]) if teleop_configs else None
+        sync = RecordingSynchronizer(optional=optional_inputs, teleop_name=teleop, **sync_options)
+        logger.info("Optional recording inputs (zero-filled when missing): {}", sorted(optional_inputs))
     else:
         sync = SharedMemoryDataSynchronizer(**sync_options)
 
