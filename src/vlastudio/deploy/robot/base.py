@@ -8,6 +8,7 @@ from vlastudio.benchmark.base import MetaAction, MetaObs
 from vlastudio.deploy.utils import RateLimiter
 from vlastudio.deploy.base import BaseDevice
 import time
+import os
 from loguru import logger
 
 class AbstractRobotInterface(abc.ABC):
@@ -74,12 +75,14 @@ class BaseRobot(BaseDevice, AbstractRobotInterface):
         self.control_shm_name = control_shm_name
         # Note: control_shm connection is deferred to start() to allow teleop shm to be created first
         self.control_shm = None
+        self._web_gate = None
+        if os.environ.get("VLASTUDIO_WEB_GATE"):
+            from vlastudio.webui.bridge import InputGate
+            self._web_gate = InputGate()
 
     def read_action(self) -> dict:
-        if self.control_shm is not None:
-            return self.control_shm.read(skip_unchanged=True)
-        else:
-            return None
+        message = self.control_shm.read(skip_unchanged=True) if self.control_shm is not None else None
+        return self._web_gate.filter(self, message) if self._web_gate is not None else message
 
     def handle_control_message(self, message: Optional[dict]) -> bool:
         """Handle non-action control messages sent through control SHM."""
@@ -102,14 +105,19 @@ class BaseRobot(BaseDevice, AbstractRobotInterface):
         """Convert the MetaAct to execusable actions for the robot"""
         return mact['action']
 
-    def obs2meta(self, device_data):
+    @staticmethod
+    def obs2meta(device_data):
         """Default: extract qpos as state."""
         if device_data is None:
             return {}
         qpos = device_data.get('qpos')
-        if qpos is not None:
-            return {'state': np.asarray(qpos, dtype=np.float32)}
-        return {}
+        if qpos is None:
+            return {}
+        joint = np.asarray(qpos, dtype=np.float32)
+        obs = {'state': joint}
+        if 'state_ee' in device_data:
+            obs['state_ee'] = np.asarray(device_data['state_ee'], dtype=np.float32)
+        return obs
 
 
     def get_data(self) -> dict:

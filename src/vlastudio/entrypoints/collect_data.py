@@ -55,6 +55,7 @@ from vlastudio.deploy.utils import (
 from vlastudio.deploy.visualizer.base import start_all_visualizers, stop_all_visualizers
 from vlastudio.data_utils.data_saver import create_data_saver, generate_task_config
 from vlastudio.utils.extensions import resolve
+from vlastudio.webui.bridge import keyboard, phase
 
 
 def _stop_device_processes(workers):
@@ -262,7 +263,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         logger.info("Found existing dataset with {} episodes, starting from episode {}", 
                     data_saver.episode_count, episode_idx)
     
-    kb = KBHit()
+    kb = keyboard(KBHit)
     kb.set_curses_term()
     
     teleop_name = (
@@ -282,6 +283,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         while True:
             # Wait for Enter to START
             logger.info("Press Enter to START episode {}...", episode_idx)
+            phase("ready")
             while read_input() is None:
                 sync.read_and_buffer()
                 time.sleep(0.01)
@@ -296,6 +298,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                 teleop_device=teleop_name,
             )
             logger.info("Recording episode {}. Press Enter to STOP...", actual_idx)
+            phase("recording")
             
             rate_limiter = RateLimiter()
 
@@ -388,6 +391,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
 
             # Save or discard
             logger.info("Save? (Enter=SAVE, any key+Enter=DISCARD)")
+            phase("save")
             prompt = None
             while prompt is None:
                 prompt = read_input()

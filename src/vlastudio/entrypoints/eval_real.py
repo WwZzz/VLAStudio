@@ -29,6 +29,8 @@ import os
 import traceback
 import time
 import numpy as np
+from vlastudio.utils.extensions import resolve
+from vlastudio.webui.bridge import keyboard, phase, request_home
 from loguru import logger
 
 from vlastudio.data_utils.utils import set_seed
@@ -264,6 +266,9 @@ def main():
 
     def send_robot_reset() -> None:
         """Reset policy state and command robot subprocess to go home."""
+        if request_home():
+            logger.info("[Pause] Requested robot reset through the session input gate.")
+            return
         control_shm.write({
             "cmd": "reset",
             "go_home": True,
@@ -275,6 +280,8 @@ def main():
     logger.info("Starting all devices...")
     device_procs = start_devices(robot_configs)
     rt.all_procs.extend(device_procs)
+    rt.device_timeouts.update({p: getattr(resolve(row["type"]), "process_shutdown_timeout_s", 3.0)
+                              for p, row in zip(device_procs, robot_configs)})
     
     # Start visualizer subprocesses if requested
     viz_procs = []
@@ -348,7 +355,7 @@ def main():
     kb = None
 
     try:
-        kb = KBHit()
+        kb = keyboard(KBHit)
         kb.set_curses_term()
 
         logger.info(
@@ -356,6 +363,7 @@ def main():
             "=" * 60,
             "=" * 60,
         )
+        phase("infer_ready")
         while kb.get_input() is None:
             time.sleep(0.001)
         while kb.get_input() is not None:
@@ -377,10 +385,12 @@ def main():
         action_count = 0
         last_log_time = time.perf_counter()
         paused = False
+        phase("running")
 
         while True:
             if not paused and try_enter_eval_real_pause_menu(kb, rt):
                 paused = True
+                phase("paused")
 
             if paused:
                 outcome = eval_real_pause_menu_step(
@@ -394,7 +404,10 @@ def main():
                     continue
                 if outcome == "resumed":
                     paused = False
+                    phase("running")
                     continue
+                if outcome == "still_paused":
+                    phase("paused")
                 if outcome == "exit":
                     break
                 continue
@@ -433,6 +446,8 @@ def main():
     except Exception as e:
         logger.info("[Main Control Loop] Error: {}", e)
         traceback.print_exc()
+        if os.environ.get("VLASTUDIO_WEB_FD"):
+            raise
     finally:
         if kb is not None:
             try:

@@ -19,6 +19,9 @@ args:
     qpos:
       shape: [14]
       dtype: float32
+    state_ee:
+      shape: [14]
+      dtype: float32
     qvel:
       shape: [14]
       dtype: float32

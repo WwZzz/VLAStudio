@@ -709,6 +709,7 @@ class EvalRealRuntime:
 
     def __init__(self) -> None:
         self.all_procs: List[Any] = []
+        self.device_timeouts = {}
         self.all_shm: List[Any] = []
         self._cleanup_done = False
         self.recorder_state: Dict[str, Any] = {
@@ -878,13 +879,18 @@ class EvalRealRuntime:
         logger.info("Running cleanup...")
         self.stop_session_recorder()
 
+        failed_devices = []
         for p in self.all_procs:
             if p.is_alive():
                 p.terminate()
 
         for p in self.all_procs:
-            p.join(timeout=3.0)
-            if p.is_alive():
+            timeout = self.device_timeouts.get(p, 3.0)
+            p.join(timeout=timeout)
+            if timeout is None and p.exitcode:
+                logger.critical("Device {} failed to confirm shutdown (exit {})", p.pid, p.exitcode)
+                failed_devices.append(p.pid)
+            if timeout is not None and p.is_alive():
                 logger.warning("Process {} did not exit gracefully, killing...", p.pid)
                 p.kill()
                 p.join(timeout=1.0)
@@ -895,12 +901,16 @@ class EvalRealRuntime:
             except Exception:
                 pass
 
+        if failed_devices:
+            raise RuntimeError(f"Device shutdown unconfirmed: {failed_devices}")
         logger.info("Cleanup complete.")
 
     def register_exit_hooks(self) -> None:
         """Register SIGINT/SIGTERM and atexit to run :meth:`cleanup_all`."""
 
         def _on_signal(signum, frame):
+            if self._cleanup_done:
+                return
             logger.info("Received signal {}, cleaning up...", signum)
             self.cleanup_all()
             raise SystemExit(0)
