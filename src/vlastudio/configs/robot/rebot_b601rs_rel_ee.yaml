@@ -1,0 +1,25 @@
+- type: vlastudio.deploy.robot.rebot_b601rs.RebotB601RS
+  name: rebot_b601rs
+  args:
+    name: rebot_b601rs
+    channel: can1
+    control_mode: rel_ee
+    ik_end_frame: link6
+    fps: 100.0
+    max_size_mb: 4
+    velocity_limit_rad_s: 1.0
+    home_velocity_rad_s: 0.5
+    home_duration_s: 4.0
+    home_gripper_tolerance_rad: 0.05
+    gripper_open_rad: 4.71238898038
+    gripper_velocity_rad_s: 2.5
+    gripper_damping: 1.5
+    gripper_travel_damping: 0.40
+    gripper_deadband_rad: 0.03
+    joint_smooth_alpha: 0.5
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 10
+    joint_move_deg: 0.4
+    gripper_absolute: true
+    max_joint_delta_deg: 30.0

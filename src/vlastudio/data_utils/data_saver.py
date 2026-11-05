@@ -476,7 +476,9 @@ class HDF5DataSaver(BaseDataSaver):
         fps: int,
         task: str = "",
         enrich_saved_frame: Optional[Callable[[Dict[str, dict]], Dict[str, dict]]] = None,
+        compression: str = "gzip",
     ):
+        self.compression = compression
         super().__init__(output_dir, fps, task, enrich_saved_frame=enrich_saved_frame)
         if not HAS_H5PY:
             raise ImportError("h5py is required for HDF5 format. Install with: pip install h5py")
@@ -573,7 +575,7 @@ class HDF5DataSaver(BaseDataSaver):
                 chunks = (min(CHUNK_SIZE, 100),) + arr.shape
                 
                 # Determine compression
-                comp = "gzip" if arr.nbytes > 1000 else None
+                comp = self.compression if arr.nbytes > 1000 else None
                 
                 ds = h5_file.create_dataset(
                     key.replace(".", "/"),
@@ -682,7 +684,7 @@ class HDF5DataSaver(BaseDataSaver):
         self._stream_stop_event.set()
         
         # Wait for writer thread to finish
-        self._stream_thread.join(timeout=10.0)
+        self._stream_thread.join()  # Drain and close the file before publishing it.
         
         frame_count = self._stream_frame_count
         tmp_path = self._h5_tmp_path
@@ -2238,7 +2240,7 @@ def create_data_saver(
         enrich_saved_frame=enrich_saved_frame,
     )
     if format == "hdf5":
-        return HDF5DataSaver(**common)
+        return HDF5DataSaver(**common, compression=kwargs.get("hdf5_compression", "gzip"))
     elif format == "lerobotv30":
         return LeRobotV30DataSaver(**common)
     elif format == "lerobotv21":

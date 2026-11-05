@@ -1,0 +1,8 @@
+# Additional requirements for the existing Jetson VLAStudio runtime (Python 3.10).
+# numpy stays <2 for the installed JetPack torch wheel.
+numpy==1.26.4
+scipy==1.14.1
+pin==2.7.0
+eigenpy==3.5.1
+websockets==13.1
+h5py==3.12.1

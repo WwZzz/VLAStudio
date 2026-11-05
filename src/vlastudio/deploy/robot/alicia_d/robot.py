@@ -468,6 +468,9 @@ class AliciaD(BaseRobot):
             logger.error(f"[AliciaD] get_observation error: {e}")
             return None
     
+    def _solve_teleop_ik(self, target_pose):
+        return self.ik_solver.solve(target_pose)
+
     def process_action(self, action_dict: dict) -> dict:
         """
         Process action based on control mode.
@@ -641,7 +644,7 @@ class AliciaD(BaseRobot):
                 return action_dict
             
             # Solve IK with target pose
-            success, q_arm, iters, err = self.ik_solver.solve(target_T)
+            success, q_arm, iters, err = self._solve_teleop_ik(target_T)
             timed_out = bool(getattr(self.ik_solver, "_last_solve_timed_out", False))
 
             # IK Recovery: only if failed AND not time-budget (recovery would double the hitch).
@@ -651,7 +654,7 @@ class AliciaD(BaseRobot):
                 recovery_joints = self._target_qpos if self._target_qpos is not None else self._current_joint_angles
                 if recovery_joints is not None:
                     self.ik_solver.reset(recovery_joints)
-                    success, q_arm, iters, err = self.ik_solver.solve(target_T)
+                    success, q_arm, iters, err = self._solve_teleop_ik(target_T)
             
             # SAFETY: If IK failed, reject the action and dynamically re-anchor (rel_ee mode)
             if not success:
@@ -709,7 +712,15 @@ class AliciaD(BaseRobot):
             self._prev_ik_qpos = q_arm.copy()
 
             if self.joint_stop_hold:
-                if ik_step >= self.joint_move_rad:
+                # A stationary IK target can still be far ahead of the EMA.
+                # Do not freeze before catching up; resume on cumulative hand
+                # movement from the held pose, not just one frame's tiny delta.
+                hold_error = float('inf')
+                if self._smooth_qpos is not None:
+                    d_hold = (q_arm - self._smooth_qpos[:6] + np.pi) % (2*np.pi) - np.pi
+                    hold_error = float(np.max(np.abs(d_hold)))
+                if (ik_step >= self.joint_move_rad or
+                    (self._teleop_holding_still and hold_error >= self.joint_move_rad)):
                     if self._teleop_holding_still:
                         logger.debug("[AliciaD] stop-hold resume (IK moved)")
                     self._teleop_holding_still = False
@@ -719,6 +730,7 @@ class AliciaD(BaseRobot):
                     if (
                         not self._teleop_holding_still
                         and self._still_count >= self.joint_still_frames
+                        and hold_error < self.joint_still_rad
                     ):
                         self._teleop_holding_still = True
                         # Lock to current smoothed cmd (already near rest).

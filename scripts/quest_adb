@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ADB_ROOT="$HOME/.local/share/quest-adb/root"
+export LD_LIBRARY_PATH="$ADB_ROOT/usr/lib/aarch64-linux-gnu/android${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$ADB_ROOT/usr/bin/adb" "$@"

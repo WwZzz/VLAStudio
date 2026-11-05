@@ -405,6 +405,12 @@ class SharedMemoryDataSynchronizer:
         # Filled by get_synced_frame_blocking for diagnostics
         self.last_sync_stats: Dict[str, object] = {}
 
+    def begin_episode(self, start_time: float) -> None:
+        """Require fresh samples from every device after the recording starts."""
+        for name, buffer in self._buffers.items():
+            buffer.clear()
+            self._last_emitted_ts[name] = start_time
+
     def _get_timestamp(self, data: dict) -> float:
         """Extract timestamp from data. Uses __timestamp__ (writer) or timestamp (legacy)."""
         return data.get("__timestamp__", data.get("timestamp", 0.0))

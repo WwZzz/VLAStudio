@@ -36,6 +36,7 @@ class OpenCVCamera(BaseDevice):
         horizontal_flip: bool = False,
         vertical_flip: bool = False,
         bgr_to_rgb: bool = False,
+        v4l2_controls: Optional[dict] = None,
     ):
         super().__init__(name, max_size_mb, fps)
         self.index_or_path = index_or_path
@@ -46,6 +47,7 @@ class OpenCVCamera(BaseDevice):
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
         self.bgr_to_rgb = bgr_to_rgb
+        self.v4l2_controls = dict(v4l2_controls or {})
         self._backend = _get_cv2_backend()
         self.camera: Optional[cv2.VideoCapture] = None
         self._capture_width: Optional[int] = None
@@ -115,6 +117,40 @@ class OpenCVCamera(BaseDevice):
                 raise RuntimeError(
                     f"OpencvCamera: failed to set fps={self.fps} (actual={actual_fps})"
                 )
+
+        self._apply_v4l2_controls()
+
+    def _apply_v4l2_controls(self) -> None:
+        """Apply explicit Linux controls after mode setup, including on reopen."""
+        if not self.v4l2_controls:
+            return
+        if platform.system() != "Linux":
+            raise ValueError("v4l2_controls requires Linux")
+        import fcntl
+        import struct
+        ids = {
+            "exposure_auto": 0x9a0901,
+            "exposure_absolute": 0x9a0902,  # 100 microsecond units
+            "exposure_auto_priority": 0x9a0903,
+            "gain": 0x980913,
+            "gamma": 0x980910,
+            "backlight_compensation": 0x98091c,
+            "power_line_frequency": 0x980918,
+        }
+        unknown = set(self.v4l2_controls) - set(ids)
+        if unknown:
+            raise ValueError(f"Unsupported v4l2_controls keys: {sorted(unknown)}")
+        path = f"/dev/video{self.index_or_path}" if isinstance(self.index_or_path, int) else self.index_or_path
+        with open(path, "rb+", buffering=0) as device:
+            for key, value in self.v4l2_controls.items():
+                value = int(value)
+                data = bytearray(struct.pack("Ii", ids[key], value))
+                fcntl.ioctl(device, 0xc008561c, data)  # VIDIOC_S_CTRL
+                fcntl.ioctl(device, 0xc008561b, data)  # VIDIOC_G_CTRL
+                actual = struct.unpack("Ii", data)[1]
+                if actual != value:
+                    raise RuntimeError(f"{self.name}: {key} requested {value}, got {actual}")
+        logger.info(f"[{self.name}] V4L2 controls applied: {self.v4l2_controls}")
 
     def _warmup(self) -> None:
         """Read frames for warmup_s seconds to stabilize camera."""
@@ -335,4 +371,3 @@ if __name__ == "__main__":
             if p.is_alive():
                 p.kill()
         print("Done.")
- 

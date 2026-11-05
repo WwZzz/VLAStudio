@@ -1,0 +1,10 @@
+# qpos = six motor/URDF joint angles in radians + normalized gripper [0=closed,1=open].
+- type: vlastudio.deploy.robot.rebot_b601rs.RebotB601RS
+  name: rebot_b601rs
+  args:
+    name: rebot_b601rs
+    channel: can1
+    control_mode: qpos
+    ik_end_frame: link6
+    fps: 100.0
+    velocity_limit_rad_s: 0.5

@@ -37,6 +37,8 @@ Usage:
 import vlastudio.deploy.shm_utils; from vlastudio import deploy  # noqa: F401 - applies _fix_resource_tracker() on import
 
 import argparse
+from contextlib import ExitStack
+import signal
 import time
 from typing import List, Optional, Tuple
 from loguru import logger
@@ -51,6 +53,36 @@ from vlastudio.deploy.utils import (
 )
 from vlastudio.deploy.visualizer.base import start_all_visualizers, stop_all_visualizers
 from vlastudio.data_utils.data_saver import create_data_saver, generate_task_config
+from vlastudio.utils.extensions import resolve
+
+
+def _stop_device_processes(workers):
+    with ExitStack() as signals:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            previous = signal.signal(sig, signal.SIG_IGN)
+            signals.callback(signal.signal, sig, previous)
+        _join_devices(workers)
+
+
+def _join_devices(workers):
+    # A device may own a multi-stage shutdown and require an unbounded join.
+    failures = []
+    for _, process, _ in workers:
+        if process.is_alive():
+            process.terminate()
+    for name, process, timeout in workers:
+        if timeout is None:
+            logger.info("Waiting for {} to confirm shutdown...", name)
+        process.join(timeout=timeout)
+        if timeout is None:
+            if process.exitcode != 0:
+                failures.append(f"{name}: exit {process.exitcode}")
+        elif process.is_alive():
+            logger.warning("Device {} did not exit within {}s, killing...", name, timeout)
+            process.kill()
+            process.join(timeout=1.0)
+    if failures:
+        raise RuntimeError("Device shutdown unconfirmed: " + ", ".join(failures))
 
 
 def main():
@@ -74,6 +106,8 @@ def main():
         default="",
         help="Optional natural-language task description stored in dataset (default: empty string).",
     )
+    parser.add_argument("--hdf5-compression", choices=("gzip", "lzf"), default="gzip",
+                        help="Lossless HDF5 compression (lzf favors throughput).")
     parser.add_argument("-f", "--frequency", type=float, default=25.0, 
                         help="Target max Hz; actual = min(-f, slowest sensor)")
     parser.add_argument(
@@ -101,11 +135,20 @@ def main():
         help="Generate task config YAML. Supports: 'local.my_task' -> configs/task/local/my_task.yaml, "
              "'xxx.task' -> configs/task/xxx/task.yaml, or full path. Won't overwrite existing files.",
     )
+    parser.add_argument("--sample-quest-actions", action="store_true",
+                        help="Sample single-arm Quest relative poses at the robot/camera frame rate.")
     args, unknown_args = parser.parse_known_args()
 
     all_configs, all_shm_names, teleop_configs, visualizer_configs = load_device_configs(
         args, unknown_args
     )
+    if args.sample_quest_actions and not args.no_record_teleop:
+        cfg = teleop_configs[0] if len(teleop_configs) == 1 else {}
+        opts = cfg.get("args", {})
+        if (cfg.get("type") != "vlastudio.deploy.teleoperator.quest3.Quest3Teleop"
+                or opts.get("arm_mode") not in ("left", "right") or opts.get("mode") != "rel_ee"
+                or opts.get("publish_thumbsticks")):
+            parser.error("--sample-quest-actions requires a single-arm relative-EE Quest profile")
 
     # Clean orphaned SHM
     cleanup_all_shm(all_shm_names)
@@ -113,7 +156,21 @@ def main():
 
     # Start all devices
     logger.info("Starting all devices...")
-    all_procs = start_devices(all_configs)
+    workers = []
+    with ExitStack() as devices:
+        def on_term(signum, frame):
+            raise KeyboardInterrupt
+        old_term = signal.signal(signal.SIGTERM, on_term)
+        devices.callback(signal.signal, signal.SIGTERM, old_term)
+        devices.callback(_stop_device_processes, workers)
+        for cfg in all_configs:
+            timeout = getattr(resolve(cfg["type"]), "process_shutdown_timeout_s", 8.0)
+            process, = start_devices([cfg])
+            workers.append((get_shm_name(cfg), process, timeout))
+        _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices)
+
+
+def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices):
     time.sleep(1.0)
     
     # Start visualizer subprocesses if requested
@@ -131,7 +188,9 @@ def main():
     for cfg in all_configs:
         name = get_shm_name(cfg)
         try:
-            ch = SharedMemoryChannel(name, is_writer=False, timeout=10.0)
+            # Quest creates its channel after the headset joins the VR session.
+            timeout = 10.0 + float(cfg.get("args", {}).get("connect_timeout", 0.0))
+            ch = SharedMemoryChannel(name, is_writer=False, timeout=timeout)
             shm_channels.append((name, ch))
             logger.info("Connected: {}", name)
         except Exception as e:
@@ -140,6 +199,10 @@ def main():
 
     # Create synchronizer
     valid_channels = [(n, ch) for n, ch in shm_channels if ch is not None]
+    if any(timeout is None for _, _, timeout in workers):
+        missing = [name for name, channel in shm_channels if channel is None]
+        if missing:
+            raise RuntimeError(f"Required device channels unavailable: {missing}")
     teleop_names = {get_shm_name(cfg) for cfg in teleop_configs}
     if args.no_record_teleop and teleop_names:
         excluded = [n for n, _ in valid_channels if n in teleop_names]
@@ -151,21 +214,22 @@ def main():
             )
     if not valid_channels:
         logger.error("No SHM channels connected. Exiting.")
-        for p in all_procs:
-            p.terminate()
         return
 
-    sync = SharedMemoryDataSynchronizer(
-        shm_channels=valid_channels,
-        buffer_maxlen=200,
-        max_tolerance_s=0.05,
-    )
+    sync_options = dict(shm_channels=valid_channels, buffer_maxlen=200, max_tolerance_s=0.05)
+    if args.sample_quest_actions and not args.no_record_teleop:
+        from vlastudio.deploy.quest_recording import QuestRecordingSynchronizer
+        sync = QuestRecordingSynchronizer(quest_name=get_shm_name(teleop_configs[0]), **sync_options)
+        logger.info("Recording Quest actions at the sensor frame rate (with source timestamp and age).")
+    else:
+        sync = SharedMemoryDataSynchronizer(**sync_options)
 
     # Create data saver (it will count existing episodes automatically).
     # Per-device enrich_saved_frame hooks run at stream/save time (e.g. AliciaD state_ee FK).
     enrich_saved_frame = create_enrich_saved_frame_func(all_configs)
     data_saver = create_data_saver(
         format=args.dataset_format,
+        hdf5_compression=args.hdf5_compression,
         output_dir=args.output_dir,
         fps=int(round(args.frequency)),
         task=args.task,
@@ -192,15 +256,21 @@ def main():
     )
     device_names_list = [n for n, _ in valid_channels]
 
+    def read_input():
+        for name, process, _ in workers:
+            if process.exitcode is not None:
+                raise RuntimeError(f"Device {name} exited during collection (code {process.exitcode})")
+        return kb.get_input()
+
     try:
         while True:
             # Wait for Enter to START
             logger.info("Press Enter to START episode {}...", episode_idx)
-            while kb.get_input() is None:
+            while read_input() is None:
                 sync.read_and_buffer()
                 time.sleep(0.01)
             # Consume any extra input
-            while kb.get_input() is not None:
+            while read_input() is not None:
                 pass
 
             # Start recording episode
@@ -214,9 +284,10 @@ def main():
             rate_limiter = RateLimiter()
 
             def stop_requested() -> bool:
-                return kb.get_input() is not None
+                return read_input() is not None
 
             recording_start_time = time.perf_counter()
+            sync.begin_episode(recording_start_time)
             frame_count = 0
             last_debug_time = recording_start_time
             debug_interval = 1.0  # Sync bottleneck stats every 1s
@@ -280,7 +351,7 @@ def main():
                 rate_limiter.sleep(args.frequency)
 
             # Consume stop Enter
-            while kb.get_input() is not None:
+            while read_input() is not None:
                 pass
 
             recording_end_time = time.perf_counter()
@@ -303,7 +374,7 @@ def main():
             logger.info("Save? (Enter=SAVE, any key+Enter=DISCARD)")
             prompt = None
             while prompt is None:
-                prompt = kb.get_input()
+                prompt = read_input()
                 time.sleep(0.05)
             
             if len(prompt.strip()) == 0:
@@ -327,6 +398,11 @@ def main():
     except KeyboardInterrupt:
         logger.info("Stopping...")
     finally:
+        shutdown_error = None
+        try:
+            devices.close()
+        except RuntimeError as exc:
+            shutdown_error = exc
         kb.set_normal_term()
         
         # Stop visualizers
@@ -338,19 +414,6 @@ def main():
                     ch.destroy()
                 except Exception:
                     pass
-        # Stop all device processes - give them time to close serial ports / Quest adb restore
-        logger.info("Stopping {} device processes...", len(all_procs))
-        for p in all_procs:
-            if p.is_alive():
-                p.terminate()  # Send SIGTERM → teleop should restore Quest proximity
-        
-        # Wait for all processes to finish gracefully (Quest keep-awake restore needs ~4s)
-        for p in all_procs:
-            p.join(timeout=8.0)
-            if p.is_alive():
-                logger.warning("Device process {} did not exit gracefully, killing...", p.pid)
-                p.kill()
-                p.join(timeout=1.0)
 
         # Belt-and-suspenders: if teleop was killed mid-adb, restore Quest sleep from parent.
         try:
@@ -371,6 +434,8 @@ def main():
                 )
         
         cleanup_all_shm(all_shm_names)
+        if shutdown_error is not None:
+            raise shutdown_error
         logger.info("Done.")
 
 

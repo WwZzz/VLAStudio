@@ -1,0 +1,10 @@
+# Absolute base-frame [x,y,z,roll,pitch,yaw,gripper]; metres/radians/[0,1].
+- type: vlastudio.deploy.robot.rebot_b601rs.RebotB601RS
+  name: rebot_b601rs
+  args:
+    name: rebot_b601rs
+    channel: can1
+    control_mode: ee
+    ik_end_frame: link6
+    fps: 100.0
+    velocity_limit_rad_s: 0.5

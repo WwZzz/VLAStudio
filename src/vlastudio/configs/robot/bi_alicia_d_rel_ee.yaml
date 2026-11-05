@@ -1,0 +1,83 @@
+# Jetson pair: arm bindings use firmware body serials, not tty enumeration.
+- type: vlastudio.deploy.robot.bi_alicia_d.BiAliciaD
+  name: bi_alicia_d
+  args:
+    name: bi_alicia_d
+    max_size_mb: 4
+    fps: 100.0
+    control_mode: rel_ee
+    left_body_serial: ADFX260423AFNTM0
+    right_body_serial: ADFX2604211G8E8N
+    speed_deg_s: 80.0
+    gripper_speed_deg_s: 483.4
+    ik_end_frame: link6
+    ik_ee_offset_xyz: [0.0, 0.0, 0.0]
+    ik_ee_offset_rpy: [0.0, 0.0, 0.0]
+    ik_eps: 0.05
+    ik_max_iter: 60
+    ik_max_solve_time_s: 0.022
+    ik_rotation_weight: 0.1
+    position_scale: 1.0
+    rotation_scale: 1.0
+    gripper_scale: 1.0
+    gripper_absolute: true
+    joint_smooth_alpha: 0.5
+    joint_stop_hold: true
+    joint_still_deg: 0.12
+    joint_still_frames: 10
+    joint_move_deg: 0.40
+    joint_teleop_brake_deg: 2.0
+    joint_teleop_brake_speed_deg_s: 80.0
+    joint_cmd_deadband_deg: 0.0
+    joint_creep_deg: 0.0
+    max_joint_delta_deg: 30.0
+    home_duration_s: 3.0
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: head_camera
+  args:
+    name: head_camera
+    index_or_path: /dev/v4l/by-path/platform-3610000.usb-usb-0:2.3:1.0-video-index0
+    width: 640
+    height: 480
+    fps: 25
+    max_size_mb: 4
+    fourcc: MJPG
+    bgr_to_rgb: true
+
+# Provisional wrist assignment: swap these two index_or_path values if needed.
+# Identical TSTC cameras share USB serials; by-path follows the USB socket.
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: left_wrist_camera
+  args:
+    name: left_wrist_camera
+    index_or_path: /dev/v4l/by-path/platform-3610000.usb-usb-0:3.1.4:1.0-video-index0
+    width: 640
+    height: 480
+    fps: 25
+    max_size_mb: 4
+    fourcc: MJPG
+    bgr_to_rgb: true
+    v4l2_controls:
+      exposure_auto: 3
+      gain: 105
+      gamma: 120
+      backlight_compensation: 36
+      power_line_frequency: 1
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: right_wrist_camera
+  args:
+    name: right_wrist_camera
+    index_or_path: /dev/v4l/by-path/platform-3610000.usb-usb-0:3.2:1.0-video-index0
+    width: 640
+    height: 480
+    fps: 25
+    max_size_mb: 4
+    fourcc: MJPG
+    bgr_to_rgb: true
+    v4l2_controls:
+      exposure_auto: 3
+      gain: 108
+      gamma: 85
+      backlight_compensation: 36
+      power_line_frequency: 1

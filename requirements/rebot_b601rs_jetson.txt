@@ -1,0 +1,5 @@
+# Existing Jetson vlastudio runtime: Python 3.10 / NumPy 1.26 / Pinocchio 2.7.
+# Do not upgrade to NumPy 2 in the JetPack PyTorch environment.
+motorbridge==0.5.6
+pin==2.7.0
+numpy==1.26.4
