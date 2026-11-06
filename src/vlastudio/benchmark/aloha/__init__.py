@@ -93,6 +93,12 @@ class AlohaSimEnv(MetaEnv):
             raise ValueError('ALOHA supports joint or ee control')
         factory = make_ee_sim_env if self.ctrl_space == 'ee' else make_sim_env
         env = factory('sim_'+self.task_name)
+        if self.ctrl_space == 'ee':
+            # Mocap helper sites are UI cues. Keep all sensor and recorded images clean.
+            for index in range(env.physics.model.nsite):
+                name = env.physics.model.id2name(index, 'site') or ''
+                if name.startswith('mocap_'):
+                    env.physics.model.site_rgba[index, 3] = 0
         if getattr(self.config, 'render_selected_cameras', False):
             names = ['top', 'left_wrist', 'right_wrist']
             env.task.render_cameras = {names[int(i)]: names[int(i)] for i in self.camera_ids}

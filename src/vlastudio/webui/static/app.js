@@ -504,7 +504,8 @@ function drawModel() {
       (x * Math.sin(yaw) + y * Math.cos(yaw)) * Math.sin(pitch),
   ];
   const lines = model.links.map((pair) => pair.map(project)),
-    pts = lines.flat();
+    controlAxes = (model.control_axes || []).map((pair) => pair.map(project)),
+    pts = [...lines, ...controlAxes].flat();
   if (!pts.length) return;
   const xs = pts.map((p) => p[0]),
     ys = pts.map((p) => p[1]),
@@ -534,6 +535,31 @@ function drawModel() {
     c.arc(...b, 7, 0, Math.PI * 2);
     c.fill();
   }
+  controlAxes.forEach((pair, axis) => {
+    const [a, b] = pair.map(xy);
+    c.strokeStyle = ["#e13030", "#23a63a", "#2869eb"][axis];
+    c.lineWidth = 5;
+    c.beginPath();
+    c.moveTo(...a);
+    c.lineTo(...b);
+    c.stroke();
+    const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    c.beginPath();
+    c.moveTo(...b);
+    c.lineTo(
+      b[0] - 13 * Math.cos(angle - 0.4),
+      b[1] - 13 * Math.sin(angle - 0.4),
+    );
+    c.moveTo(...b);
+    c.lineTo(
+      b[0] - 13 * Math.cos(angle + 0.4),
+      b[1] - 13 * Math.sin(angle + 0.4),
+    );
+    c.stroke();
+    c.fillStyle = c.strokeStyle;
+    c.font = "bold 18px sans-serif";
+    c.fillText("+" + "XYZ"[axis], b[0] + 5, b[1] - 5);
+  });
   $("modelName").textContent =
     model.name +
     (model.rest
@@ -686,15 +712,33 @@ function renderKeyboard() {
       (label, group) => {
         const selected =
           group === 2 ? pairs.slice(6) : pairs.slice(group * 3, group * 3 + 3);
-        block.append(
-          el(
-            "p",
-            "",
-            tr(label) +
-              "  " +
-              selected.map((pair) => pair.map(keyName).join(" / ")).join(" · "),
-          ),
-        );
+        const row = el("div", "key-direction-row");
+        row.append(el("span", "key-group-label", tr(label)));
+        selected.forEach((pair, axis) => {
+          const keys = el(
+            "span",
+            group === 2 ? "axis-keys" : "axis-keys axis-" + "xyz"[axis],
+          );
+          const coordinate = group === 2 ? "" : "XYZ"[axis];
+          keys.append(
+            el(
+              "kbd",
+              "",
+              (group === 2 ? tr("Open") : "+" + coordinate) +
+                " " +
+                keyName(pair[0]),
+            ),
+            el(
+              "kbd",
+              "",
+              (group === 2 ? tr("Close") : "−" + coordinate) +
+                " " +
+                keyName(pair[1]),
+            ),
+          );
+          row.append(keys);
+        });
+        block.append(row);
       },
     );
     $("keyboardBindings").append(block);

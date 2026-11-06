@@ -480,3 +480,43 @@ textarea {
 #taskError:empty {
   display: none;
 }
+
+.axis-x {
+  --axis-color: #c72e2e;
+  --axis-bg: #fff0f0;
+}
+.axis-y {
+  --axis-color: #23713d;
+  --axis-bg: #edf8ef;
+}
+.axis-z {
+  --axis-color: #2562bf;
+  --axis-bg: #edf4ff;
+}
+.key-direction-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.key-group-label {
+  width: 100%;
+  font-size: 11px;
+  color: var(--muted);
+}
+.axis-keys {
+  display: inline-flex;
+  gap: 4px;
+  color: var(--axis-color, var(--ink));
+}
+.axis-keys kbd {
+  padding: 4px 6px;
+  font: 11px var(--mono, monospace);
+  background: var(--axis-bg, var(--side));
+  border: 1px solid currentColor;
+  border-radius: 4px;
+}
+.axis-legend {
+  font-size: 11px;
+}

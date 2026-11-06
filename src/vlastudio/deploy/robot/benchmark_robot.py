@@ -80,7 +80,16 @@ class BenchmarkRobot(BaseRobot):
         if self.last_action is not None:
             data["executed_action"] = self.last_action.copy()
             data["action"] = self.last_action.copy()
+        preview = getattr(self.adapter, 'preview_data', None)
+        if self.space == 'ee' and preview is not None:
+            hints = preview(self.env, self.raw)
+            hints['cameras'] = dict(zip(self.observation_config.get('cameras', []), hints['cameras']))
+            data['__preview__'] = hints
         self.cached = data
+
+    @classmethod
+    def enrich_saved_frame(cls, device_data, device_args=None):
+        return {key: value for key, value in device_data.items() if key != '__preview__'}
 
     def reset(self):
         """Restore the configured benchmark task's initial scene."""

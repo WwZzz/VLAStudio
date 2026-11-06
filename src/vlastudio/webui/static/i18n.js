@@ -125,6 +125,12 @@ Object.assign(chinese, {
     "任务说明最多 2000 个字符",
   "A task with this name already exists": "已存在同名任务",
 });
+Object.assign(chinese, {
+  Open: "张开",
+  Close: "闭合",
+  "Preview only · X red · Y green · Z blue · World control frame":
+    "仅预览提示 · X 红 · Y 绿 · Z 蓝 · 世界控制坐标系",
+});
 let language = localStorage.getItem("vla-language") === "zh" ? "zh" : "en";
 function tr(text) {
   return language === "zh" ? chinese[text] || text : text;

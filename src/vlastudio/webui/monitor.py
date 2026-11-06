@@ -13,6 +13,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from .profiles import channels, model_path
+from .ee_overlay import draw_axes
 from vlastudio.deploy.shm_utils import SharedMemoryChannel
 
 
@@ -33,7 +34,7 @@ class Skeleton:
                                 transform, axis, joint.get("type")))
         self.roots = {j[0] for j in self.joints} - {j[1] for j in self.joints}
 
-    def links(self, angles):
+    def links(self, angles, end_frame='link6'):
         poses = {root: np.eye(4) for root in self.roots}
         steps = []
         index = 0
@@ -59,11 +60,18 @@ class Skeleton:
             if len(steps) == len(remaining):
                 break
             steps = remaining
+        self.control_axes = []
+        if end_frame in poses:
+            origin = poses[end_frame][:3, 3]
+            self.control_axes = [[origin.tolist(), (origin + axis * .08).tolist()] for axis in np.eye(3)]
         return segments
 
 
 def images(data, name, bgr=False):
+    hints = data.get('__preview__', {})
     for key, value in data.items():
+        if key == '__preview__':
+            continue
         if isinstance(value, dict):
             yield from images(value, name if key == "image" else f"{name}/{key}", bgr)
         elif isinstance(value, np.ndarray) and value.dtype == np.uint8 and value.ndim in (2, 3) and min(value.shape[:2]) > 8:
@@ -73,6 +81,9 @@ def images(data, name, bgr=False):
             small = cv2.resize(value, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
             if small.ndim == 3 and not bgr:
                 small = cv2.cvtColor(small, cv2.COLOR_RGB2BGR if small.shape[2] == 3 else cv2.COLOR_RGBA2BGR)
+            camera = hints.get('cameras', {}).get(key)
+            if camera and small.ndim == 3:
+                draw_axes(small, camera, hints.get('effectors', []))
             ok, jpeg = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 65])
             if ok:
                 yield name if key == "image" else f"{name}/{key}", base64.b64encode(jpeg).decode("ascii")
@@ -88,7 +99,8 @@ def run(profile):
         if path and path.is_file():
             models[name] = Skeleton(path)
             keys = ["left_qpos", "right_qpos"] if typ.endswith(".BiAliciaD") else [name]
-            rest = {k: {"name":path.stem, "links":models[name].links([0.]*6), "rest":True} for k in keys}
+            rest = {k: {"name":path.stem, "links":models[name].links([0.]*6, args.get('ik_end_frame', 'link6')),
+                        "control_axes":models[name].control_axes, "rest":True} for k in keys}
             print(json.dumps({"images":{}, "axes":{}, "models":rest, "stamps":{}}), flush=True)
     tick = 0
     last_view = time.monotonic()
@@ -139,7 +151,8 @@ def run(profile):
                     packet["axes"][arm] = [stamp, q.tolist()]
                     if name in models:
                         model = models[name]
-                        packet["models"][arm] = {"name": model.name, "links": model.links(q[:6])}
+                        packet["models"][arm] = {"name": model.name, "links": model.links(q[:6], args.get('ik_end_frame', 'link6')),
+                                                "control_axes": model.control_axes}
             print(json.dumps(packet, separators=(",", ":"), allow_nan=False), flush=True)
             tick += 1
             time.sleep(max(0, .125 - (time.monotonic()-start)))
