@@ -708,7 +708,7 @@ function renderKeyboard() {
         ),
       ),
     );
-    ["Translation X / Y / Z", "Rotation X / Y / Z", "Gripper"].forEach(
+    ["Translation", "Rotation", "Gripper"].forEach(
       (label, group) => {
         const selected =
           group === 2 ? pairs.slice(6) : pairs.slice(group * 3, group * 3 + 3);
@@ -720,22 +720,19 @@ function renderKeyboard() {
             group === 2 ? "axis-keys" : "axis-keys axis-" + "xyz"[axis],
           );
           const coordinate = group === 2 ? "" : "XYZ"[axis];
-          keys.append(
-            el(
-              "kbd",
-              "",
-              (group === 2 ? tr("Open") : "+" + coordinate) +
-                " " +
-                keyName(pair[0]),
-            ),
-            el(
-              "kbd",
-              "",
-              (group === 2 ? tr("Close") : "−" + coordinate) +
-                " " +
-                keyName(pair[1]),
-            ),
-          );
+          if (coordinate) keys.append(el("span", "axis-name", coordinate));
+          pair.forEach((key, direction) => {
+            const column = el(
+              "span",
+              "key-column " + (direction === 0 ? "key-positive" : "key-negative"),
+            );
+            const sign = group === 2
+              ? tr(direction === 0 ? "Open" : "Close")
+              : direction === 0 ? "+" : "−";
+            column.append(el("span", "key-sign", sign), el("kbd", "", keyName(key)));
+            column.setAttribute("aria-label", `${tr(label)} ${coordinate} ${sign}: ${keyName(key)}`);
+            keys.append(column);
+          });
           row.append(keys);
         });
         block.append(row);

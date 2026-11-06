@@ -81,6 +81,8 @@ const chinese = {
   "Left arm": "左臂",
   "Right arm": "右臂",
   Arm: "机械臂",
+  Translation: "平移",
+  Rotation: "旋转",
   "Translation X / Y / Z": "平移 X / Y / Z",
   "Rotation X / Y / Z": "旋转 X / Y / Z",
   "Connect ": "连接 ",
