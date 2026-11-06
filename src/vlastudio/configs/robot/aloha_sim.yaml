@@ -1,0 +1,46 @@
+- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+  name: aloha_sim
+  webui:
+    rate: 30
+    tasks:
+    - sim_transfer_cube_scripted
+    - sim_insertion_scripted
+    teleop: keyboard_delta_2arm
+    reset_label: 重置仿真场景
+  args:
+    name: aloha_sim
+    control_shm_name: keyboard_delta
+    fps: 50
+    environment:
+      type: vlastudio.benchmark.aloha.AlohaSimEnv
+      args:
+        ctrl_space: ee
+        ctrl_type: abs
+        camera_ids:
+        - 0
+        image_size:
+        - 320
+        - 240
+        render_selected_cameras: true
+        continue_after_success: true
+        separate_termination: true
+    task: sim_transfer_cube_scripted
+    on_success: continue
+    on_termination: pause
+    action:
+      arms: 2
+      space: ee
+      type: abs
+      rotation: quat_wxyz
+      initial_target: state_ee
+      adapter: vlastudio.deploy.robot.benchmark_adapters.AlohaAdapter
+    observation:
+      fields:
+        qpos: state_joint
+        state: state
+        state_joint: state_joint
+        state_ee: state_ee
+      image: image
+      image_layout: KCHW
+      cameras:
+      - head_camera

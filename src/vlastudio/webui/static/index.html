@@ -34,6 +34,10 @@
           <h2>会话配置</h2>
           <form id="form">
             <label>机器人配置<select id="robot"></select></label>
+            <div id="simulationFields" hidden>
+              <label>仿真任务<select id="task"></select></label>
+              <label>任务成功后<select id="on_success"><option value="continue">继续操作</option><option value="pause">暂停，等待重置场景</option></select></label>
+            </div>
             <div id="collectFields">
               <label>遥操作设备<select id="teleop"></select></label
               ><label>录制同步配置<select id="sync"></select></label>
@@ -68,6 +72,13 @@
           </div>
         </aside>
         <section class="workspace">
+          <article class="panel" id="keyboardPanel" hidden>
+            <h2>键盘末端增量控制</h2>
+            <label>控制机械臂<select id="keyboardArm"></select></label>
+            <button id="keyboardFocus" type="button">点击此处后按住按键控制</button>
+            <p>W/S 前后 · A/D 左右 · R/F 上下 · Q/E 滚转 · T/G 俯仰 · Z/C 偏航 · V/B 开合夹爪</p>
+            <small>松开按键或移开焦点即停止发送增量。动作方向相对于仿真世界坐标系。</small>
+          </article>
           <article class="panel">
             <div class="heading">
               <h2>摄像头</h2>

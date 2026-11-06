@@ -92,6 +92,8 @@ class Handler(BaseHTTPRequestHandler):
                 s.start(data["mode"], data)
             elif self.path == "/api/action":
                 s.action(data["id"],data["action"])
+            elif self.path == "/api/keyboard":
+                s.keyboard(data)
             elif self.path == "/api/preview":
                 with s.lock:
                     if s.proc is not None:

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import secrets
+import socket
 import subprocess
 import sys
 import tempfile
@@ -13,7 +14,7 @@ import threading
 import time
 
 from .bridge import PHASES, PAUSE, RUN, RESET_A, RESET_B, RESETTING
-from .profiles import ROOT, channels, config
+from .profiles import ROOT, channels, config, catalog
 
 
 def module(name):
@@ -25,6 +26,18 @@ def command_line(mode, options):
     base = "vlastudio.entrypoints."
     cmd = module(base + ("collect_data" if mode == "collect" else "eval_real"))
     cmd += ["--robot", str(config("robot", robot))]
+    settings = catalog()['robot_options'].get(robot, {})
+    if settings.get('tasks'):
+        task = options.get('task') or settings['tasks'][0]
+        if task not in settings['tasks']:
+            raise ValueError('Unknown simulation task')
+        cmd += ['--robot.args.task', task]
+        behavior = options.get('on_success', 'continue')
+        if behavior not in ('continue', 'pause'):
+            raise ValueError('Invalid success behavior')
+        cmd += ['--robot.args.on_success', behavior]
+        if mode == 'infer':
+            cmd += ['--robot.args.input_mode', 'native']
     rate = int(options.get("rate", 30))
     if not 1 <= rate <= 120:
         raise ValueError("频率范围为 1–120 Hz")
@@ -178,13 +191,25 @@ class Session:
                 raise ValueError("已有会话运行中")
             self.preview.stop()
             self.mode, self.robot = mode, opts["robot"]
-            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output") if k in opts}
+            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","task","on_success") if k in opts}
             rows = channels(self.robot)
             if sum(".deploy.robot." in typ for _, typ, _ in rows) > 1:
                 raise ValueError("请选择单机器人或双臂组合配置，以便逐次确认暂停与回零")
             self.teleop = opts.get("teleop", "") if mode == "collect" else ""
             self.reset_ok = any(t.rsplit(".",1)[-1] in ("AliciaD","BiAliciaD","RebotB601RS") and
                                 not a.get("read_only") for _,t,a in rows)
+            from vlastudio.utils.extensions import resolve
+            self.reset_ok = self.reset_ok or any(getattr(resolve(t), 'supports_reset', False) for _, t, _ in rows)
+            keyboard_rows = channels(self.teleop, 'teleop') if self.teleop else []
+            self.keyboard_arms = next((int(a.get('arms', 1)) for _, t, a in keyboard_rows
+                                       if getattr(resolve(t), 'browser_keyboard', False)), 0)
+            self.keyboard_owner = None
+            self.keyboard_last_seen = 0
+            if self.keyboard_arms:
+                expected = next((a.get('action', {}).get('arms') for _, _, a in rows
+                                 if a.get('action', {}).get('arms')), None)
+                if expected and self.keyboard_arms != expected:
+                    raise ValueError('Keyboard arm count does not match robot configuration')
             self.output = opts.get("output", "")
             self.gated = mode == "collect" and (self.teleop or self.reset_ok)
             try:
@@ -196,6 +221,9 @@ class Session:
                     self.box[:] = bytes([PAUSE,255,0,0,255])
                     env = dict(os.environ, VLASTUDIO_WEB_FD=str(fd), PYTHONUNBUFFERED="1",
                                PYTHONDONTWRITEBYTECODE="1")
+                    self.keyboard_dir = tempfile.TemporaryDirectory(prefix='vla-keys-')
+                    self.keyboard_path = str(Path(self.keyboard_dir.name) / 'input.sock')
+                    env['VLASTUDIO_KEYBOARD_SOCKET'] = self.keyboard_path
                     if self.gated:
                         env["VLASTUDIO_WEB_GATE"] = "collect"
                     elif mode == "infer":
@@ -215,6 +243,10 @@ class Session:
             self.preview.start(self.robot)
 
     def _release(self):
+        directory = getattr(self, 'keyboard_dir', None)
+        if directory is not None:
+            directory.cleanup()
+            self.keyboard_dir = None
         if self.box is not None:
             self.box.close()
             self.box = None
@@ -264,8 +296,35 @@ class Session:
                 phase, allowed = "stopping", []
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
                         options=self.options if live else {},
+                        keyboard_arms=self.keyboard_arms if live else 0,
                         tele=("running" if self.box[1]==RUN else "homing" if self.box[1]==RESETTING else "paused")
                         if live and self.gated else "", actions=allowed, logs=list(self.logs), exit=self.code)
+
+    def keyboard(self, data):
+        with self.lock:
+            if not self.proc or data.get('id') != self.sid or not self.keyboard_arms:
+                raise ValueError('No matching keyboard session')
+            keys, arm = data.get('keys'), data.get('arm')
+            if not isinstance(keys, list) or len(keys) > 14 or any(k not in list('wsadrfqetgzcvb') for k in keys):
+                raise ValueError('Invalid keys')
+            if not isinstance(arm, int) or not 0 <= arm < self.keyboard_arms:
+                raise ValueError('Invalid arm')
+            owner = data.get('owner', '')
+            if not isinstance(owner, str) or not 1 <= len(owner) <= 80:
+                raise ValueError('Missing keyboard controller identifier')
+            now = time.monotonic()
+            if self.keyboard_owner != owner and now - self.keyboard_last_seen < .35:
+                return
+            self.keyboard_owner = owner
+            self.keyboard_last_seen = now
+            if self.box[0] != RUN:
+                keys = []
+            with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as connection:
+                connection.setblocking(False)
+                try:
+                    connection.sendto(json.dumps(dict(keys=keys, arm=arm)).encode(), self.keyboard_path)
+                except (FileNotFoundError, BlockingIOError, ConnectionRefusedError):
+                    pass
 
     def action(self, sid, action):
         with self.lock:

@@ -10,8 +10,8 @@ const names = {
   run: "开始推理",
   pause: "暂停推理",
   reset: "复位策略并回零",
-  tele_run: "启用手柄控制",
-  tele_pause: "暂停手柄控制",
+  tele_run: "启用遥操作",
+  tele_pause: "暂停遥操作",
   home: "机械臂回零",
   stop: "退出会话",
 };
@@ -103,6 +103,8 @@ function options() {
     manager: $("manager").value,
     rate: Number($("rate").value),
     output: $("output").value,
+    task: $("task").value,
+    on_success: $("on_success").value,
   };
 }
 function defaults() {
@@ -114,6 +116,11 @@ function defaults() {
       : "";
   $("sync").value = r === "rebot_b601rs_head_rel_ee" ? "rebot_b601rs_head" : "";
   $("output").value = collecting ? r : "";
+  const settings = profiles.robot_options?.[r];
+  $("simulationFields").hidden = !settings?.tasks;
+  fill("task", settings?.tasks || []);
+  if (settings?.teleop) $("teleop").value = settings.teleop;
+  if (settings?.rate) $("rate").value = settings.rate;
   if (!collecting && r === "dummy")
     $("policy").value = "__dummy-zero14-chunk16";
   else if (!collecting && $("policy").value.startsWith("__dummy"))
@@ -141,6 +148,11 @@ async function init() {
     "output",
   ])
     if (id in saved) $(id).value = saved[id];
+  const settings = profiles.robot_options?.[$("robot").value];
+  $("simulationFields").hidden = !settings?.tasks;
+  fill("task", settings?.tasks || []);
+  if (saved.task && settings?.tasks?.includes(saved.task)) $("task").value = saved.task;
+  $("on_success").value = saved.on_success || "continue";
   await refresh();
 }
 $("login").onsubmit = async (e) => {
@@ -190,23 +202,30 @@ async function post(route, data) {
 }
 async function act(action) {
   const sid = state.session.id;
+  const resetLabel = profiles.robot_options?.[state.session.robot]?.reset_label;
   if (["reset", "home", "discard", "stop"].includes(action)) {
     const msg = {
       reset:
         "将重置策略并请求机器人回零；推理录像有未保存数据时会按原生流程丢弃。",
-      home: "将请求机器人执行其回零流程。",
+      home: resetLabel ? "将恢复仿真任务的初始场景。" : "将请求机器人执行其回零流程。",
       discard: "这段录制将被丢弃。",
       stop: "退出运行进程。请先保存需要的数据，并等设备完成退出。",
     };
-    if (!(await confirmAction(names[action], msg[action]))) return;
+    if (!(await confirmAction(action === "home" && resetLabel ? resetLabel : names[action], msg[action]))) return;
   }
   await post("action", { id: sid, action });
 }
 function renderSession(s) {
   const other = s.active && s.mode !== mode;
-  if (s.active && !other)
+  if (s.active && !other) {
+    const settings = profiles.robot_options?.[s.robot];
+    $("simulationFields").hidden = !settings?.tasks;
+    const tasks = settings?.tasks || [];
+    if (JSON.stringify([...$("task").options].map(o => o.value)) !== JSON.stringify(tasks)) fill("task", tasks);
+    $("sync").value = s.options.sync || "";
     for (const [key, value] of Object.entries(s.options || {}))
       $(key).value = value;
+  }
   $("phase").textContent =
     (other ? (s.mode === "collect" ? "采集 · " : "推理 · ") : "") +
     phases[s.phase];
@@ -223,7 +242,9 @@ function renderSession(s) {
       const b = el(
         "button",
         "",
-        key === "run" && s.phase === "paused" ? "恢复推理" : names[key],
+        key === "home" && profiles.robot_options?.[s.robot]?.reset_label
+          ? profiles.robot_options[s.robot].reset_label
+          : key === "run" && s.phase === "paused" ? "恢复推理" : names[key],
       );
       b.onclick = () => act(key);
       $("buttons").append(b);
@@ -234,7 +255,7 @@ function renderSession(s) {
     : s.active
       ? s.robot +
         (s.tele
-          ? " · 手柄" +
+          ? " · 遥操作" +
             { paused: "已暂停", running: "已启用", homing: "正在回零" }[s.tele]
           : "")
       : s.exit === null
@@ -415,6 +436,12 @@ async function refresh() {
   polling = true;
   try {
     state = await api("state");
+    const keyboardArms = state.session.keyboard_arms || 0;
+    $("keyboardPanel").hidden = !keyboardArms;
+    if ($("keyboardArm").options.length !== keyboardArms) {
+      $("keyboardArm").replaceChildren();
+      for (let i = 0; i < keyboardArms; i++) $("keyboardArm").add(new Option(`机械臂 ${i + 1}`, String(i)));
+    }
     $("link").textContent = "Jetson 在线";
     $("link").className = "chip online";
     renderSession(state.session);
@@ -436,6 +463,37 @@ async function refresh() {
     polling = false;
   }
 }
+
+const heldKeys = new Set();
+let keyboardSending = false;
+let keyboardWasFocused = false;
+const keyboardOwner = [...crypto.getRandomValues(new Uint8Array(16))].map(v => v.toString(16).padStart(2, "0")).join("");
+$("keyboardFocus").onkeydown = (event) => {
+  const key = event.key.toLowerCase();
+  if ("wsadrfqetgzcvb".includes(key) && key.length === 1) {
+    event.preventDefault();
+    heldKeys.add(key);
+  }
+};
+window.addEventListener("keyup", (event) => heldKeys.delete(event.key.toLowerCase()));
+$("keyboardFocus").addEventListener("blur", () => heldKeys.clear());
+window.addEventListener("blur", () => heldKeys.clear());
+document.addEventListener("visibilitychange", () => heldKeys.clear());
+setInterval(async () => {
+  if (keyboardSending || !state?.session.keyboard_arms) return;
+  const focused = document.activeElement === $("keyboardFocus") && document.hasFocus();
+  if (!focused && !keyboardWasFocused) return;
+  keyboardWasFocused = focused;
+  if (!focused || state.session.tele !== "running") heldKeys.clear();
+  keyboardSending = true;
+  try {
+    await api("keyboard", {id: state.session.id, owner: keyboardOwner, keys: [...heldKeys], arm: Number($("keyboardArm").value)});
+  } catch {
+    heldKeys.clear();
+  } finally {
+    keyboardSending = false;
+  }
+}, 50);
 $("section").textContent = collecting ? "COLLECT_DATA" : "INFER";
 $("title").textContent = collecting ? "遥操作采集" : "策略推理";
 $(collecting ? "navCollect" : "navInfer").classList.add("active");

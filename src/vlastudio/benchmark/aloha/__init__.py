@@ -89,7 +89,17 @@ class AlohaSimEnv(MetaEnv):
         self.task_name = 'transfer_cube' if 'transfer' in self.config.task else 'insertion'
         self.raw_lang = TASK_PROMPT['sim_transfer_cube_scripted'] if 'transfer' in self.task_name else TASK_PROMPT['sim_insertion_scripted']
         # step over the environment
-        env = make_sim_env('sim_'+self.task_name)
+        if self.ctrl_space not in ('joint', 'ee'):
+            raise ValueError('ALOHA supports joint or ee control')
+        factory = make_ee_sim_env if self.ctrl_space == 'ee' else make_sim_env
+        env = factory('sim_'+self.task_name)
+        if getattr(self.config, 'render_selected_cameras', False):
+            names = ['top', 'left_wrist', 'right_wrist']
+            env.task.render_cameras = {names[int(i)]: names[int(i)] for i in self.camera_ids}
+            env.task.render_size = self.image_size_primary
+        if getattr(self.config, 'continue_after_success', False):
+            # dm_control otherwise automatically resets after its time limit.
+            env._step_limit = float('inf')
         # Get action bounds from action_spec
         action_spec = env.action_spec()
         self.min_action = action_spec.minimum
@@ -106,21 +116,31 @@ class AlohaSimEnv(MetaEnv):
         state_joint = np.concatenate([obs["qpos"], ], axis=0).astype(np.float32)
         # image
         img_primary = cv2.resize(obs['images']['top'], self.image_size_primary)
-        img_wrist_left = cv2.resize(obs['images']['left_wrist'], self.image_size_wrist)
-        img_wrist_right = cv2.resize(obs['images']['right_wrist'], self.image_size_wrist)
         all_imgs = [img_primary]
         if '1' in self.camera_ids or 1 in self.camera_ids:
-            all_imgs = all_imgs + [img_wrist_left, ]
+            all_imgs.append(cv2.resize(obs['images']['left_wrist'], self.image_size_wrist))
         if '2' in self.camera_ids or 2 in self.camera_ids:
-            all_imgs = all_imgs + [img_wrist_right, ]
+            all_imgs.append(cv2.resize(obs['images']['right_wrist'], self.image_size_wrist))
         image = np.stack(all_imgs)
         image = image.transpose(0, 3, 1, 2)
-        return MetaObs(state=state_joint, image=image, raw_lang=self.raw_lang)
+        physics = self.env.physics
+        state_ee = np.concatenate([
+            np.concatenate([physics.named.data.xpos[f'vx300s_{side}/gripper_link'],
+                            physics.named.data.xquat[f'vx300s_{side}/gripper_link'],
+                            [state_joint[index]]])
+            for side, index in [('left', 6), ('right', 13)]
+        ]).astype(np.float32)
+        return MetaObs(state=state_joint, state_joint=state_joint,
+                       state_ee=state_ee, image=image, raw_lang=self.raw_lang)
     
     def step(self, *args, **kwargs):
         act = self.meta2act(*args, **kwargs)
         ts = self.env.step(act)
-        results = [ts.observation, ts.reward, self.env.task.max_reward==ts.reward, ts]
+        success = self.env.task.max_reward == ts.reward
+        if getattr(self.config, 'separate_termination', False):
+            results = [ts.observation, ts.reward, False, bool(ts.last()), {'success': success}]
+        else:
+            results = [ts.observation, ts.reward, success, ts]
         self.prev_obs = results[0] = self.obs2meta(results[0])
         if isinstance(results[0], MetaObs): results[0] = asdict(results[0])
         return tuple(results)

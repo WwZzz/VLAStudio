@@ -8,8 +8,16 @@ ROOT = PACKAGE.parents[1]
 
 
 def catalog():
-    return {kind: sorted(p.stem for p in (CONFIGS / kind).glob("*.yaml"))
-            for kind in ("robot", "teleop", "recording", "action_manager")}
+    result = {kind: sorted(p.stem for p in (CONFIGS / kind).glob("*.yaml"))
+              for kind in ("robot", "teleop", "recording", "action_manager")}
+    result['robot_options'] = {}
+    for path in (CONFIGS / 'robot').glob('*.yaml'):
+        rows = yaml.safe_load(path.read_text())
+        rows = rows if isinstance(rows, list) else [rows]
+        for row in rows:
+            if row.get('webui'):
+                result['robot_options'][path.stem] = row['webui']
+    return result
 
 
 def config(kind, name):

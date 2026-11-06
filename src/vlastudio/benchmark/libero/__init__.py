@@ -54,7 +54,6 @@ from libero.libero.envs import OffScreenRenderEnv
 from dataclasses import dataclass, field, fields, asdict
 from vlastudio.data_utils.pose_utils import quat2axisangle
 import numpy as np
-from torchvision import transforms
 import pickle
 import time
 import copy
@@ -68,16 +67,28 @@ from robosuite.controllers import load_controller_config
 from loguru import logger 
 
 benchmark_dict = libero_bench.get_benchmark_dict()
+_INIT_STATE_LOCK = threading.Lock()
 
 def load_task_init_states(task_suite, task_id):
     """Read NumPy initial states under PyTorch's restricted checkpoint loader."""
     import torch
-    allowed = [np.core.multiarray._reconstruct, np.ndarray, np.dtype,
+    import codecs
+    allowed = [codecs.encode, np.core.multiarray._reconstruct, np.ndarray, np.dtype,
                type(np.dtype('float64')), type(np.dtype('float32'))]
     task = task_suite.get_task(task_id)
     path = Path(get_libero_path('init_states')) / task.problem_folder / task.init_states_file
-    with torch.serialization.safe_globals(allowed):
-        return torch.load(path, weights_only=True)
+    if hasattr(torch.serialization, 'safe_globals'):
+        with torch.serialization.safe_globals(allowed):
+            return torch.load(path, weights_only=True)
+    # NVIDIA's Jetson 2.5 prerelease exposes the allowlist API without its context manager.
+    with _INIT_STATE_LOCK:
+        previous = list(torch.serialization.get_safe_globals())
+        try:
+            torch.serialization.add_safe_globals(allowed)
+            return torch.load(path, weights_only=True)
+        finally:
+            torch.serialization.clear_safe_globals()
+            torch.serialization.add_safe_globals(previous)
 
 def create_env(config):
     return LiberoEnv(config)
@@ -123,10 +134,19 @@ class LiberoEnv(MetaEnv):
             "camera_heights": 256,
             "camera_widths": 256,
         }
+        if getattr(self.config, 'configure_controller', False):
+            if self.ctrl_type != 'delta':
+                raise ValueError('The LIBERO controller wrapper requires delta control')
+            env_args['controller'] = ctrl_space
+        if getattr(self.config, 'continue_after_success', False):
+            env_args['ignore_done'] = True
+        if getattr(self.config, 'control_freq', None):
+            env_args['control_freq'] = self.config.control_freq
         env = OffScreenRenderEnv(**env_args)
         np.random.seed(None)
         state_index = np.random.choice(len(init_states))
         state = init_states[state_index]
+        self.initial_state = state.copy()
         logger.info(f"Setting initial state {state_index} for task {self.task_name}")
         env.set_init_state(state)
         
@@ -179,10 +199,23 @@ class LiberoEnv(MetaEnv):
         # depth_primary = obs["agentview_depth"][::-1, ::-1]
         # depth_second = obs['robot0_eye_in_hand_depth']
         # depth = np.stack([depth_primary, depth_second])
-        return MetaObs(state=state_ee, image=image, raw_lang=self.raw_lang)
+        return MetaObs(state=state_ee, state_ee=state_ee, state_joint=state_joint,
+                       image=image, raw_lang=self.raw_lang)
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(self.meta2act(action))
+        self.prev_obs = self.obs2meta(obs)
+        if getattr(self.config, 'separate_termination', False):
+            info = dict(info or {})
+            success = bool(self.env.check_success())
+            info['success'] = success
+            return asdict(self.prev_obs), reward, bool(done and not success), False, info
+        return asdict(self.prev_obs), reward, done, info
     
     def reset(self):
         self.env.reset()
+        if getattr(self.config, 'restore_initial_state', False):
+            self.env.set_init_state(self.initial_state)
         for _ in range(self.num_steps_wait):
             obs, _, _, _ = self.env.step(self.get_libero_dummy_action())
         self.prev_obs = self.obs2meta(obs)

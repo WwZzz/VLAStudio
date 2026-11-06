@@ -1,0 +1,9 @@
+- type: vlastudio.deploy.teleoperator.keyboard_delta.KeyboardDelta
+  name: keyboard_delta
+  args:
+    name: keyboard_delta
+    arms: 2
+    fps: 50
+    translation_speed: 0.06
+    rotation_speed: 0.4
+    gripper_speed: 1.5
