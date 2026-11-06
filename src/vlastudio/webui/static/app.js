@@ -28,8 +28,8 @@ const phases = {
   busy: "正在处理",
   stopping: "正在退出",
 };
-let secret = sessionStorage.getItem("vla-key") || "",
-  state = null,
+sessionStorage.removeItem("vla-key");
+let state = null,
   profiles = null,
   busy = false,
   lastButtons = "";
@@ -54,16 +54,11 @@ async function api(path, body) {
   const r = await fetch("/api/" + path, {
     method: body ? "POST" : "GET",
     headers: {
-      Authorization: "Bearer " + secret,
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
     cache: "no-store",
   });
-  if (r.status === 401) {
-    if (!$("auth").open) $("auth").showModal();
-    throw Error("需要有效的访问密钥");
-  }
   const v = await r.json();
   if (!r.ok) throw Error(v.error || r.status);
   return v;
@@ -155,17 +150,6 @@ async function init() {
   $("on_success").value = saved.on_success || "continue";
   await refresh();
 }
-$("login").onsubmit = async (e) => {
-  e.preventDefault();
-  secret = $("key").value.trim();
-  try {
-    await init();
-    sessionStorage.setItem("vla-key", secret);
-    $("auth").close();
-  } catch (err) {
-    $("loginError").textContent = err.message;
-  }
-};
 $("robot").onchange = defaults;
 $("teleop").onchange = () => {
   if ($("teleop").value !== "quest3_rebot_b601rs_rel_ee") $("sync").value = "";
@@ -295,9 +279,7 @@ async function cameras(p) {
       }
       const age = p.age[name.split("/")[0]] ?? 0;
       item.label.textContent = name + (age > 2 ? " · 数据已停更" : "");
-      const res = await fetch("/api/image?name=" + encodeURIComponent(name), {
-        headers: { Authorization: "Bearer " + secret },
-      });
+      const res = await fetch("/api/image?name=" + encodeURIComponent(name));
       if (!res.ok) return;
       const url = URL.createObjectURL(await res.blob());
       item.img.src = url;
@@ -503,10 +485,9 @@ if (!collecting) {
   $("rateLabel").textContent = "动作发布频率";
   $("outLabel").firstChild.textContent = "录像目录名（可留空）";
 }
-if (secret) init().catch((e) => notice(e.message));
-else $("auth").showModal();
+init().catch((e) => notice(e.message));
 setInterval(() => {
-  if (profiles && !document.hidden && !$("auth").open)
+  if (profiles && !document.hidden)
     refresh().catch(() => {
       $("link").textContent = "连接中断";
       $("link").className = "chip";
