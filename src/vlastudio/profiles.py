@@ -20,7 +20,8 @@ POLICY_PROFILES = {
 ENV_PROFILES = {'aloha': 'aloha', 'libero': 'libero', 'metaworld': 'metaworld',
                 'tabletop_sim': 'tabletop_sim', 'rlbench': 'rlbench',
                 'robotwin': 'robotwin', 'behavior1k': 'behavior1k',
-                'habitat': 'habitat', 'matterport3d': 'matterport3d', 'carla': 'carla'}
+                'habitat': 'habitat', 'matterport3d': 'matterport3d', 'carla': 'carla',
+                'robocasa': 'robocasa'}
 FIELDS = {'extends', 'python', 'requires_python', 'requirements', 'lockfile', 'lock', 'entrypoint',
           'overrides', 'overlays', 'platforms', 'min_glibc', 'description', 'notes',
           'installers', 'checks'}

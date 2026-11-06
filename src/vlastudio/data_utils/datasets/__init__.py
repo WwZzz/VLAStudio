@@ -3,6 +3,7 @@ from importlib import import_module
 
 
 _EXPORTS = {
+    "RoboCasaDataset": (".robocasa_dataset", "RoboCasaDataset"),
     "Bench2DriveDataset": (".bench2drive", "Bench2DriveDataset"),
     "R2RDataset": (".navigation", "R2RDataset"),
     "VLNCEDataset": (".navigation", "VLNCEDataset"),

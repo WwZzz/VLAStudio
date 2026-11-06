@@ -28,3 +28,7 @@ jobs:
         run: |
           python -m pip install --no-cache-dir dist/*.whl
       - run: python .github/check_package.py
+      - name: Test RoboCasa integration contracts
+        run: |
+          python -m pip install "pytest>=8"
+          python -m pytest tests/test_robocasa.py -q

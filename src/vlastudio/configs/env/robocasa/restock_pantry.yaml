@@ -1,0 +1,17 @@
+type: vlastudio.benchmark.robocasa.RoboCasaEnv
+name: RestockPantry
+args:
+  task: RestockPantry
+  dataset_path: data/robocasa/RestockPantry/demo.hdf5
+  max_timesteps: 1000
+  seed: 10000
+  ctrl_space: ee
+  ctrl_type: delta
+  image_size:
+  - 128
+  - 128
+  camera_names:
+  - robot0_agentview_left
+  - robot0_agentview_right
+  - robot0_eye_in_hand
+  image_flip: true

@@ -294,6 +294,7 @@ Run `python collect.py` to collect demonstrations or `python infer.py` to deploy
 | metaworld | ✅ | ❌ |
 | pandagym | ✅ | ❌ |
 | robomimic | ✅ | ❌ |
+| [robocasa](src/vlastudio/benchmark/robocasa/README.md) | ✅ | ❌ |
 | simplerenv | ✅ | ✅ |
 | robotwin | ❌ | ✅ |
 | rlbench | ❌ | ❌ |

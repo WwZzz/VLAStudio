@@ -1,0 +1,21 @@
+datasets:
+- type: vlastudio.data_utils.datasets.RoboCasaDataset
+  name: MicrowaveThawing
+  args:
+    dataset_path_list:
+    - data/robocasa/MicrowaveThawing
+    camera_names:
+    - robot0_agentview_left
+    - robot0_agentview_right
+    - robot0_eye_in_hand
+    chunk_size: 50
+    ctrl_space: ee
+    ctrl_type: delta
+    preload_data: false
+    filter_by_attribute: train
+    image_flip: false
+meta:
+  action_dim: 12
+  state_dim: 8
+  action_normalize: zscore
+  state_normalize: zscore
