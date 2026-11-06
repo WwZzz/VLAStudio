@@ -3,31 +3,32 @@ const $ = (id) => document.getElementById(id);
 const mode = location.pathname === "/infer" ? "infer" : "collect";
 const collecting = mode === "collect";
 const names = {
-  record: "开始录制",
-  finish: "结束本段",
-  save: "保存",
-  discard: "放弃本段",
-  run: "开始推理",
-  pause: "暂停推理",
-  reset: "复位策略并回零",
-  tele_run: "启用遥操作",
-  tele_pause: "暂停遥操作",
-  home: "复位 / 回 Home",
-  stop: "退出会话",
+  record: "Start recording",
+  finish: "Finish episode",
+  save: "Save",
+  discard: "Discard episode",
+  run: "Start inference",
+  pause: "Pause inference",
+  reset: tr("Reset"),
+  home: tr("Reset"),
+  tele_run: "Enable teleoperation",
+  tele_pause: "Pause teleoperation",
+  stop: "Disconnect",
 };
 const phases = {
-  idle: "未启动",
-  loading: "加载中",
-  ready: "等待录制",
-  recording: "录制中",
-  save: "等待保存",
-  infer_ready: "策略就绪",
-  running: "推理中",
-  paused: "推理已暂停",
-  homing: "正在复位",
-  busy: "正在处理",
-  stopping: "正在退出",
+  idle: "Not connected",
+  loading: "Loading devices",
+  ready: "Ready to record",
+  recording: "Recording",
+  save: "Awaiting save",
+  infer_ready: "Policy ready",
+  running: "Inference running",
+  paused: "Inference paused",
+  homing: "Resetting",
+  busy: "Processing",
+  stopping: "Disconnecting",
 };
+let connecting = false;
 sessionStorage.removeItem("vla-key");
 let state = null,
   profiles = null,
@@ -45,6 +46,10 @@ function el(tag, cls, txt) {
   return e;
 }
 function notice(message) {
+  if (language === "en")
+    message =
+      Object.entries(chinese).find(([, value]) => value === message)?.[0] ||
+      message;
   $("error").textContent = message;
   $("error").hidden = false;
   clearTimeout(notice.timer);
@@ -124,8 +129,8 @@ function defaults() {
 async function init() {
   profiles = await api("catalog");
   fill("robot", profiles.robot);
-  fill("teleop", profiles.teleop, "无 · 仅记录观测");
-  fill("sync", profiles.recording, "原生同步");
+  fill("teleop", profiles.teleop, tr("None \u00b7 Observations only"));
+  fill("sync", profiles.recording, tr("Native synchronization"));
   fill("manager", profiles.action_manager);
   $("robot").value = collecting
     ? "rebot_b601rs_head_rel_ee"
@@ -146,7 +151,8 @@ async function init() {
   const settings = profiles.robot_options?.[$("robot").value];
   $("simulationFields").hidden = !settings?.tasks;
   fill("task", settings?.tasks || []);
-  if (saved.task && settings?.tasks?.includes(saved.task)) $("task").value = saved.task;
+  if (saved.task && settings?.tasks?.includes(saved.task))
+    $("task").value = saved.task;
   $("on_success").value = saved.on_success || "continue";
   await refresh();
 }
@@ -157,16 +163,29 @@ $("teleop").onchange = () => {
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   if (busy) return;
+  if (state?.session.active) {
+    await act("stop");
+    return;
+  }
   const opts = options();
   if (
     !(await confirmAction(
-      "加载 " + opts.robot,
-      "此操作启动设备；真实机械臂可能使能或执行其连接动作。确认现场就绪后继续。",
+      tr("Connect ") + opts.robot,
+      tr(
+        "This starts the selected devices. Real robots may enable or move during connection.",
+      ),
     ))
   )
     return;
-  await post("start", opts);
-  localStorage.setItem("vla-" + mode, JSON.stringify(opts));
+  connecting = true;
+  renderSession(state.session);
+  try {
+    await post("start", opts);
+    localStorage.setItem("vla-" + mode, JSON.stringify(opts));
+  } finally {
+    connecting = false;
+    renderSession(state.session);
+  }
 };
 $("observe").onclick = () =>
   post("preview", {
@@ -175,6 +194,7 @@ $("observe").onclick = () =>
 async function post(route, data) {
   if (busy) return;
   busy = true;
+  if (state) renderSession(state.session);
   try {
     await api(route, data);
     await refresh();
@@ -182,20 +202,30 @@ async function post(route, data) {
     notice(e.message);
   } finally {
     busy = false;
+    if (state) renderSession(state.session);
   }
 }
 async function act(action) {
   const sid = state.session.id;
-  const resetLabel = profiles.robot_options?.[state.session.robot]?.reset_label;
+  const simulation = !!profiles.robot_options?.[state.session.robot]?.tasks;
   if (["reset", "home", "discard", "stop"].includes(action)) {
     const msg = {
-      reset:
-        "将重置策略并请求机器人回零；推理录像有未保存数据时会按原生流程丢弃。",
-      home: resetLabel ? "将暂停遥操作并恢复仿真任务的初始场景。录制中的片段会先结束，供你保存或丢弃。" : "将暂停遥操作并请求机器人执行回零流程。录制中的片段会先结束，供你保存或丢弃。",
-      discard: "这段录制将被丢弃。",
-      stop: "退出运行进程。请先保存需要的数据，并等设备完成退出。",
+      reset: tr(
+        "Pause inference, reset the policy and robot. The current unsaved inference recording follows the native discard behavior.",
+      ),
+      home: simulation
+        ? tr(
+            "Pause teleoperation and reset the robot and simulation scene. Any current episode will finish for you to save or discard.",
+          )
+        : tr(
+            "Pause teleoperation and reset the robot. Any current episode will finish for you to save or discard.",
+          ),
+      discard: tr("Discard this episode?"),
+      stop: tr(
+        "Disconnect the devices after completing their shutdown procedure. Save any recordings you need first.",
+      ),
     };
-    if (!(await confirmAction(action === "home" && resetLabel ? resetLabel : names[action], msg[action]))) return;
+    if (!(await confirmAction(tr(names[action]), msg[action]))) return;
   }
   await post("action", { id: sid, action });
 }
@@ -205,22 +235,49 @@ function renderSession(s) {
     const settings = profiles.robot_options?.[s.robot];
     $("simulationFields").hidden = !settings?.tasks;
     const tasks = settings?.tasks || [];
-    if (JSON.stringify([...$("task").options].map(o => o.value)) !== JSON.stringify(tasks)) fill("task", tasks);
+    if (
+      JSON.stringify([...$("task").options].map((o) => o.value)) !==
+      JSON.stringify(tasks)
+    )
+      fill("task", tasks);
     $("sync").value = s.options.sync || "";
     for (const [key, value] of Object.entries(s.options || {}))
       $(key).value = value;
   }
   $("phase").textContent =
-    (other ? (s.mode === "collect" ? "采集 · " : "推理 · ") : "") +
-    phases[s.phase];
-  for (const field of $("form").elements) field.disabled = s.active;
+    (other
+      ? tr(s.mode === "collect" ? "Data collection" : "Policy inference") +
+        " · "
+      : "") + tr(phases[s.phase]);
+  for (const field of $("form").elements)
+    field.disabled = s.active || connecting;
+  const loading = connecting || (s.active && s.phase === "loading");
+  $("launch").disabled = busy || other || loading || s.phase === "stopping";
+  $("launch").setAttribute(
+    "aria-busy",
+    String(loading || s.phase === "stopping"),
+  );
+  $("connectionProgress").hidden = !(loading || s.phase === "stopping");
+  $("connectionLabel").textContent = tr(
+    loading
+      ? "Loading devices"
+      : s.phase === "stopping"
+        ? "Disconnecting"
+        : s.active
+          ? "Disconnect"
+          : "Connect devices",
+  );
   $("observe").disabled = s.active;
   $("observe").textContent =
-    state.preview.profile === $("robot").value ? "关闭只读预览" : "只读预览";
-  const allowed = other ? [] : s.actions;
+    state.preview.profile === $("robot").value
+      ? tr("Close read-only preview")
+      : tr("Read-only preview");
+  const allowed = other ? [] : s.actions.filter((action) => action !== "stop");
   const resetAction = collecting ? "home" : "reset";
-  const displayed = allowed.includes(resetAction) ? allowed : [...allowed, resetAction];
-  const sig = JSON.stringify([s.id, allowed, s.phase]);
+  const displayed = allowed.includes(resetAction)
+    ? allowed
+    : [...allowed, resetAction];
+  const sig = JSON.stringify([s.id, allowed, s.phase, language, busy]);
   if (sig !== lastButtons) {
     lastButtons = sig;
     $("buttons").replaceChildren();
@@ -228,28 +285,39 @@ function renderSession(s) {
       const b = el(
         "button",
         "",
-        key === "home" && profiles.robot_options?.[s.robot]?.reset_label
-          ? profiles.robot_options[s.robot].reset_label
-          : key === "run" && s.phase === "paused" ? "恢复推理" : names[key],
+        tr(
+          key === "run" && s.phase === "paused"
+            ? "Resume inference"
+            : names[key],
+        ),
       );
       b.onclick = () => act(key);
-      b.disabled = !allowed.includes(key);
-      if (b.disabled) b.title = s.active ? "当前状态正在处理，请等待设备就绪" : "加载可复位的设备后可用";
+      b.disabled = busy || !allowed.includes(key);
+      if (b.disabled)
+        b.title = tr(
+          s.active
+            ? "Please wait for the device to become ready"
+            : "Available after connecting a device that supports reset",
+        );
       $("buttons").append(b);
     }
   }
   $("status").textContent = other
-    ? "另一页面的会话正在运行。"
+    ? tr("A session is running on the other page.")
     : s.active
       ? s.robot +
         (s.tele
-          ? " · 遥操作" +
-            { paused: "已暂停", running: "已启用", homing: "正在回零" }[s.tele]
+          ? tr(" \u00b7 Teleoperation ") +
+            {
+              paused: tr("paused"),
+              running: tr("enabled"),
+              homing: tr("resetting"),
+            }[s.tele]
           : "")
       : s.exit === null
-        ? "等待加载设备。"
-        : "上次退出码 " + s.exit;
-  const log = s.logs.join("\n") || "等待启动会话";
+        ? tr("Waiting for devices.")
+        : tr("Last exit code ") + s.exit;
+  const log = s.logs.join("\n") || tr("Waiting for a session");
   if ($("log").textContent !== log) {
     $("log").textContent = log;
     if ($("follow").checked) $("log").scrollTop = $("log").scrollHeight;
@@ -264,7 +332,11 @@ async function cameras(p) {
     }
   let empty = $("feeds").querySelector(".empty");
   if (!p.images.length) {
-    if (!empty) $("feeds").append(el("div", "empty camera", "等待相机画面"));
+    if (!empty)
+      $("feeds").append(
+        el("div", "empty camera", tr("Waiting for camera images")),
+      );
+    else empty.textContent = tr("Waiting for camera images");
     return;
   }
   empty?.remove();
@@ -282,7 +354,7 @@ async function cameras(p) {
         feeds.set(name, item);
       }
       const age = p.age[name.split("/")[0]] ?? 0;
-      item.label.textContent = name + (age > 2 ? " · 数据已停更" : "");
+      item.label.textContent = name + (age > 2 ? tr(" \u00b7 Data stale") : "");
       const res = await fetch("/api/image?name=" + encodeURIComponent(name));
       if (!res.ok) return;
       const url = URL.createObjectURL(await res.blob());
@@ -332,7 +404,7 @@ function axes(p) {
       el(
         "small",
         "axisname",
-        key + (p.now - rows.at(-1)[0] > 2 ? " · 数据已停更" : ""),
+        key + (p.now - rows.at(-1)[0] > 2 ? tr(" \u00b7 Data stale") : ""),
       ),
     );
     const grid = el("div", "chartgrid");
@@ -342,7 +414,11 @@ function axes(p) {
       const cell = el("div", "chart"),
         label = el("div");
       label.append(
-        el("span", "", q.length === 7 && i === 6 ? "夹爪" : "J" + (i + 1)),
+        el(
+          "span",
+          "",
+          q.length === 7 && i === 6 ? tr("Gripper") : "J" + (i + 1),
+        ),
         el("span", "", v.toFixed(3)),
       );
       const canvas = el("canvas");
@@ -352,7 +428,7 @@ function axes(p) {
     });
   }
   if (!root.children.length)
-    root.append(el("div", "empty", "等待读取关节反馈"));
+    root.append(el("div", "empty", tr("Waiting for joint feedback")));
 }
 function drawModel() {
   const model = modelData[$("arm").value];
@@ -399,8 +475,10 @@ function drawModel() {
   }
   $("modelName").textContent =
     model.name +
-    (model.rest ? " · 模型零位（等待反馈）" : " · 实测关节姿态") +
-    " · 拖动旋转";
+    (model.rest
+      ? tr(" \u00b7 Model zero pose (awaiting feedback)")
+      : tr(" \u00b7 Measured joint pose")) +
+    tr(" \u00b7 Drag to rotate");
 }
 $("model").onpointerdown = (e) => {
   drag = [e.clientX, e.clientY];
@@ -421,14 +499,16 @@ async function refresh() {
   if (polling) return;
   polling = true;
   try {
+    const previousSession = state?.session.id;
     state = await api("state");
-    const keyboardArms = state.session.keyboard_arms || 0;
-    $("keyboardPanel").hidden = !keyboardArms;
-    if ($("keyboardArm").options.length !== keyboardArms) {
-      $("keyboardArm").replaceChildren();
-      for (let i = 0; i < keyboardArms; i++) $("keyboardArm").add(new Option(`机械臂 ${i + 1}`, String(i)));
-    }
-    $("link").textContent = "服务已连接";
+    if (
+      previousSession !== state.session.id ||
+      state.session.tele !== "running"
+    )
+      heldKeys.clear();
+    $("keyboardPanel").hidden = !state.session.keyboard_arms;
+    renderKeyboard();
+    $("link").textContent = tr("Service connected");
     $("link").className = "chip online";
     renderSession(state.session);
     const p = state.preview;
@@ -452,48 +532,158 @@ async function refresh() {
 
 const heldKeys = new Set();
 let keyboardSending = false;
-let keyboardWasFocused = false;
-const keyboardOwner = [...crypto.getRandomValues(new Uint8Array(16))].map(v => v.toString(16).padStart(2, "0")).join("");
-$("keyboardFocus").onkeydown = (event) => {
+let keyboardWasEnabled = false;
+const keyboardOwner = [...crypto.getRandomValues(new Uint8Array(16))]
+  .map((v) => v.toString(16).padStart(2, "0"))
+  .join("");
+function keyboardEnabled() {
+  const element = document.activeElement;
+  return (
+    state?.session.mode === mode &&
+    state.session.tele === "running" &&
+    state.session.keyboard_arms &&
+    document.hasFocus() &&
+    !document.hidden &&
+    !element?.closest("input,textarea,select,[contenteditable=true]") &&
+    !document.querySelector("dialog[open]")
+  );
+}
+function mappedKeys() {
+  return new Set((state?.session.keyboard_bindings || []).flat(2));
+}
+window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
-  if ("wsadrfqetgzcvb".includes(key) && key.length === 1) {
+  if (
+    keyboardEnabled() &&
+    mappedKeys().has(key) &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey
+  ) {
     event.preventDefault();
     heldKeys.add(key);
   }
-};
-window.addEventListener("keyup", (event) => heldKeys.delete(event.key.toLowerCase()));
-$("keyboardFocus").addEventListener("blur", () => heldKeys.clear());
+});
+window.addEventListener("keyup", (event) =>
+  heldKeys.delete(event.key.toLowerCase()),
+);
 window.addEventListener("blur", () => heldKeys.clear());
 document.addEventListener("visibilitychange", () => heldKeys.clear());
+document.addEventListener("focusin", () => {
+  if (!keyboardEnabled()) heldKeys.clear();
+});
 setInterval(async () => {
   if (keyboardSending || !state?.session.keyboard_arms) return;
-  const focused = document.activeElement === $("keyboardFocus") && document.hasFocus();
-  if (!focused && !keyboardWasFocused) return;
-  keyboardWasFocused = focused;
-  if (!focused || state.session.tele !== "running") heldKeys.clear();
+  const enabled = keyboardEnabled();
+  if (!enabled && !keyboardWasEnabled) return;
+  keyboardWasEnabled = enabled;
+  if (!enabled) heldKeys.clear();
   keyboardSending = true;
   try {
-    await api("keyboard", {id: state.session.id, owner: keyboardOwner, keys: [...heldKeys], arm: Number($("keyboardArm").value)});
+    await api("keyboard", {
+      id: state.session.id,
+      owner: keyboardOwner,
+      keys: [...heldKeys],
+    });
   } catch {
     heldKeys.clear();
   } finally {
     keyboardSending = false;
   }
 }, 50);
-$("section").textContent = collecting ? "COLLECT_DATA" : "INFER";
-$("title").textContent = collecting ? "遥操作采集" : "策略推理";
+function renderKeyboard() {
+  const bindings = state?.session.keyboard_bindings || [];
+  const signature = JSON.stringify([bindings, language]);
+  if ($("keyboardBindings").dataset.signature === signature) return;
+  $("keyboardBindings").dataset.signature = signature;
+  $("keyboardBindings").replaceChildren();
+  const keyName = (key) =>
+    ({
+      arrowup: "↑",
+      arrowdown: "↓",
+      arrowleft: "←",
+      arrowright: "→",
+      pageup: "PageUp",
+      pagedown: "PageDown",
+    })[key] || key.toUpperCase();
+  bindings.forEach((pairs, index) => {
+    const block = el("div", "keyboard-arm");
+    block.append(
+      el(
+        "strong",
+        "",
+        tr(
+          bindings.length === 2
+            ? index === 0
+              ? "Left arm"
+              : "Right arm"
+            : "Arm",
+        ),
+      ),
+    );
+    ["Translation X / Y / Z", "Rotation X / Y / Z", "Gripper"].forEach(
+      (label, group) => {
+        const selected =
+          group === 2 ? pairs.slice(6) : pairs.slice(group * 3, group * 3 + 3);
+        block.append(
+          el(
+            "p",
+            "",
+            tr(label) +
+              "  " +
+              selected.map((pair) => pair.map(keyName).join(" / ")).join(" · "),
+          ),
+        );
+      },
+    );
+    $("keyboardBindings").append(block);
+  });
+}
+function applyLanguage() {
+  document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+  document.title =
+    "VLAStudio · " + tr(collecting ? "Data collection" : "Policy inference");
+  $("language").value = language;
+  document
+    .querySelectorAll("[data-i18n]")
+    .forEach((element) => (element.textContent = tr(element.dataset.i18n)));
+  $("section").textContent = collecting ? "COLLECT_DATA" : "INFER";
+  $("title").textContent = tr(
+    collecting ? "Teleoperation collection" : "Policy inference",
+  );
+  $("rateLabel").textContent = tr(
+    collecting ? "Collection rate" : "Publish rate",
+  );
+  $("outputLabel").textContent = tr(
+    collecting ? "Dataset name" : "Recording directory (optional)",
+  );
+  if ($("teleop").options[0]?.value === "")
+    $("teleop").options[0].textContent = tr("None · Observations only");
+  if ($("sync").options[0]?.value === "")
+    $("sync").options[0].textContent = tr("Native synchronization");
+  lastButtons = "";
+  if (state) {
+    renderSession(state.session);
+    axes(state.preview);
+    drawModel();
+    renderKeyboard();
+  }
+}
+$("language").onchange = () => {
+  heldKeys.clear();
+  language = $("language").value;
+  localStorage.setItem("vla-language", language);
+  applyLanguage();
+};
 $(collecting ? "navCollect" : "navInfer").classList.add("active");
 $("collectFields").hidden = !collecting;
 $("inferFields").hidden = collecting;
-if (!collecting) {
-  $("rateLabel").textContent = "动作发布频率";
-  $("outLabel").firstChild.textContent = "录像目录名（可留空）";
-}
+applyLanguage();
 init().catch((e) => notice(e.message));
 setInterval(() => {
   if (profiles && !document.hidden)
     refresh().catch(() => {
-      $("link").textContent = "连接中断";
+      $("link").textContent = tr("Connection lost");
       $("link").className = "chip";
     });
 }, 450);

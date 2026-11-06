@@ -203,6 +203,9 @@ class Session:
             keyboard_rows = channels(self.teleop, 'teleop') if self.teleop else []
             self.keyboard_arms = next((int(a.get('arms', 1)) for _, t, a in keyboard_rows
                                        if getattr(resolve(t), 'browser_keyboard', False)), 0)
+            self.keyboard_bindings = next((resolve(t).bindings_for_arms(int(a.get('arms', 1)), a.get('key_bindings'))
+                                           for _, t, a in keyboard_rows if getattr(resolve(t), 'browser_keyboard', False)), [])
+            self.keyboard_keys = {key for arm in self.keyboard_bindings for pair in arm for key in pair}
             self.keyboard_owner = None
             self.keyboard_last_seen = 0
             if self.keyboard_arms:
@@ -308,6 +311,7 @@ class Session:
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
                         options=self.options if live else {},
                         keyboard_arms=self.keyboard_arms if live else 0,
+                        keyboard_bindings=self.keyboard_bindings if live else [],
                         tele=("running" if self.box[1]==RUN else "homing" if self.box[1]==RESETTING else "paused")
                         if live and self.gated else "", actions=allowed, logs=list(self.logs), exit=self.code)
 
@@ -315,11 +319,9 @@ class Session:
         with self.lock:
             if not self.proc or data.get('id') != self.sid or not self.keyboard_arms:
                 raise ValueError('No matching keyboard session')
-            keys, arm = data.get('keys'), data.get('arm')
-            if not isinstance(keys, list) or len(keys) > 14 or any(k not in list('wsadrfqetgzcvb') for k in keys):
+            keys = data.get('keys')
+            if not isinstance(keys, list) or len(keys) > len(self.keyboard_keys) or any(not isinstance(k, str) or k not in self.keyboard_keys for k in keys):
                 raise ValueError('Invalid keys')
-            if not isinstance(arm, int) or not 0 <= arm < self.keyboard_arms:
-                raise ValueError('Invalid arm')
             owner = data.get('owner', '')
             if not isinstance(owner, str) or not 1 <= len(owner) <= 80:
                 raise ValueError('Missing keyboard controller identifier')
@@ -333,7 +335,7 @@ class Session:
             with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as connection:
                 connection.setblocking(False)
                 try:
-                    connection.sendto(json.dumps(dict(keys=keys, arm=arm)).encode(), self.keyboard_path)
+                    connection.sendto(json.dumps(dict(keys=keys)).encode(), self.keyboard_path)
                 except (FileNotFoundError, BlockingIOError, ConnectionRefusedError):
                     pass
 

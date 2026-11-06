@@ -1,21 +1,34 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>VLAStudio · 操作台</title>
+    <title>VLAStudio · Control</title>
     <link rel="stylesheet" href="/style.css" />
     <link rel="icon" type="image/svg+xml" href="/vlastudio-mark.svg" />
+    <script src="/i18n.js" defer></script>
     <script src="/app.js" defer></script>
   </head>
   <body>
     <header>
-      <a class="brand" href="/collect"><img src="/vlastudio-mark.svg" width="32" height="32" alt="" />VLA<span>Studio</span></a>
+      <a class="brand" href="/collect"
+        ><img src="/vlastudio-mark.svg" width="32" height="32" alt="" />VLA<span
+          >Studio</span
+        ></a
+      >
       <nav>
-        <a href="/collect" id="navCollect">数据采集</a
-        ><a href="/infer" id="navInfer">策略推理</a>
+        <a href="/collect" id="navCollect" data-i18n="Data collection"
+          >Data collection</a
+        >
+        <a href="/infer" id="navInfer" data-i18n="Policy inference"
+          >Policy inference</a
+        >
       </nav>
-      <span class="chip" id="link">连接中</span>
+      <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+      <select id="language" aria-label="Language">
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+      </select>
     </header>
     <main>
       <div class="title">
@@ -23,31 +36,61 @@
           <small id="section"></small>
           <h1 id="title"></h1>
         </div>
-        <span id="phase" class="badge">未启动</span>
+        <span id="phase" class="badge"></span>
       </div>
       <div class="layout">
         <aside class="panel">
-          <h2>会话配置</h2>
+          <h2 data-i18n="Session configuration">Session configuration</h2>
           <form id="form">
-            <label>机器人配置<select id="robot"></select></label>
+            <label
+              ><span data-i18n="Robot configuration">Robot configuration</span
+              ><select id="robot"></select
+            ></label>
             <div id="simulationFields" hidden>
-              <label>仿真任务<select id="task"></select></label>
-              <label>任务成功后<select id="on_success"><option value="continue">继续操作</option><option value="pause">暂停，等待重置场景</option></select></label>
+              <label
+                ><span data-i18n="Simulation task">Simulation task</span
+                ><select id="task"></select
+              ></label>
+              <label
+                ><span data-i18n="After task success">After task success</span
+                ><select id="on_success">
+                  <option value="continue" data-i18n="Continue operating">
+                    Continue operating
+                  </option>
+                  <option value="pause" data-i18n="Pause until reset">
+                    Pause until reset
+                  </option>
+                </select></label
+              >
             </div>
             <div id="collectFields">
-              <label>遥操作设备<select id="teleop"></select></label
-              ><label>录制同步配置<select id="sync"></select></label>
+              <label
+                ><span data-i18n="Teleoperation device"
+                  >Teleoperation device</span
+                ><select id="teleop"></select
+              ></label>
+              <label
+                ><span data-i18n="Recording synchronization"
+                  >Recording synchronization</span
+                ><select id="sync"></select
+              ></label>
             </div>
             <div id="inferFields">
               <label
-                >策略服务器或模型路径<input
-                  id="policy"
-                  placeholder="localhost:5000" /></label
-              ><label>动作管理器<select id="manager"></select></label>
+                ><span data-i18n="Policy server or model path"
+                  >Policy server or model path</span
+                ><input id="policy" placeholder="localhost:5000"
+              /></label>
+              <label
+                ><span data-i18n="Action manager">Action manager</span
+                ><select id="manager"></select
+              ></label>
             </div>
-            <label id="outLabel">数据集名称<input id="output" /></label
-            ><label
-              ><span id="rateLabel">采集频率</span>
+            <label id="outLabel"
+              ><span id="outputLabel"></span><input id="output"
+            /></label>
+            <label
+              ><span id="rateLabel"></span>
               <div class="unit">
                 <input
                   id="rate"
@@ -58,57 +101,71 @@
                 /><span>Hz</span>
               </div></label
             >
-            <button class="primary" id="launch" type="submit">加载设备</button>
+            <button class="primary" id="launch" type="submit">
+              <span id="connectionLabel">Connect devices</span
+              ><progress id="connectionProgress" hidden></progress>
+            </button>
           </form>
-          <button id="observe" class="plain">只读预览</button>
+          <button id="observe" class="plain"></button>
           <div class="controls">
-            <h2>运行控制</h2>
+            <h2 data-i18n="Run controls">Run controls</h2>
             <div id="buttons"></div>
             <p id="status"></p>
           </div>
         </aside>
         <section class="workspace">
           <article class="panel" id="keyboardPanel" hidden>
-            <h2>键盘末端增量控制</h2>
-            <label>控制机械臂<select id="keyboardArm"></select></label>
-            <button id="keyboardFocus" type="button">点击此处后按住按键控制</button>
-            <p>W/S 前后 · A/D 左右 · R/F 上下 · Q/E 滚转 · T/G 俯仰 · Z/C 偏航 · V/B 开合夹爪</p>
-            <small>松开按键或移开焦点即停止发送增量。动作方向相对于仿真世界坐标系。</small>
+            <h2 data-i18n="Keyboard end-effector control">
+              Keyboard end-effector control
+            </h2>
+            <div id="keyboardBindings"></div>
+            <small
+              data-i18n="Enable teleoperation, then hold the keys. Input pauses while editing fields or when the window loses focus."
+              >Enable teleoperation, then hold the keys. Input pauses while
+              editing fields or when the window loses focus.</small
+            >
           </article>
           <article class="panel">
             <div class="heading">
-              <h2>摄像头</h2>
-              <small>共享内存 · 只读</small>
+              <h2 data-i18n="Cameras">Cameras</h2>
+              <small data-i18n="Shared memory · Read only"
+                >Shared memory · Read only</small
+              >
             </div>
             <div class="feeds" id="feeds"></div>
           </article>
           <article class="panel">
             <div class="heading">
-              <h2>关节反馈</h2>
-              <small>最近 30 秒 · 原始观测值</small>
+              <h2 data-i18n="Joint feedback">Joint feedback</h2>
+              <small data-i18n="Last 30 seconds · Raw observations"
+                >Last 30 seconds · Raw observations</small
+              >
             </div>
             <div id="axes"></div>
           </article>
           <article class="panel" id="modelPanel" hidden>
             <div class="heading">
-              <h2>URDF 运动学骨架</h2>
+              <h2 data-i18n="URDF kinematic skeleton">
+                URDF kinematic skeleton
+              </h2>
               <select id="arm"></select>
             </div>
             <canvas
               id="model"
               height="220"
-              aria-label="可拖动旋转的 URDF 关节模型"
+              aria-label="URDF joint model"
             ></canvas
             ><small id="modelName"></small>
           </article>
           <article class="terminal">
             <div class="heading">
-              <h2>终端输出</h2>
+              <h2 data-i18n="Terminal output">Terminal output</h2>
               <label
-                ><input type="checkbox" checked id="follow" /> 跟随日志</label
+                ><input type="checkbox" checked id="follow" />
+                <span data-i18n="Follow logs">Follow logs</span></label
               >
             </div>
-            <pre id="log">等待启动会话</pre>
+            <pre id="log"></pre>
           </article>
         </section>
       </div>
@@ -117,8 +174,10 @@
       <h2 id="confirmTitle"></h2>
       <p id="confirmText"></p>
       <div class="row">
-        <button id="cancel">取消</button
-        ><button id="accept" class="primary">确认</button>
+        <button id="cancel" data-i18n="Cancel">Cancel</button
+        ><button id="accept" class="primary" data-i18n="Confirm">
+          Confirm
+        </button>
       </div>
     </dialog>
     <div id="error" role="alert" hidden></div>

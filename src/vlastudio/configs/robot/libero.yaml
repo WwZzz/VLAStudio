@@ -134,7 +134,6 @@
     - libero_90_88
     - libero_90_89
     teleop: keyboard_delta_1arm
-    reset_label: 重置仿真场景
   args:
     name: libero
     control_shm_name: keyboard_delta

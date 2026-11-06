@@ -6,7 +6,6 @@
     - sim_transfer_cube_scripted
     - sim_insertion_scripted
     teleop: keyboard_delta_2arm
-    reset_label: 重置仿真场景
   args:
     name: aloha_sim
     control_shm_name: keyboard_delta

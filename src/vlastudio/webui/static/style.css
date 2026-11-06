@@ -383,18 +383,74 @@ dialog::backdrop {
   }
 }
 
-aside.panel { background: var(--side); }
-#simulationFields { display: grid; gap: 14px; }
-input:focus, select:focus {
+aside.panel {
+  background: var(--side);
+}
+#simulationFields {
+  display: grid;
+  gap: 14px;
+}
+input:focus,
+select:focus {
   outline: 0;
   border-color: #8da793;
   box-shadow: 0 0 0 3px #739c7c16;
 }
-button:focus-visible, a:focus-visible {
+button:focus-visible,
+a:focus-visible {
   outline: 2px solid #5e9976;
   outline-offset: 3px;
 }
-button:hover:enabled { background: #e8f0e8; border-color: #8da793; }
-.primary:hover:enabled { background: #386047; border-color: #386047; }
-.empty.camera { background: #e7ece3; }
-.brand img { display: block; object-fit: contain; }
+button:hover:enabled {
+  background: #e8f0e8;
+  border-color: #8da793;
+}
+.primary:hover:enabled {
+  background: #386047;
+  border-color: #386047;
+}
+.empty.camera {
+  background: #e7ece3;
+}
+.brand img {
+  display: block;
+  object-fit: contain;
+}
+#language {
+  width: auto;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+#launch {
+  position: relative;
+  overflow: hidden;
+  min-height: 40px;
+}
+#connectionProgress {
+  display: block;
+  width: 100%;
+  height: 3px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  border: 0;
+  accent-color: #2f6850;
+}
+#launch[aria-busy="true"] {
+  background: var(--green-soft);
+  color: var(--green);
+  opacity: 1;
+}
+#keyboardBindings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 16px;
+  padding: 16px 0;
+}
+.keyboard-arm {
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
+.keyboard-arm p {
+  margin: 6px 0;
+}
