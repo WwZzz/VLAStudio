@@ -46,23 +46,6 @@
               ><span data-i18n="Robot configuration">Robot configuration</span
               ><select id="robot"></select
             ></label>
-            <div id="simulationFields" hidden>
-              <label
-                ><span data-i18n="Simulation task">Simulation task</span
-                ><select id="task"></select
-              ></label>
-              <label
-                ><span data-i18n="After task success">After task success</span
-                ><select id="on_success">
-                  <option value="continue" data-i18n="Continue operating">
-                    Continue operating
-                  </option>
-                  <option value="pause" data-i18n="Pause until reset">
-                    Pause until reset
-                  </option>
-                </select></label
-              >
-            </div>
             <div id="collectFields">
               <label
                 ><span data-i18n="Teleoperation device"
@@ -114,6 +97,41 @@
           </div>
         </aside>
         <section class="workspace">
+          <article class="panel" id="taskPanel">
+            <div class="heading">
+              <h2 data-i18n="Task">Task</h2>
+              <small id="taskKind"></small>
+            </div>
+            <div id="simulationFields" hidden>
+              <label
+                ><span data-i18n="Simulation task">Simulation task</span
+                ><select id="task" form="form"></select
+              ></label>
+              <label
+                ><span data-i18n="After task success">After task success</span
+                ><select id="on_success" form="form">
+                  <option value="continue" data-i18n="Continue operating">
+                    Continue operating
+                  </option>
+                  <option value="pause" data-i18n="Pause until reset">
+                    Pause until reset
+                  </option>
+                </select></label
+              >
+            </div>
+            <div id="realTaskFields">
+              <div class="task-picker">
+                <label
+                  ><span data-i18n="Robot task">Robot task</span
+                  ><select id="real_task" form="form"></select
+                ></label>
+                <button id="newTask" type="button" data-i18n="New task">
+                  New task
+                </button>
+              </div>
+              <p id="realTaskInstruction"></p>
+            </div>
+          </article>
           <article class="panel" id="keyboardPanel" hidden>
             <h2 data-i18n="Keyboard end-effector control">
               Keyboard end-effector control
@@ -170,6 +188,32 @@
         </section>
       </div>
     </main>
+    <dialog id="taskDialog">
+      <form id="taskForm">
+        <h2 data-i18n="New robot task">New robot task</h2>
+        <label
+          ><span data-i18n="Task name">Task name</span
+          ><input id="taskName" required maxlength="120"
+        /></label>
+        <label
+          ><span data-i18n="Task instruction">Task instruction</span
+          ><textarea id="taskInstruction" maxlength="2000" rows="4"></textarea>
+        </label>
+        <p id="taskError" role="alert"></p>
+        <div class="row">
+          <button id="cancelTask" type="button" data-i18n="Cancel">
+            Cancel</button
+          ><button
+            class="primary"
+            id="saveTask"
+            type="submit"
+            data-i18n="Create task"
+          >
+            Create task
+          </button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="confirm">
       <h2 id="confirmTitle"></h2>
       <p id="confirmText"></p>

@@ -454,3 +454,29 @@ button:hover:enabled {
 .keyboard-arm p {
   margin: 6px 0;
 }
+.task-picker {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.task-picker label {
+  flex: 1;
+  min-width: 0;
+}
+#simulationFields {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+}
+textarea {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 9px 11px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+}
+#taskError:empty {
+  display: none;
+}

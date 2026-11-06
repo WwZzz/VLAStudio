@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .profiles import catalog
 from .session import Session
+from .tasks import list_tasks, create_task
 
 ASSETS = Path(__file__).with_name("static")
 
@@ -44,6 +45,8 @@ class Handler(BaseHTTPRequestHandler):
         s = self.server.session
         if url.path == "/api/catalog":
             return self.reply(catalog())
+        if url.path == "/api/tasks":
+            return self.reply(list_tasks())
         if url.path == "/api/state":
             return self.reply(dict(session=s.state(), preview=s.preview.state()))
         if url.path == "/api/image":
@@ -63,6 +66,8 @@ class Handler(BaseHTTPRequestHandler):
             if not 1 <= size <= 8192:
                 raise ValueError("Invalid request size")
             data = json.loads(self.rfile.read(size))
+            if self.path == "/api/tasks":
+                return self.reply(create_task(data['name'], data.get('instruction', '')))
             if self.path == "/api/start":
                 s.start(data["mode"], data)
             elif self.path == "/api/action":

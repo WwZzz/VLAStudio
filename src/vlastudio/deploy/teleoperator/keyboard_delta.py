@@ -16,8 +16,7 @@ class KeyboardDelta(BaseTeleopDevice):
     def bindings_for_arms(arms, key_bindings=None):
         bindings = key_bindings or [
             [['w', 's'], ['a', 'd'], ['r', 'f'], ['q', 'e'], ['t', 'g'], ['z', 'c'], ['v', 'b']],
-            [['arrowup', 'arrowdown'], ['arrowleft', 'arrowright'], ['pageup', 'pagedown'],
-             ['u', 'o'], ['i', 'k'], ['j', 'l'], ['n', 'm']],
+            [['i', 'k'], ['j', 'l'], ['u', 'o'], ['y', 'h'], ['p', ';'], ['n', 'm'], [',', '.']],
         ][:arms]
         if len(bindings) != arms or any(len(arm) != 7 or any(len(pair) != 2 for pair in arm) for arm in bindings):
             raise ValueError('Provide seven positive/negative key pairs per arm')

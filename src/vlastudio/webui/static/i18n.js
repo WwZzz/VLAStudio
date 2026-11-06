@@ -107,6 +107,24 @@ const chinese = {
   "Dataset names can contain letters, numbers, dots, hyphens and underscores.":
     "数据集名只支持字母、数字、中文、点、横线和下划线",
 };
+Object.assign(chinese, {
+  Task: "任务",
+  "Benchmark task": "Benchmark 任务",
+  "Robot task": "机器人任务",
+  "New task": "新建任务",
+  "New robot task": "新建机器人任务",
+  "Task name": "任务名称",
+  "Task instruction": "任务说明",
+  "Create task": "创建任务",
+  "No task selected": "未选择任务",
+  "Select or create a robot task. Its instruction will be saved with recordings.":
+    "选择或新建机器人任务，任务说明会保存到录制数据中。",
+  "No instruction provided.": "未填写任务说明。",
+  "Task name must contain 1–120 characters": "任务名称长度须为 1–120 个字符",
+  "Task instruction must contain at most 2000 characters":
+    "任务说明最多 2000 个字符",
+  "A task with this name already exists": "已存在同名任务",
+});
 let language = localStorage.getItem("vla-language") === "zh" ? "zh" : "en";
 function tr(text) {
   return language === "zh" ? chinese[text] || text : text;

@@ -29,6 +29,7 @@ const phases = {
   stopping: "Disconnecting",
 };
 let connecting = false;
+let robotTasks = [];
 sessionStorage.removeItem("vla-key");
 let state = null,
   profiles = null,
@@ -104,9 +105,63 @@ function options() {
     rate: Number($("rate").value),
     output: $("output").value,
     task: $("task").value,
+    real_task: $("real_task").value,
     on_success: $("on_success").value,
   };
 }
+function fillRobotTasks() {
+  const selected = $("real_task").value;
+  $("real_task").replaceChildren(new Option(tr("No task selected"), ""));
+  for (const task of robotTasks)
+    $("real_task").add(new Option(task.name, task.id));
+  $("real_task").value = robotTasks.some((task) => task.id === selected)
+    ? selected
+    : "";
+}
+function renderTaskPanel() {
+  const benchmark = !!profiles?.robot_options?.[$("robot").value]?.tasks;
+  $("simulationFields").hidden = !benchmark;
+  $("realTaskFields").hidden = benchmark;
+  $("taskKind").textContent = tr(benchmark ? "Benchmark task" : "Robot task");
+  $("newTask").disabled = !!state?.session.active || connecting;
+  const task = robotTasks.find((task) => task.id === $("real_task").value);
+  $("realTaskInstruction").textContent = task
+    ? task.instruction || tr("No instruction provided.")
+    : tr(
+        "Select or create a robot task. Its instruction will be saved with recordings.",
+      );
+}
+$("real_task").onchange = renderTaskPanel;
+$("newTask").onclick = () => {
+  $("taskForm").reset();
+  $("taskError").textContent = "";
+  $("taskDialog").showModal();
+};
+$("cancelTask").onclick = () => $("taskDialog").close();
+$("taskForm").onsubmit = async (event) => {
+  event.preventDefault();
+  $("saveTask").disabled = true;
+  $("taskError").textContent = "";
+  try {
+    const task = await api("tasks", {
+      name: $("taskName").value,
+      instruction: $("taskInstruction").value,
+    });
+    robotTasks = await api("tasks");
+    fillRobotTasks();
+    $("real_task").value = task.id;
+    renderTaskPanel();
+    localStorage.setItem("vla-" + mode, JSON.stringify(options()));
+    $("taskDialog").close();
+  } catch (error) {
+    $("taskError").textContent =
+      language === "en"
+        ? error.message
+        : chinese[error.message] || error.message;
+  } finally {
+    $("saveTask").disabled = false;
+  }
+};
 function defaults() {
   const r = $("robot").value;
   $("teleop").value = r.startsWith("rebot")
@@ -121,6 +176,7 @@ function defaults() {
   fill("task", settings?.tasks || []);
   if (settings?.teleop) $("teleop").value = settings.teleop;
   if (settings?.rate) $("rate").value = settings.rate;
+  renderTaskPanel();
   if (!collecting && r === "dummy")
     $("policy").value = "__dummy-zero14-chunk16";
   else if (!collecting && $("policy").value.startsWith("__dummy"))
@@ -128,6 +184,8 @@ function defaults() {
 }
 async function init() {
   profiles = await api("catalog");
+  robotTasks = await api("tasks");
+  fillRobotTasks();
   fill("robot", profiles.robot);
   fill("teleop", profiles.teleop, tr("None \u00b7 Observations only"));
   fill("sync", profiles.recording, tr("Native synchronization"));
@@ -146,6 +204,7 @@ async function init() {
     "manager",
     "rate",
     "output",
+    "real_task",
   ])
     if (id in saved) $(id).value = saved[id];
   const settings = profiles.robot_options?.[$("robot").value];
@@ -154,6 +213,7 @@ async function init() {
   if (saved.task && settings?.tasks?.includes(saved.task))
     $("task").value = saved.task;
   $("on_success").value = saved.on_success || "continue";
+  renderTaskPanel();
   await refresh();
 }
 $("robot").onchange = defaults;
@@ -244,6 +304,7 @@ function renderSession(s) {
     for (const [key, value] of Object.entries(s.options || {}))
       $(key).value = value;
   }
+  renderTaskPanel();
   $("phase").textContent =
     (other
       ? tr(s.mode === "collect" ? "Data collection" : "Policy inference") +
@@ -661,6 +722,8 @@ function applyLanguage() {
     $("teleop").options[0].textContent = tr("None · Observations only");
   if ($("sync").options[0]?.value === "")
     $("sync").options[0].textContent = tr("Native synchronization");
+  fillRobotTasks();
+  renderTaskPanel();
   lastButtons = "";
   if (state) {
     renderSession(state.session);

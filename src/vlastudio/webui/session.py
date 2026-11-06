@@ -15,6 +15,7 @@ import time
 
 from .bridge import PHASES, PAUSE, RUN, RESET_A, RESET_B, RESETTING
 from .profiles import ROOT, channels, config, catalog
+from .tasks import get_task
 
 
 def module(name):
@@ -36,8 +37,12 @@ def command_line(mode, options):
         if behavior not in ('continue', 'pause'):
             raise ValueError('Invalid success behavior')
         cmd += ['--robot.args.on_success', behavior]
+        cmd += ['--task', task]
         if mode == 'infer':
             cmd += ['--robot.args.input_mode', 'native']
+    elif options.get('real_task'):
+        task = get_task(options['real_task'])
+        cmd += ['--task=' + (task['instruction'] or task['name'])]
     rate = int(options.get("rate", 30))
     if not 1 <= rate <= 120:
         raise ValueError("频率范围为 1–120 Hz")
@@ -191,7 +196,7 @@ class Session:
                 raise ValueError("已有会话运行中")
             self.preview.stop()
             self.mode, self.robot = mode, opts["robot"]
-            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","task","on_success") if k in opts}
+            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","task","on_success","real_task") if k in opts}
             rows = channels(self.robot)
             if sum(".deploy.robot." in typ for _, typ, _ in rows) > 1:
                 raise ValueError("请选择单机器人或双臂组合配置，以便逐次确认暂停与回零")
