@@ -12,7 +12,7 @@ const names = {
   reset: "复位策略并回零",
   tele_run: "启用遥操作",
   tele_pause: "暂停遥操作",
-  home: "机械臂回零",
+  home: "复位 / 回 Home",
   stop: "退出会话",
 };
 const phases = {
@@ -191,7 +191,7 @@ async function act(action) {
     const msg = {
       reset:
         "将重置策略并请求机器人回零；推理录像有未保存数据时会按原生流程丢弃。",
-      home: resetLabel ? "将恢复仿真任务的初始场景。" : "将请求机器人执行其回零流程。",
+      home: resetLabel ? "将暂停遥操作并恢复仿真任务的初始场景。录制中的片段会先结束，供你保存或丢弃。" : "将暂停遥操作并请求机器人执行回零流程。录制中的片段会先结束，供你保存或丢弃。",
       discard: "这段录制将被丢弃。",
       stop: "退出运行进程。请先保存需要的数据，并等设备完成退出。",
     };
@@ -218,11 +218,13 @@ function renderSession(s) {
   $("observe").textContent =
     state.preview.profile === $("robot").value ? "关闭只读预览" : "只读预览";
   const allowed = other ? [] : s.actions;
+  const resetAction = collecting ? "home" : "reset";
+  const displayed = allowed.includes(resetAction) ? allowed : [...allowed, resetAction];
   const sig = JSON.stringify([s.id, allowed, s.phase]);
   if (sig !== lastButtons) {
     lastButtons = sig;
     $("buttons").replaceChildren();
-    for (const key of allowed) {
+    for (const key of displayed) {
       const b = el(
         "button",
         "",
@@ -231,6 +233,8 @@ function renderSession(s) {
           : key === "run" && s.phase === "paused" ? "恢复推理" : names[key],
       );
       b.onclick = () => act(key);
+      b.disabled = !allowed.includes(key);
+      if (b.disabled) b.title = s.active ? "当前状态正在处理，请等待设备就绪" : "加载可复位的设备后可用";
       $("buttons").append(b);
     }
   }
@@ -424,7 +428,7 @@ async function refresh() {
       $("keyboardArm").replaceChildren();
       for (let i = 0; i < keyboardArms; i++) $("keyboardArm").add(new Option(`机械臂 ${i + 1}`, String(i)));
     }
-    $("link").textContent = "Jetson 在线";
+    $("link").textContent = "服务已连接";
     $("link").className = "chip online";
     renderSession(state.session);
     const p = state.preview;

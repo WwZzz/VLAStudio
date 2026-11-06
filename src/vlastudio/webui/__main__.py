@@ -35,7 +35,8 @@ class Handler(BaseHTTPRequestHandler):
         url = urlparse(self.path)
         files = {"/": ("index.html","text/html"), "/collect":("index.html","text/html"),
                  "/infer":("index.html","text/html"), "/app.js":("app.js","text/javascript"),
-                 "/style.css":("style.css","text/css")}
+                 "/style.css":("style.css","text/css"),
+                 "/vlastudio-mark.svg":("vlastudio-mark.svg","image/svg+xml")}
         if url.path in files:
             file, mime = files[url.path]
             return self.reply((ASSETS/file).read_bytes(), mime + "; charset=utf-8")

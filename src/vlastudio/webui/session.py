@@ -238,6 +238,7 @@ class Session:
                 raise
             self.sid = secrets.token_hex(8)
             self.stopping, self.pending, self.code = False, None, None
+            self.reset_after_pause = False
             self.logs.clear()
             threading.Thread(target=self._watch, args=(self.proc,), daemon=True).start()
             self.preview.start(self.robot)
@@ -271,6 +272,10 @@ class Session:
         with self.lock:
             live = self.proc is not None
             phase = PHASES[self.box[2]] if live else "idle"
+            if (live and self.reset_after_pause and phase == "paused"
+                    and self.pending != self.box[3]):
+                self.reset_after_pause = False
+                self._key("reset", "paused")
             if live and self.pending == self.box[3]:
                 phase = "busy"
             allowed = list(KEYS.get(phase, {})) if live else []
@@ -278,12 +283,18 @@ class Session:
                 ack, cmd = self.box[1], self.box[0]
                 if ack == RUN and cmd == RUN:
                     allowed.append("tele_pause")
+                    if self.reset_ok:
+                        allowed.append("home")
                 elif ack == PAUSE and self.box[4] == cmd and cmd != RUN:
                     allowed.append("tele_run")
                     if self.reset_ok:
                         allowed.append("home")
                 if self.teleop and ack != RUN and "record" in allowed:
                     allowed.remove("record")
+            if live and self.gated and self.box[1] == RESETTING:
+                phase, allowed = "homing", []
+            if live and self.mode == "infer" and phase == "running" and self.reset_ok:
+                allowed.append("reset")
             if self.mode == "infer" and not self.output and "save" in allowed:
                 allowed.remove("save")
             if (live and self.mode == "infer" and phase == "paused" and self.box[4] != 255
@@ -336,12 +347,20 @@ class Session:
                 self.proc.terminate()
             elif action in ("tele_pause", "tele_run", "home"):
                 if action == "home":
+                    self.box[1] = RESETTING
                     self.box[0] = RESET_B if self.box[0] == RESET_A else RESET_A
+                    if state["phase"] == "recording":
+                        self._key("finish", "recording")
                 else:
                     self.box[0] = RUN if action == "tele_run" else PAUSE
                 if action == "tele_pause" and state["phase"] == "recording":
                     self._key("finish", "recording")
             else:
+                if self.mode == "infer" and action == "reset" and state["phase"] == "running":
+                    self.reset_after_pause = True
+                    self.box[0] = PAUSE
+                    self._key("pause", "running")
+                    return
                 if self.mode == "infer" and action == "pause":
                     self.box[0] = PAUSE  # ignore late policy output while inference returns
                 self._key(action, state["phase"])
