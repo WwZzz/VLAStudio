@@ -2,6 +2,14 @@
 const $ = (id) => document.getElementById(id);
 const mode = location.pathname === "/infer" ? "infer" : "collect";
 const collecting = mode === "collect";
+try {
+  $("keyboardPanel").open = localStorage.getItem("vla-keyboard-open") !== "false";
+} catch {}
+$("keyboardPanel").addEventListener("toggle", () => {
+  try {
+    localStorage.setItem("vla-keyboard-open", String($("keyboardPanel").open));
+  } catch {}
+});
 const names = {
   record: "Start recording",
   finish: "Finish episode",

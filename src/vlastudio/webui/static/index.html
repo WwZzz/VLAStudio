@@ -39,64 +39,59 @@
         <span id="phase" class="badge"></span>
       </div>
       <div class="layout">
-        <aside class="panel">
-          <h2 data-i18n="Session configuration">Session configuration</h2>
-          <form id="form">
-            <label
-              ><span data-i18n="Robot configuration">Robot configuration</span
-              ><select id="robot"></select
-            ></label>
-            <div id="collectFields">
+        <aside class="sidebar">
+          <section class="panel">
+            <h2 data-i18n="Session configuration">Session configuration</h2>
+            <form id="form">
               <label
-                ><span data-i18n="Teleoperation device"
-                  >Teleoperation device</span
-                ><select id="teleop"></select
+                ><span data-i18n="Robot configuration">Robot configuration</span
+                ><select id="robot"></select
               ></label>
-              <label
-                ><span data-i18n="Recording synchronization"
-                  >Recording synchronization</span
-                ><select id="sync"></select
-              ></label>
-            </div>
-            <div id="inferFields">
-              <label
-                ><span data-i18n="Policy server or model path"
-                  >Policy server or model path</span
-                ><input id="policy" placeholder="localhost:5000"
+              <div id="collectFields">
+                <label
+                  ><span data-i18n="Teleoperation device"
+                    >Teleoperation device</span
+                  ><select id="teleop"></select
+                ></label>
+                <label
+                  ><span data-i18n="Recording synchronization"
+                    >Recording synchronization</span
+                  ><select id="sync"></select
+                ></label>
+              </div>
+              <div id="inferFields">
+                <label
+                  ><span data-i18n="Policy server or model path"
+                    >Policy server or model path</span
+                  ><input id="policy" placeholder="localhost:5000"
+                /></label>
+                <label
+                  ><span data-i18n="Action manager">Action manager</span
+                  ><select id="manager"></select
+                ></label>
+              </div>
+              <label id="outLabel"
+                ><span id="outputLabel"></span><input id="output"
               /></label>
               <label
-                ><span data-i18n="Action manager">Action manager</span
-                ><select id="manager"></select
-              ></label>
-            </div>
-            <label id="outLabel"
-              ><span id="outputLabel"></span><input id="output"
-            /></label>
-            <label
-              ><span id="rateLabel"></span>
-              <div class="unit">
-                <input
-                  id="rate"
-                  type="number"
-                  min="1"
-                  max="120"
-                  value="30"
-                /><span>Hz</span>
-              </div></label
-            >
-            <button class="primary" id="launch" type="submit">
-              <span id="connectionLabel">Connect devices</span
-              ><progress id="connectionProgress" hidden></progress>
-            </button>
-          </form>
-          <button id="observe" class="plain"></button>
-          <div class="controls">
-            <h2 data-i18n="Run controls">Run controls</h2>
-            <div id="buttons"></div>
-            <p id="status"></p>
-          </div>
-        </aside>
-        <section class="workspace">
+                ><span id="rateLabel"></span>
+                <div class="unit">
+                  <input
+                    id="rate"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value="30"
+                  /><span>Hz</span>
+                </div></label
+              >
+              <button class="primary" id="launch" type="submit">
+                <span id="connectionLabel">Connect devices</span
+                ><progress id="connectionProgress" hidden></progress>
+              </button>
+            </form>
+            <button id="observe" class="plain"></button>
+          </section>
           <article class="panel" id="taskPanel">
             <div class="heading">
               <h2 data-i18n="Task">Task</h2>
@@ -132,23 +127,34 @@
               <p id="realTaskInstruction"></p>
             </div>
           </article>
-          <article class="panel" id="keyboardPanel" hidden>
-            <h2 data-i18n="Keyboard end-effector control">
-              Keyboard end-effector control
-            </h2>
-            <p
-              class="axis-legend"
-              data-i18n="Preview only · X red · Y green · Z blue · World control frame"
-            >
-              Preview only · X red · Y green · Z blue · World control frame
-            </p>
-            <div id="keyboardBindings"></div>
-            <small
-              data-i18n="Enable teleoperation, then hold the keys. Input pauses while editing fields or when the window loses focus."
-              >Enable teleoperation, then hold the keys. Input pauses while
-              editing fields or when the window loses focus.</small
-            >
-          </article>
+          <section class="panel controls">
+            <h2 data-i18n="Run controls">Run controls</h2>
+            <div id="buttons"></div>
+            <p id="status"></p>
+          </section>
+        </aside>
+        <section class="workspace">
+          <details class="panel" id="keyboardPanel" hidden open>
+            <summary>
+              <h2 data-i18n="Keyboard end-effector control">
+                Keyboard end-effector control
+              </h2>
+            </summary>
+            <div class="keyboard-content">
+              <p
+                class="axis-legend"
+                data-i18n="Preview only · X red · Y green · Z blue · World control frame"
+              >
+                Preview only · X red · Y green · Z blue · World control frame
+              </p>
+              <div id="keyboardBindings"></div>
+              <small
+                data-i18n="Enable teleoperation, then hold the keys. Input pauses while editing fields or when the window loses focus."
+                >Enable teleoperation, then hold the keys. Input pauses while
+                editing fields or when the window loses focus.</small
+              >
+            </div>
+          </details>
           <article class="panel">
             <div class="heading">
               <h2 data-i18n="Cameras">Cameras</h2>

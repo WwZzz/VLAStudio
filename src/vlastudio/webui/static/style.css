@@ -133,7 +133,8 @@ h2 {
   border-radius: 10px;
   padding: 18px;
 }
-.workspace {
+.workspace,
+.sidebar {
   display: grid;
   gap: 16px;
   min-width: 0;
@@ -383,8 +384,54 @@ dialog::backdrop {
   }
 }
 
-aside.panel {
+.sidebar > .panel {
   background: var(--side);
+}
+#taskPanel .heading {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.sidebar .controls {
+  margin-top: 0;
+  padding-top: 18px;
+}
+.sidebar .task-picker {
+  flex-wrap: wrap;
+}
+.sidebar #simulationFields {
+  grid-template-columns: minmax(0, 1fr);
+}
+#keyboardPanel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 4px;
+}
+#keyboardPanel > summary::-webkit-details-marker {
+  display: none;
+}
+#keyboardPanel > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+}
+#keyboardPanel[open] > summary::after {
+  transform: rotate(225deg);
+}
+#keyboardPanel > summary:focus-visible {
+  outline: 2px solid #5e9976;
+  outline-offset: 5px;
+}
+.keyboard-content {
+  margin-top: 14px;
 }
 #simulationFields {
   display: grid;
