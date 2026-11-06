@@ -1,19 +1,20 @@
 extends: data.yaml
-python: '3.11'
+python: '3.10'
 platforms: [linux]
-description: RoboCasa 1.0 native PandaOmron simulation (assets installed separately).
+description: RoboCasa 0.2 native PandaOmron simulation (assets installed separately).
 requirements:
-- robocasa @ git+https://github.com/robocasa/robocasa.git@8f3c96ec8d1bfcd8126cad2bca887da98d30e997
-- robosuite==1.5.2
-- numpy==2.2.5
-- scipy==1.15.3
-- numba==0.61.2
-- mujoco==3.3.1
+- robocasa @ git+https://github.com/robocasa/robocasa.git@756598a5be52e052339bb2d957426e39015c2afb
+- robosuite==1.5.1
+- numpy==1.23.5
+- scipy==1.10.1
+- numba==0.56.4
+- mujoco==3.2.6
 overrides:
-- numpy==2.2.5
-- scipy==1.15.3
-- mujoco==3.3.1
+- numpy==1.23.5
+- scipy==1.10.1
+- numba==0.56.4
+- mujoco==3.2.6
 notes:
 - Download kitchen/object assets following the pinned RoboCasa release documentation.
 - Requires EGL or OSMesa system libraries; select MUJOCO_GL before importing the simulator.
-- RoboCasa 1.0 pins NumPy 2; serve policies requiring NumPy 1 in a separate runtime.
+- RoboCasa 0.2 requires NumPy 1.23; keep policies with newer NumPy requirements in a separate runtime.

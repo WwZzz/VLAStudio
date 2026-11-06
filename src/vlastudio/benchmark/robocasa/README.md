@@ -19,8 +19,8 @@ they do not download demonstrations or include machine-specific absolute paths.
 
 Install the simulation runtime with
 `vlastudio env create --env robocasa.restock_pantry -n robocasa` on Linux. The
-runtime pins RoboCasa 1.0 and robosuite 1.5.2. Install scene/object assets using the
-[upstream instructions](https://github.com/robocasa/robocasa/tree/8f3c96ec8d1bfcd8126cad2bca887da98d30e997).
+runtime pins RoboCasa 0.2 and robosuite 1.5.1. Install scene/object assets using the
+[upstream instructions](https://github.com/robocasa/robocasa/tree/756598a5be52e052339bb2d957426e39015c2afb).
 Set `MUJOCO_GL=egl` (GPU) or `osmesa` (CPU) before launching simulation; the
 corresponding system rendering libraries must be installed separately. Policies
 with incompatible NumPy pins should use VLAStudio's remote policy interface.
@@ -59,3 +59,16 @@ with a simulator double. Actual kitchen rendering needs the external assets and
 is not covered by the asset-free unit suite. Before a benchmark run, replay a
 held-out demonstration with its original controller and verify RGB orientation,
 state ordering and native action dimensions against the loaded environment.
+
+To repeat the optional native smoke tests with downloaded image demonstrations:
+
+```bash
+export MUJOCO_GL=egl
+export VLASTUDIO_ROBOCASA_SMOKE_DATA=/path/to/image_demonstrations
+python -m pytest tests/test_robocasa_native.py
+```
+
+The directory must contain `RestockPantry.hdf5` and `MicrowaveThawing.hdf5`.
+Each test reads a real chunk, resets the kitchen, renders three cameras and
+executes one native 12-dimensional action. This is an interface smoke test,
+not a policy success-rate evaluation.

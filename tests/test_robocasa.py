@@ -206,3 +206,13 @@ def test_cpu_training_backward_and_reload(tmp_path):
     other = torch.nn.Linear(8, 24)
     other.load_state_dict(torch.load(tmp_path / 'model.pt', weights_only=True))
     torch.testing.assert_close(model(sample['state']), other(sample['state']))
+
+
+def test_numpy_dtype_checkpoint_safe_types(tmp_path):
+    # Covers both the NumPy 1.23 simulator runtime and newer core runtimes.
+    import vlastudio.configs
+    path = tmp_path / 'numpy-checkpoint.pt'
+    value = np.dtype(np.float32)
+    torch.save({'dtype': value}, path)
+    restored = torch.load(path, weights_only=True)
+    assert restored['dtype'] == value

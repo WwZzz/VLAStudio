@@ -32,8 +32,9 @@ safe_types = [
     np.dtype,
     np.core.multiarray._reconstruct,
 ]
-for name in dir(np.dtypes):
-    obj = getattr(np.dtypes, name)
-    if isinstance(obj, type):
-        safe_types.append(obj)
+# NumPy <1.25 (RoboCasa 0.2) exposes concrete dtype classes through dtype().
+if hasattr(np, 'dtypes'):
+    safe_types.extend(obj for obj in vars(np.dtypes).values() if isinstance(obj, type))
+else:
+    safe_types.extend({type(np.dtype(code)) for code in np.typecodes['All']})
 torch.serialization.add_safe_globals(safe_types)
