@@ -55,7 +55,7 @@ def command_line(mode, options):
     elif mode == "infer":
         policy = options.get("policy", "").strip()
         if not policy or policy.startswith("-") or len(policy) > 1024:
-            raise ValueError("请填写策略服务器地址或 Jetson 上的模型路径")
+            raise ValueError("请填写策略服务器地址或服务端的模型路径")
         if policy.startswith("__dummy") and robot != "dummy":
             raise ValueError("模拟策略仅允许搭配 dummy 设备")
         cmd += ["-m", policy, "-pr", str(rate), "-am", str(config("action_manager", options.get("manager", "basic")))]
