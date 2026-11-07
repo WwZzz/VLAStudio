@@ -8,7 +8,6 @@ from vlastudio.benchmark.base import MetaAction, MetaObs
 from vlastudio.deploy.utils import RateLimiter
 from vlastudio.deploy.base import BaseDevice
 import time
-import os
 from loguru import logger
 
 class AbstractRobotInterface(abc.ABC):
@@ -75,14 +74,15 @@ class BaseRobot(BaseDevice, AbstractRobotInterface):
         self.control_shm_name = control_shm_name
         # Note: control_shm connection is deferred to start() to allow teleop shm to be created first
         self.control_shm = None
-        self._web_gate = None
-        if os.environ.get("VLASTUDIO_WEB_GATE"):
-            from vlastudio.webui.bridge import InputGate
-            self._web_gate = InputGate()
+        self._action_filter = None
+
+    def set_action_filter(self, action_filter=None):
+        """Install an optional process-local filter with filter(robot, message)."""
+        self._action_filter = action_filter
 
     def read_action(self) -> dict:
         message = self.control_shm.read(skip_unchanged=True) if self.control_shm is not None else None
-        return self._web_gate.filter(self, message) if self._web_gate is not None else message
+        return self._action_filter.filter(self, message) if self._action_filter is not None else message
 
     def handle_control_message(self, message: Optional[dict]) -> bool:
         """Handle non-action control messages sent through control SHM."""

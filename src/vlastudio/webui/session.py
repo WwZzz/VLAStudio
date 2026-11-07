@@ -228,7 +228,8 @@ class Session:
                     self.box = mmap.mmap(fd, 5)
                     self.box[:] = bytes([PAUSE,255,0,0,255])
                     env = dict(os.environ, VLASTUDIO_WEB_FD=str(fd), PYTHONUNBUFFERED="1",
-                               PYTHONDONTWRITEBYTECODE="1")
+                               PYTHONDONTWRITEBYTECODE="1",
+                               VLASTUDIO_DEVICE_SETUP="vlastudio.webui.bridge.configure_device")
                     self.keyboard_dir = tempfile.TemporaryDirectory(prefix='vla-keys-')
                     self.keyboard_path = str(Path(self.keyboard_dir.name) / 'input.sock')
                     env['VLASTUDIO_KEYBOARD_SOCKET'] = self.keyboard_path

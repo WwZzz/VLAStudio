@@ -139,7 +139,7 @@
     control_shm_name: keyboard_delta
     fps: 20
     environment:
-      type: vlastudio.benchmark.libero.LiberoEnv
+      type: vlastudio.deploy.robot.benchmark_environments.libero.LiberoDeploymentEnv
       args:
         ctrl_space: ee
         ctrl_type: delta

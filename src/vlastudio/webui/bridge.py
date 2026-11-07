@@ -59,6 +59,13 @@ class WebKeys:
     set_normal_term = clear_line_buffer
 
 
+def configure_device(device):
+    """Attach WebUI control only to robots launched by this session."""
+    from vlastudio.deploy.robot.base import BaseRobot
+    if isinstance(device, BaseRobot) and os.environ.get("VLASTUDIO_WEB_GATE"):
+        device.set_action_filter(InputGate())
+
+
 class InputGate:
     """Runs inside the robot process. No HTTP, socket or file reads per action."""
     def __init__(self):
