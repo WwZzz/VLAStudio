@@ -128,6 +128,8 @@ Object.assign(chinese, {
   "A task with this name already exists": "已存在同名任务",
 });
 Object.assign(chinese, {
+  "Move along axis": "沿轴平移",
+  "Rotate about axis": "绕轴旋转",
   Open: "张开",
   Close: "闭合",
   "Preview only · X red · Y green · Z blue · World control frame":

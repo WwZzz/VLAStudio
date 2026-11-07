@@ -716,36 +716,45 @@ function renderKeyboard() {
         ),
       ),
     );
-    ["Translation", "Rotation", "Gripper"].forEach(
-      (label, group) => {
-        const selected =
-          group === 2 ? pairs.slice(6) : pairs.slice(group * 3, group * 3 + 3);
-        const row = el("div", "key-direction-row");
-        row.append(el("span", "key-group-label", tr(label)));
-        selected.forEach((pair, axis) => {
-          const keys = el(
-            "span",
-            group === 2 ? "axis-keys" : "axis-keys axis-" + "xyz"[axis],
-          );
-          const coordinate = group === 2 ? "" : "XYZ"[axis];
-          if (coordinate) keys.append(el("span", "axis-name", coordinate));
-          pair.forEach((key, direction) => {
-            const column = el(
-              "span",
-              "key-column " + (direction === 0 ? "key-positive" : "key-negative"),
-            );
-            const sign = group === 2
-              ? tr(direction === 0 ? "Open" : "Close")
-              : direction === 0 ? "+" : "−";
-            column.append(el("span", "key-sign", sign), el("kbd", "", keyName(key)));
-            column.setAttribute("aria-label", `${tr(label)} ${coordinate} ${sign}: ${keyName(key)}`);
-            keys.append(column);
-          });
-          row.append(keys);
+    const header = el("div", "key-table-header");
+    header.append(el("span", ""));
+    ["X", "Y", "Z"].forEach((axis, i) => {
+      const cell = el("div", "key-axis-heading axis-" + "xyz"[i]);
+      cell.append(el("span", "axis-name", axis));
+      const signs = el("span", "key-signs");
+      signs.append(el("span", "", "+"), el("span", "", "−"));
+      cell.append(signs);
+      header.append(cell);
+    });
+    block.append(header);
+    ["Translation", "Rotation"].forEach((label, group) => {
+      const row = el("div", "key-table-row " + (group ? "key-rotation" : "key-translation"));
+      const rowLabel = el("span", "key-group-label");
+      const icon = el("span", "key-motion-icon", group ? "↻" : "↔");
+      icon.setAttribute("aria-hidden", "true");
+      rowLabel.append(icon, el("span", "", tr(label)));
+      row.append(rowLabel);
+      pairs.slice(group * 3, group * 3 + 3).forEach((pair, axis) => {
+        const keys = el("span", "axis-keys axis-" + "xyz"[axis]);
+        const hint = tr(group ? "Rotate about axis" : "Move along axis") + " " + "XYZ"[axis];
+        keys.title = hint;
+        pair.forEach((key, direction) => {
+          const cap = el("kbd", direction ? "key-negative" : "key-positive", keyName(key));
+          cap.setAttribute("aria-label", `${hint} ${direction ? "−" : "+"}: ${keyName(key)}`);
+          keys.append(cap);
         });
-        block.append(row);
-      },
-    );
+        row.append(keys);
+      });
+      block.append(row);
+    });
+    const gripper = el("div", "key-gripper-row");
+    gripper.append(el("span", "key-group-label", tr("Gripper")));
+    pairs.slice(6).forEach((pair) => pair.forEach((key, direction) => {
+      const item = el("span", "key-gripper-item");
+      item.append(el("span", "", tr(direction ? "Close" : "Open")), el("kbd", "", keyName(key)));
+      gripper.append(item);
+    }));
+    block.append(gripper);
     $("keyboardBindings").append(block);
   });
 }
