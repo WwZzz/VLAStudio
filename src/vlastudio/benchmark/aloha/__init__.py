@@ -89,7 +89,14 @@ class AlohaSimEnv(MetaEnv):
         self.task_name = 'transfer_cube' if 'transfer' in self.config.task else 'insertion'
         self.raw_lang = TASK_PROMPT['sim_transfer_cube_scripted'] if 'transfer' in self.task_name else TASK_PROMPT['sim_insertion_scripted']
         # step over the environment
-        env = make_sim_env('sim_'+self.task_name)
+        if self.ctrl_space not in ('joint', 'ee'):
+            raise ValueError('ALOHA supports joint or ee control')
+        factory = make_ee_sim_env if self.ctrl_space == 'ee' else make_sim_env
+        env = factory('sim_'+self.task_name, time_limit=getattr(self.config, 'time_limit', 20))
+        if getattr(self.config, 'render_selected_cameras', False):
+            names = ['top', 'left_wrist', 'right_wrist']
+            env.task.render_cameras = {names[int(i)]: names[int(i)] for i in self.camera_ids}
+            env.task.render_size = self.image_size_primary
         # Get action bounds from action_spec
         action_spec = env.action_spec()
         self.min_action = action_spec.minimum
@@ -106,13 +113,11 @@ class AlohaSimEnv(MetaEnv):
         state_joint = np.concatenate([obs["qpos"], ], axis=0).astype(np.float32)
         # image
         img_primary = cv2.resize(obs['images']['top'], self.image_size_primary)
-        img_wrist_left = cv2.resize(obs['images']['left_wrist'], self.image_size_wrist)
-        img_wrist_right = cv2.resize(obs['images']['right_wrist'], self.image_size_wrist)
         all_imgs = [img_primary]
         if '1' in self.camera_ids or 1 in self.camera_ids:
-            all_imgs = all_imgs + [img_wrist_left, ]
+            all_imgs.append(cv2.resize(obs['images']['left_wrist'], self.image_size_wrist))
         if '2' in self.camera_ids or 2 in self.camera_ids:
-            all_imgs = all_imgs + [img_wrist_right, ]
+            all_imgs.append(cv2.resize(obs['images']['right_wrist'], self.image_size_wrist))
         image = np.stack(all_imgs)
         image = image.transpose(0, 3, 1, 2)
         return MetaObs(state=state_joint, image=image, raw_lang=self.raw_lang)

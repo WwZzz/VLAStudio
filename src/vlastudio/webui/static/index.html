@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VLAStudio · Control</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="icon" type="image/svg+xml" href="/vlastudio-mark.svg" />
+    <script src="/i18n.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/collect"
+        ><img src="/vlastudio-mark.svg" width="32" height="32" alt="" />VLA<span
+          >Studio</span
+        ></a
+      >
+      <nav>
+        <a href="/collect" id="navCollect" data-i18n="Data collection"
+          >Data collection</a
+        >
+        <a href="/infer" id="navInfer" data-i18n="Policy inference"
+          >Policy inference</a
+        >
+      </nav>
+      <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+      <select id="language" aria-label="Language">
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+      </select>
+    </header>
+    <main>
+      <div class="title">
+        <div>
+          <small id="section"></small>
+          <h1 id="title"></h1>
+        </div>
+        <span id="phase" class="badge"></span>
+      </div>
+      <div class="layout">
+        <aside class="sidebar">
+          <section class="panel">
+            <h2 data-i18n="Session configuration">Session configuration</h2>
+            <form id="form">
+              <label
+                ><span data-i18n="Robot configuration">Robot configuration</span
+                ><select id="robot"></select
+              ></label>
+              <div id="collectFields">
+                <label
+                  ><span data-i18n="Teleoperation device"
+                    >Teleoperation device</span
+                  ><select id="teleop"></select
+                ></label>
+                <label
+                  ><span data-i18n="Recording synchronization"
+                    >Recording synchronization</span
+                  ><select id="sync"></select
+                ></label>
+              </div>
+              <div id="inferFields">
+                <label
+                  ><span data-i18n="Policy server or model path"
+                    >Policy server or model path</span
+                  ><input id="policy" placeholder="localhost:5000"
+                /></label>
+                <label
+                  ><span data-i18n="Action manager">Action manager</span
+                  ><select id="manager"></select
+                ></label>
+              </div>
+              <label id="outLabel"
+                ><span id="outputLabel"></span><input id="output"
+              /></label>
+              <label
+                ><span id="rateLabel"></span>
+                <div class="unit">
+                  <input
+                    id="rate"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value="30"
+                  /><span>Hz</span>
+                </div></label
+              >
+              <button class="primary" id="launch" type="submit">
+                <span id="connectionLabel">Connect devices</span
+                ><progress id="connectionProgress" hidden></progress>
+              </button>
+            </form>
+            <button id="observe" class="plain"></button>
+          </section>
+          <article class="panel" id="taskPanel">
+            <div class="heading">
+              <h2 data-i18n="Task">Task</h2>
+              <small id="taskKind"></small>
+            </div>
+            <div id="simulationFields" hidden>
+              <label
+                ><span data-i18n="Simulation task">Simulation task</span
+                ><select id="task" form="form"></select
+              ></label>
+              <label
+                ><span data-i18n="After task success">After task success</span
+                ><select id="on_success" form="form">
+                  <option value="continue" data-i18n="Continue operating">
+                    Continue operating
+                  </option>
+                  <option value="pause" data-i18n="Pause until reset">
+                    Pause until reset
+                  </option>
+                </select></label
+              >
+            </div>
+            <div id="realTaskFields">
+              <div class="task-picker">
+                <label
+                  ><span data-i18n="Robot task">Robot task</span
+                  ><select id="real_task" form="form"></select
+                ></label>
+                <button id="newTask" type="button" data-i18n="New task">
+                  New task
+                </button>
+              </div>
+              <p id="realTaskInstruction"></p>
+            </div>
+          </article>
+          <section class="panel controls">
+            <h2 data-i18n="Run controls">Run controls</h2>
+            <div id="buttons"></div>
+            <p id="status"></p>
+          </section>
+        </aside>
+        <section class="workspace">
+          <details class="panel" id="keyboardPanel" hidden open>
+            <summary>
+              <h2 data-i18n="Keyboard end-effector control">
+                Keyboard end-effector control
+              </h2>
+            </summary>
+            <div class="keyboard-content">
+              <p
+                class="axis-legend"
+                data-i18n="Preview only · X red · Y green · Z blue · World control frame"
+              >
+                Preview only · X red · Y green · Z blue · World control frame
+              </p>
+              <div id="keyboardBindings"></div>
+              <small
+                data-i18n="Enable teleoperation, then hold the keys. Input pauses while editing fields or when the window loses focus."
+                >Enable teleoperation, then hold the keys. Input pauses while
+                editing fields or when the window loses focus.</small
+              >
+            </div>
+          </details>
+          <article class="panel">
+            <div class="heading">
+              <h2 data-i18n="Cameras">Cameras</h2>
+              <small data-i18n="Shared memory · Read only"
+                >Shared memory · Read only</small
+              >
+            </div>
+            <div class="feeds" id="feeds"></div>
+          </article>
+          <article class="panel">
+            <div class="heading">
+              <h2 data-i18n="Joint feedback">Joint feedback</h2>
+              <small data-i18n="Last 30 seconds · Raw observations"
+                >Last 30 seconds · Raw observations</small
+              >
+            </div>
+            <div id="axes"></div>
+          </article>
+          <article class="panel" id="modelPanel" hidden>
+            <div class="heading">
+              <h2 data-i18n="URDF kinematic skeleton">
+                URDF kinematic skeleton
+              </h2>
+              <select id="arm"></select>
+            </div>
+            <canvas
+              id="model"
+              height="220"
+              aria-label="URDF joint model"
+            ></canvas
+            ><small id="modelName"></small>
+          </article>
+          <article class="terminal">
+            <div class="heading">
+              <h2 data-i18n="Terminal output">Terminal output</h2>
+              <label
+                ><input type="checkbox" checked id="follow" />
+                <span data-i18n="Follow logs">Follow logs</span></label
+              >
+            </div>
+            <pre id="log"></pre>
+          </article>
+        </section>
+      </div>
+    </main>
+    <dialog id="taskDialog">
+      <form id="taskForm">
+        <h2 data-i18n="New robot task">New robot task</h2>
+        <label
+          ><span data-i18n="Task name">Task name</span
+          ><input id="taskName" required maxlength="120"
+        /></label>
+        <label
+          ><span data-i18n="Task instruction">Task instruction</span
+          ><textarea id="taskInstruction" maxlength="2000" rows="4"></textarea>
+        </label>
+        <p id="taskError" role="alert"></p>
+        <div class="row">
+          <button id="cancelTask" type="button" data-i18n="Cancel">
+            Cancel</button
+          ><button
+            class="primary"
+            id="saveTask"
+            type="submit"
+            data-i18n="Create task"
+          >
+            Create task
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="confirm">
+      <h2 id="confirmTitle"></h2>
+      <p id="confirmText"></p>
+      <div class="row">
+        <button id="cancel" data-i18n="Cancel">Cancel</button
+        ><button id="accept" class="primary" data-i18n="Confirm">
+          Confirm
+        </button>
+      </div>
+    </dialog>
+    <div id="error" role="alert" hidden></div>
+  </body>
+</html>

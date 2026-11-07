@@ -16,7 +16,7 @@ from dm_control.suite import base
 
 
 
-def make_ee_sim_env(task_name):
+def make_ee_sim_env(task_name, time_limit=20):
     """
     Environment for simulated robot bi-manual manipulation, with end-effector control.
     Action space:      [left_arm_pose (7),             # position and quaternion for end effector
@@ -38,13 +38,13 @@ def make_ee_sim_env(task_name):
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_ee_transfer_cube.xml')
         physics = load_physics(xml_path)
         task = TransferCubeEETask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+        env = control.Environment(physics, task, time_limit=time_limit, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
     elif 'sim_insertion' in task_name:
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_ee_insertion.xml')
         physics = load_physics(xml_path)
         task = InsertionEETask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+        env = control.Environment(physics, task, time_limit=time_limit, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
     else:
         raise NotImplementedError
@@ -134,9 +134,10 @@ class BimanualViperXEETask(base.Task):
         obs['qvel'] = self.get_qvel(physics)
         obs['env_state'] = self.get_env_state(physics)
         obs['images'] = dict()
-        obs['images']['top'] = physics.render(height=480, width=640, camera_id='top')
-        obs['images']['angle'] = physics.render(height=480, width=640, camera_id='angle')
-        obs['images']['vis'] = physics.render(height=480, width=640, camera_id='front_close')
+        cameras = getattr(self, 'render_cameras', {'top': 'top', 'angle': 'angle', 'vis': 'front_close'})
+        width, height = getattr(self, 'render_size', (640, 480))
+        for key, camera in cameras.items():
+            obs['images'][key] = physics.render(height=height, width=width, camera_id=camera)
         # used in scripted policy to obtain starting pose
         obs['mocap_pose_left'] = np.concatenate([physics.data.mocap_pos[0], physics.data.mocap_quat[0]]).copy()
         obs['mocap_pose_right'] = np.concatenate([physics.data.mocap_pos[1], physics.data.mocap_quat[1]]).copy()
