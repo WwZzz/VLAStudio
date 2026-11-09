@@ -154,10 +154,13 @@ class OpenCVCamera(BaseDevice):
 
     def _warmup(self) -> None:
         """Read frames for warmup_s seconds to stabilize camera."""
-        start = time.time()
-        while time.time() - start < self.warmup_s:
-            self.camera.read()
-            time.sleep(0.1)
+        deadline = time.monotonic() + self.warmup_s
+        while time.monotonic() < deadline:
+            # Successful reads are camera-paced. Drain every warmup frame so the
+            # first published sample is current, including with V4L2 buffering.
+            ok, _ = self.camera.read()
+            if not ok:
+                time.sleep(.01)
 
     @property
     def is_connected(self) -> bool:
