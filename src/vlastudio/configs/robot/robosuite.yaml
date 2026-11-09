@@ -1,6 +1,7 @@
 - type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
   name: robosuite
   webui:
+    marker_provider: vlastudio.webui.marker_providers.RobosuiteMarkerProvider
     runtime: robosuite
     runtime_imports: [robosuite, robomimic]
     rate: 20

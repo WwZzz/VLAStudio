@@ -13,7 +13,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 from .profiles import channels, model_path
-from .ee_overlay import draw_axes
+from .marker_drawing import draw_markers, register_marker_renderer
 from vlastudio.deploy.shm_utils import SharedMemoryChannel
 
 
@@ -69,6 +69,8 @@ class Skeleton:
 
 def images(data, name, bgr=False):
     hints = data.get('__preview__', {})
+    marker_images = hints.get('images', {}) if isinstance(hints, dict) and hints.get('version') == 1 else {}
+    marker_images = marker_images if isinstance(marker_images, dict) else {}
     for key, value in data.items():
         if key == '__preview__':
             continue
@@ -81,9 +83,9 @@ def images(data, name, bgr=False):
             small = cv2.resize(value, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
             if small.ndim == 3 and not bgr:
                 small = cv2.cvtColor(small, cv2.COLOR_RGB2BGR if small.shape[2] == 3 else cv2.COLOR_RGBA2BGR)
-            camera = hints.get('cameras', {}).get(key)
-            if camera and small.ndim == 3:
-                draw_axes(small, camera, hints.get('effectors', []))
+            markers = marker_images.get(key, [])
+            if isinstance(markers, (list, tuple)) and len(markers) and small.ndim == 3:
+                small = draw_markers(small, markers)
             ok, jpeg = cv2.imencode(".jpg", small, [cv2.IMWRITE_JPEG_QUALITY, 65])
             if ok:
                 yield name if key == "image" else f"{name}/{key}", base64.b64encode(jpeg).decode("ascii")
@@ -92,6 +94,14 @@ def images(data, name, bgr=False):
 def run(profile):
     os.nice(12)
     cv2.setNumThreads(1)
+    from .profiles import catalog
+    from vlastudio.utils.extensions import resolve
+    settings = catalog()['robot_options'].get(profile, {})
+    for kind, reference in settings.get('marker_renderers', {}).items():
+        try:
+            register_marker_renderer(kind, resolve(reference))
+        except Exception as error:
+            print(f'Marker renderer {kind!r} unavailable: {error}', file=sys.stderr)
     rows = channels(profile)
     readers, models, retry, inodes = {}, {}, {}, {}
     for name, typ, args in rows:

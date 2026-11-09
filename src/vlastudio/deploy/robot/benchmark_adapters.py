@@ -100,18 +100,6 @@ class AlohaAdapter(CartesianAdapter):
         expected_hz = 1.0 / env.env.control_timestep()
         self.control_frequency = expected_hz
 
-    def preview_data(self, env, observation):
-        physics = env.env.physics
-        cameras = []
-        for index in env.camera_ids:
-            name = ['top', 'left_wrist', 'right_wrist'][int(index)]
-            cameras.append(dict(position=physics.named.data.cam_xpos[name].tolist(),
-                                rotation=physics.named.data.cam_xmat[name].reshape(3, 3).tolist(),
-                                fovy=float(physics.named.model.cam_fovy[name])))
-        effectors = [dict(label=side[0].upper(), position=physics.named.data.xpos[f'vx300s_{side}/gripper_link'].tolist())
-                     for side in ('left', 'right')]
-        return dict(cameras=cameras, effectors=effectors, frame='world')
-
 
 class LiberoAdapter(CartesianAdapter):
     """Convert physical Cartesian increments using the active OSC controller scale."""
@@ -131,19 +119,6 @@ class LiberoAdapter(CartesianAdapter):
         result = super().environment_action(action)
         result.action[:6] = np.clip(result.action[:6], -1, 1)
         return result
-
-    def preview_data(self, env, observation):
-        from robosuite import macros
-        sim = env.env.env.sim
-        names = ['agentview'] + (['robot0_eye_in_hand'] if env.use_wrist else [])
-        cameras = []
-        for name in names:
-            index = sim.model.camera_name2id(name)
-            cameras.append(dict(position=sim.data.cam_xpos[index].tolist(),
-                                rotation=sim.data.cam_xmat[index].reshape(3, 3).tolist(),
-                                fovy=float(sim.model.cam_fovy[index]), flip_x=True,
-                                flip_y=macros.IMAGE_CONVENTION == 'opencv'))
-        return dict(cameras=cameras, effectors=[dict(label='EE', position=observation['state_ee'][:3].tolist())], frame='world')
 
 
 class RLBenchAdapter(CartesianAdapter):

@@ -129,30 +129,85 @@ preview, HDF5 recording, keyboard response after 550 steps, pause, Reset and
 TCP policy round trips through the existing collection/inference entrypoints.
 The TCP checks used a diagnostic policy; learned task success was not evaluated.
 
-## Optional preview geometry
+## Optional UI marker providers
 
-Deployment environments may implement `get_preview_metadata(observation)`.
-Return `None` when geometry is unavailable. Otherwise return a dictionary with
-`frame: world`, `effectors` (a list of `label` / world `position` dictionaries),
-and `cameras` in the same order as the emitted RGB images. A missing individual
-camera can be `None`. Camera `position` and `rotation` describe camera-to-world
-geometry. Provide either vertical `fovy` in degrees (OpenGL camera, looking down
-local -Z), or `intrinsics`, source `image_size: [width, height]`, and
-`forward_axis: 1` for a calibrated +Z camera. Intrinsics must describe the emitted
-image, including its signed axes; optional `flip_x` / `flip_y` describe any
-additional image flips. Moving camera geometry must be refreshed with each frame.
-The existing action-adapter `preview_data` hook remains a fallback for older profiles.
+Simulator classes and action adapters have no display-method requirement.
+A robot profile opts in by binding a provider in its `webui` section:
 
-RLBench reads calibration from the original observation's `misc`; robosuite reads
-its existing camera geometry and measured EE position. Neither adds objects to
-the simulator or changes its RGB rendering. The WebUI draws world X (red),
-Y (green), Z (blue) at each end effector, matching keyboard translation axes.
-Unavailable or invalid camera information simply omits the overlay.
+```yaml
+webui:
+  marker_provider: vlastudio.webui.marker_providers.RLBenchMarkerProvider
+```
 
-`__preview__` is display-only side metadata. The preview process draws on its
-own resized image buffer before JPEG encoding. Original RGB arrays and policy
-observations stay unchanged; the device's existing save hook removes
-`__preview__` before recordings are written. The RGB markers are never recorded.
+A specification may also use `{type: my_project.ui.Markers, args: {...}}`.
+The UI creates `Markers(environment, image_names=[...], **args)` in the owning
+simulator process after Reset. The provider may cache static calibration,
+frame names or a kinematic model there. It implements:
+
+```python
+def get_marker_from_observation(self, observation):
+    return {
+        "version": 1,
+        "images": {
+            "head_camera": [
+                {"type": "axes", "label": "EE",
+                 "points": [[0.5, 0.5], [0.6, 0.5], [0.5, 0.4], [0.5, 0.6]]},
+                {"type": "joint", "id": "J1", "center": [0.3, 0.4],
+                 "positive_direction": [1.0, -1.0], "radius": 0.025,
+                 "value": 0.4},
+            ]
+        },
+    }
+```
+
+`observation` is the read-only MetaObs field dictionary for that control frame.
+A provider can use it, read existing native FK/frame transforms from its bound
+instance, or compute FK from its own model. It must not step/reset the simulator,
+change its model, draw into RGB, or mutate observation arrays. Built-in RLBench
+and robosuite providers read native tip/site transforms, with no dependency on
+`state_ee` dimensions. Moving camera poses are read for the same frame. Providers
+are rebound after Reset so changed scene handles/calibration cannot become stale.
+
+The shared boundary is a versioned packet of **2D markers**, not a prescribed
+camera or robot-state representation. `images` maps the profile's image names
+to marker lists. Point coordinates are normalized to the image: `(0,0)` is the
+top-left pixel center and `(1,1)` the bottom-right. Endpoints outside the image
+are allowed. Nothing simulator-specific reaches the drawing process.
+
+| Type | Required fields | Optional fields / behavior |
+| --- | --- | --- |
+| `axes` | `points`: origin followed by X/Y/Z endpoints, four 2D points | `label`; `toward_viewer`: three booleans for axes nearly aligned with the camera; an unavailable endpoint can be `None`. Uses red X, green Y, blue Z. |
+| `joint` | `center`: 2D point; `positive_direction`: nonzero image-plane vector | `id`, `label`, numeric `value`, `radius` as a fraction of the shorter image side (default 0.025). Draws a circle, positive/negative direction, and ID/value. The provider determines what positive joint motion means. |
+
+`draw_markers(image, markers)` returns an annotated BGR copy. It knows marker
+categories, not simulation APIs or FK. Unknown types and invalid markers are
+omitted independently. For a custom category, configure a trusted callback:
+
+```yaml
+webui:
+  marker_provider: my_project.ui.Markers
+  marker_renderers:
+    contact: my_project.ui.draw_contact
+```
+
+A renderer has signature `draw_contact(image, marker)` and draws on the supplied
+private preview buffer. The module must be available in the selected runtime.
+No provider configuration, `None`, an empty packet, unavailable geometry, or a
+provider failure all leave the RGB preview usable without those markers.
+
+Provider binding uses the existing WebUI worker setup hook and a per-instance
+observation observer. It does not add methods to or modify the simulator class.
+Ordinary CLI training/evaluation/collection does not bind UI providers. Built-in
+bindings cover RLBench, robosuite, ALOHA EE and LIBERO; profiles can choose other
+providers or omit them entirely.
+The built-in providers currently emit EE axes. Custom providers can emit joint
+markers with their own joint IDs and projected positive-motion directions.
+
+`__preview__` carries only the typed marker packet. The monitor draws on a private
+copy before JPEG encoding. Policy conversion ignores this side channel, and the
+recording conversion/save hook excludes it; original RGB is recorded. No marker
+objects are inserted into a simulator scene. The earlier environment-level
+`get_preview_metadata` and action-adapter `preview_data` methods are removed.
 
 Policy output already uses native units and bypasses teleoperation scaling.
 The UI accepts a VLAStudio server address or compatible local checkpoint.

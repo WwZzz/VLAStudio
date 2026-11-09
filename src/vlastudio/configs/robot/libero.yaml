@@ -1,6 +1,7 @@
 - type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
   name: libero
   webui:
+    marker_provider: vlastudio.webui.marker_providers.LiberoMarkerProvider
     runtime: libero
     runtime_imports: [libero, robosuite]
     rate: 20

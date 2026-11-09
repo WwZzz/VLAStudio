@@ -1,6 +1,7 @@
 - type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
   name: rlbench
   webui:
+    marker_provider: vlastudio.webui.marker_providers.RLBenchMarkerProvider
     runtime: rlbench
     runtime_imports: [rlbench, pyrep]
     runtime_required_env: [COPPELIASIM_ROOT, DISPLAY]

@@ -64,6 +64,10 @@ def configure_device(device):
     from vlastudio.deploy.robot.base import BaseRobot
     if isinstance(device, BaseRobot) and os.environ.get("VLASTUDIO_WEB_GATE"):
         device.set_action_filter(InputGate())
+        from .markers import bind_marker_provider
+        from .profiles import catalog
+        settings = catalog()['robot_options'].get(os.environ.get('VLASTUDIO_WEB_PROFILE', ''), {})
+        bind_marker_provider(device, settings.get('marker_provider'))
 
 
 class InputGate:

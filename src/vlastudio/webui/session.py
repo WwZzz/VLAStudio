@@ -253,6 +253,7 @@ class Session:
                     self.box = mmap.mmap(fd, 5)
                     self.box[:] = bytes([PAUSE,255,0,0,255])
                     env = dict(runtime.env, VLASTUDIO_WEB_FD=str(fd), PYTHONUNBUFFERED="1",
+                               VLASTUDIO_WEB_PROFILE=self.robot,
                                PYTHONDONTWRITEBYTECODE="1",
                                VLASTUDIO_DEVICE_SETUP="vlastudio.webui.bridge.configure_device")
                     self.keyboard_dir = tempfile.TemporaryDirectory(prefix='vla-keys-')
