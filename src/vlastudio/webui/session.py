@@ -243,7 +243,7 @@ class Session:
                                  if a.get('action', {}).get('arms')), None)
                 if expected and self.keyboard_arms != expected:
                     raise ValueError('Keyboard arm count does not match robot configuration')
-            self.output = opts.get("output", "")
+            self.output = opts.get("output", "").strip()
             self.gated = mode == "collect" and (self.teleop or self.reset_ok)
             try:
                 self._resources(self.robot, self.teleop)
@@ -274,6 +274,7 @@ class Session:
             self.sid = secrets.token_hex(8)
             self.stopping, self.pending, self.code = False, None, None
             self.reset_after_pause = False
+            self.episode = None
             self.logs.clear()
             self.runtime = dict(name=runtime.name, python=info['python'])
             self.logs.append(f"Runtime: {runtime.name} ({info['python']})")
@@ -296,6 +297,11 @@ class Session:
         for line in proc.stdout:
             clean = re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line.decode(errors="replace").rstrip())
             with self.lock:
+                match = re.search(r"(?:Press Enter to START episode |Recording episode |\[SessionRecorder\] (?:started (?:video-only )?episode |episode ))(\d+)", clean)
+                if match:
+                    self.episode = int(match[1])
+                elif re.search(r"\[SessionRecorder\] (?:saved|discarded) episode ", clean):
+                    self.episode = None
                 self.logs.append(clean[-2000:])
         code = proc.wait()
         with self.lock:
@@ -352,7 +358,7 @@ class Session:
                 allowed = [action for action in allowed if action not in ('record', 'tele_run')]
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
                         simulation=simulation,
-                        options=self.options if live else {},
+                        options=self.options if live else {}, episode=self.episode if live else None,
                         keyboard_arms=self.keyboard_arms if live else 0,
                         keyboard_bindings=self.keyboard_bindings if live else [],
                         keyboard_axes=self.keyboard_axes if live else [],

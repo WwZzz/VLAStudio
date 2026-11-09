@@ -10,6 +10,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from . import episodes
 from .profiles import catalog
 from .session import Session
 from .tasks import list_tasks, create_task
@@ -39,6 +40,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/infer":("index.html","text/html"), "/app.js":("app.js","text/javascript"),
                  "/style.css":("style.css","text/css"),
                  "/vlastudio-mark.svg":("vlastudio-mark.svg","image/svg+xml")}
+        files["/episodes.js"] = ("episodes.js", "text/javascript")
         files["/i18n.js"] = ("i18n.js", "text/javascript")
         if url.path in files:
             file, mime = files[url.path]
@@ -46,6 +48,20 @@ class Handler(BaseHTTPRequestHandler):
         s = self.server.session
         if url.path == "/api/catalog":
             return self.reply(catalog())
+        if url.path in ("/api/episodes", "/api/episode"):
+            try:
+                with s.lock:
+                    active_video = s.output if s.proc and s.mode == "infer" else None
+                if url.path == "/api/episodes":
+                    return self.reply(episodes.catalog(active_video))
+                query = {k:v[0] for k,v in parse_qs(url.query).items()}
+                dataset, index = query["dataset"], int(query["index"])
+                if dataset == active_video and all(p.suffix == ".mp4" for p in episodes.files(dataset, index)):
+                    raise ValueError("Disconnect before opening this video")
+                return self.reply(episodes.read(dataset, index, query["version"],
+                                      int(query["frame"]) if "frame" in query else None))
+            except (KeyError, ValueError, OSError, RuntimeError) as exc:
+                return self.reply({"error": str(exc)}, status=409)
         if url.path == "/api/tasks":
             return self.reply(list_tasks())
         if url.path == "/api/state":
@@ -67,6 +83,12 @@ class Handler(BaseHTTPRequestHandler):
             if not 1 <= size <= 8192:
                 raise ValueError("Invalid request size")
             data = json.loads(self.rfile.read(size))
+            if self.path == "/api/episode/delete":
+                with s.lock:
+                    if s.proc is not None and s.output == data["dataset"]:
+                        raise ValueError("Disconnect before deleting from this dataset")
+                    episodes.remove(data["dataset"], data["index"], data["version"])
+                return self.reply({"ok": True})
             if self.path == "/api/tasks":
                 return self.reply(create_task(data['name'], data.get('instruction', '')))
             if self.path == "/api/start":

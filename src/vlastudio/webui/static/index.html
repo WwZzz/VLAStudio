@@ -8,6 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="/vlastudio-mark.svg" />
     <script src="/i18n.js" defer></script>
     <script src="/app.js" defer></script>
+    <script src="/episodes.js" defer></script>
   </head>
   <body>
     <header>
@@ -127,11 +128,7 @@
               <p id="realTaskInstruction"></p>
             </div>
           </article>
-          <section class="panel controls">
-            <h2 data-i18n="Run controls">Run controls</h2>
-            <div id="buttons"></div>
-            <p id="status"></p>
-          </section>
+
         </aside>
         <section class="workspace">
           <details class="panel" id="keyboardPanel" hidden open>
@@ -200,6 +197,20 @@
         </section>
       </div>
     </main>
+    <footer id="transport" aria-label="Run controls">
+      <div class="transport-state"><strong id="episodeNumber"></strong><small id="status"></small></div>
+      <div id="buttons" role="group" aria-label="Run controls"></div>
+      <button id="libraryOpen" type="button" class="library-button"><span aria-hidden="true">▤</span> <span data-i18n="Episodes">Episodes</span></button>
+    </footer>
+    <dialog id="library">
+      <div class="heading"><h2 data-i18n="Recorded episodes">Recorded episodes</h2><button id="libraryClose" data-i18n="Close library">Close library</button></div>
+      <div class="library-pickers"><label><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
+      <label>Episode<select id="libraryEpisode"></select></label><button id="deleteEpisode" data-i18n="Delete episode">Delete episode</button></div>
+      <p id="playerMessage" role="status"></p><div id="recordedImages"></div>
+      <div class="player-strip"><button id="playEpisode" type="button"></button>
+      <input id="frameSeek" type="range" min="0" value="0" aria-label="Playback position"><output id="frameNumber"></output></div>
+      <div id="recordedValues"></div>
+    </dialog>
     <dialog id="taskDialog">
       <form id="taskForm">
         <h2 data-i18n="New robot task">New robot task</h2>

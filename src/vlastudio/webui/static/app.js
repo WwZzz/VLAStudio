@@ -298,6 +298,20 @@ async function act(action) {
   }
   await post("action", { id: sid, action });
 }
+function transportIcon(key) {
+  const shapes = {
+    run: '<path d="M7 4.5 20 12 7 19.5Z" fill="currentColor"/>',
+    pause: '<path d="M7 5v14m10-14v14" stroke-width="4"/>',
+    stop: '<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/>',
+    record: '<circle cx="12" cy="12" r="7" fill="currentColor"/>',
+    finish: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>',
+    reset: '<path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/>',
+    save: '<path d="m4 12 5 5L20 6"/>',
+    discard: '<path d="m6 6 12 12M18 6 6 18"/>',
+  };
+  return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    shapes[({tele_run:"run",tele_pause:"pause",home:"reset"})[key] || key] + '</svg>';
+}
 function renderSession(s) {
   const other = s.active && s.mode !== mode;
   if (s.active && !other) {
@@ -342,34 +356,28 @@ function renderSession(s) {
     state.preview.profile === $("robot").value
       ? tr("Close read-only preview")
       : tr("Read-only preview");
-  const allowed = other ? [] : s.actions.filter((action) => action !== "stop");
-  const resetAction = collecting ? "home" : "reset";
-  const displayed = allowed.includes(resetAction)
-    ? allowed
-    : [...allowed, resetAction];
-  const sig = JSON.stringify([s.id, allowed, s.phase, language, busy]);
+  const allowed = other ? [] : s.actions;
+  const displayed = collecting
+    ? [allowed.includes("tele_pause") ? "tele_pause" : "tele_run", allowed.includes("finish") ? "finish" : "record"]
+    : [allowed.includes("pause") ? "pause" : "run"];
+  displayed.push("stop", collecting ? "home" : "reset");
+  for (const key of ["save", "discard"]) if (allowed.includes(key)) displayed.push(key);
+  $("episodeNumber").textContent = s.active && !other && Number.isInteger(s.episode)
+    ? (s.phase === "ready" && collecting ? tr("Next episode") : "Episode") + " " + String(s.episode).padStart(4, "0")
+    : "Episode —";
+  const sig = JSON.stringify([s.id, allowed, displayed, language, busy]);
   if (sig !== lastButtons) {
     lastButtons = sig;
     $("buttons").replaceChildren();
     for (const key of displayed) {
-      const b = el(
-        "button",
-        "",
-        tr(
-          key === "run" && s.phase === "paused"
-            ? "Resume inference"
-            : names[key],
-        ),
-      );
-      b.onclick = () => act(key);
-      b.disabled = busy || !allowed.includes(key);
-      if (b.disabled)
-        b.title = tr(
-          s.active
-            ? "Please wait for the device to become ready"
-            : "Available after connecting a device that supports reset",
-        );
-      $("buttons").append(b);
+      const label = tr(names[key]);
+      const button = el("button", "transport-key " + key);
+      button.innerHTML = transportIcon(key);
+      button.title = label;
+      button.setAttribute("aria-label", label);
+      button.disabled = busy || !allowed.includes(key);
+      button.onclick = () => act(key);
+      $("buttons").append(button);
     }
   }
   $("status").textContent = other
