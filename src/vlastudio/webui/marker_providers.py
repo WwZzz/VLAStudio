@@ -99,13 +99,19 @@ class AlohaMarkerProvider:
 
 
 class RoboTwinMarkerProvider:
-    def __init__(self, environment, image_names):
+    def __init__(self, environment, image_names, frame='world'):
+        if frame not in ('world', 'tcp'):
+            raise ValueError('RoboTwin marker frame must be world or tcp')
+        self.frame = frame
         self.environment = environment
         self.cameras = list(zip(image_names, environment.camera_names))
 
     def get_marker_from_observation(self, observation):
+        from scipy.spatial.transform import Rotation
         task = self.environment.task_env
-        effectors = [dict(label='TCP-' + side[0].upper(), position=pose[:3])
+        effectors = [dict(label='TCP-' + side[0].upper(), position=pose[:3],
+                          rotation=Rotation.from_quat(pose[[4, 5, 6, 3]]).as_matrix()
+                          if self.frame == 'tcp' else np.eye(3))
                      for side, pose in zip(('left', 'right'), self.environment.get_tcp_poses())]
         images = {}
         for image, native_name in self.cameras:

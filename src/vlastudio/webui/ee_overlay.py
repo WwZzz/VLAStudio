@@ -44,14 +44,15 @@ def axes_markers(camera, effectors, image_size, length=.08):
     for effector in effectors:
         try:
             origin = np.asarray(effector['position'], dtype=float).reshape(3)
-            points = np.vstack([origin, origin + np.eye(3) * length])
+            rotation = np.asarray(effector.get('rotation', np.eye(3)), dtype=float).reshape(3, 3)
+            points = np.vstack([origin, origin + rotation.T * length])
             pixels = project(points, camera, width, height)
             if not np.all(np.isfinite(pixels[0])):
                 continue
             normalized = pixels / [max(1, width-1), max(1, height-1)]
             coordinates = [point.tolist() if np.all(np.isfinite(point)) else None for point in normalized]
             camera_z = np.asarray(camera['rotation']).reshape(3, 3)[:, 2]
-            toward = (-camera.get('forward_axis', -1) * (np.eye(3) @ camera_z) > 0).tolist()
+            toward = (-camera.get('forward_axis', -1) * (rotation.T @ camera_z) > 0).tolist()
             result.append(dict(type='axes', points=coordinates, toward_viewer=toward,
                                label=effector.get('label', '')))
         except (KeyError, TypeError, ValueError, IndexError):

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from vlastudio.benchmark.robotwin import RoboTwinEnv
 
@@ -15,6 +16,7 @@ class RoboTwinDeploymentEnv(RoboTwinEnv):
         if not (root / 'envs').is_dir():
             raise ValueError('Configure VLASTUDIO_RUNTIME_ROBOTWIN_ROOT for the installed RoboTwin runtime')
         self.robotwin_root = str(root.resolve())
+        self._control_frames = None
         self.continuous = bool(getattr(config, 'continuous', True))
         if not (root / 'env_cfg').is_dir():
             super().__init__(config)
@@ -60,10 +62,51 @@ class RoboTwinDeploymentEnv(RoboTwinEnv):
             result.raw_lang = self.task_name.replace('_', ' ')
         return result
 
-    def get_tcp_poses(self):
-        """Measured gripper centers, distinct from native EE action origins."""
+    @staticmethod
+    def _pose_matrix(pose):
+        pose = np.asarray(pose, dtype=float).reshape(7)
+        result = np.eye(4)
+        result[:3, :3] = Rotation.from_quat(pose[[4, 5, 6, 3]]).as_matrix()
+        result[:3, 3] = pose[:3]
+        return result
+
+    @staticmethod
+    def _encode_poses(matrices):
+        matrices = np.asarray(matrices)
+        return np.c_[matrices[:, :3, 3],
+                     Rotation.from_matrix(matrices[:, :3, :3]).as_quat()[:, [3, 0, 1, 2]]]
+
+    def _bind_control_frames(self):
         robot = self.task_env.robot
-        return np.asarray([robot.get_left_tcp_pose(), robot.get_right_tcp_pose()], dtype=float)
+        frames = []
+        for side in ('left', 'right'):
+            native = self._pose_matrix(self.task_env.get_arm_pose(side))
+            tcp = self._pose_matrix(getattr(robot, f'get_{side}_tcp_pose')())
+            # Ask the loaded robot for its action-to-planner-link transform.
+            # Its EE joint frame alone omits rotation of the final wrist joint.
+            endlink = robot._trans_from_gripper_to_endlink([0., 0., 0., 1., 0., 0., 0.], arm_tag=side)
+            link_to_control = np.linalg.inv(endlink.to_transformation_matrix())
+            frames.append((side, link_to_control, np.linalg.inv(native) @ tcp))
+        self._control_frames = frames
+
+    def _measured_tool_matrices(self, tcp):
+        if self._control_frames is None:
+            self._bind_control_frames()
+        robot = self.task_env.robot
+        result = []
+        for side, link_to_control, control_to_tcp in self._control_frames:
+            link = getattr(robot, side + '_ee').child_link
+            control = link.get_entity_pose().to_transformation_matrix() @ link_to_control
+            result.append(control @ control_to_tcp if tcp else control)
+        return result
+
+    def get_ee_control_poses(self):
+        """Measured action-frame poses, including the final wrist joint's motion."""
+        return self._encode_poses(self._measured_tool_matrices(tcp=False))
+
+    def get_tcp_poses(self):
+        """Measured gripper TCP poses from native link FK and tool calibration."""
+        return self._encode_poses(self._measured_tool_matrices(tcp=True))
 
     def reset(self):
         with self._context():
@@ -72,6 +115,7 @@ class RoboTwinDeploymentEnv(RoboTwinEnv):
             settings = deepcopy(self.task_config)
             settings.update(seed=self.seed, now_ep_num=0, eval_mode=True)
             self.task_env.setup_demo(is_test=True, **settings)
+            self._control_frames = None
             self._env_initialized = True
             self.task_env.step_lim = float('inf') if self.continuous else self.max_timesteps
             self.task_env.take_action_cnt = 0

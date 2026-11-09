@@ -4,7 +4,10 @@
     runtime: robotwin
     runtime_imports: [sapien, mplib, curobo]
     runtime_required_env: [VLASTUDIO_RUNTIME_ROBOTWIN_ROOT]
-    marker_provider: vlastudio.webui.marker_providers.RoboTwinMarkerProvider
+    marker_provider:
+      type: vlastudio.webui.marker_providers.RoboTwinMarkerProvider
+      args:
+        frame: tcp
     rate: 20
     tasks: [click_bell, adjust_bottle]
     teleop: keyboard_delta_2arm_20hz
@@ -38,6 +41,8 @@
       space: ee
       type: abs
       rotation: quat_wxyz
+      translation_frame: local
+      rotation_frame: local
       # Native EE state/action format; the teleop adapter controls the gripper TCP.
       initial_target: state_ee
     observation:
