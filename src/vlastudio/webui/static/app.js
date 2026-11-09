@@ -443,6 +443,12 @@ function renderSession(s) {
     if ($("follow").checked) $("log").scrollTop = $("log").scrollHeight;
   }
 }
+// Count distinct preview frames actually drawn, using the browser clock.
+function cameraFrameRate(item, now) {
+  while (item.drawTimes.length && item.drawTimes[0] <= now - 1000)
+    item.drawTimes.shift();
+  return now - item.createdAt >= 1000 && item.timestamped ? item.drawTimes.length : "—";
+}
 async function updateCamera(name, item) {
   if (item.loading) return;
   item.loading = true;
@@ -477,7 +483,14 @@ async function updateCamera(name, item) {
           if (previous) URL.revokeObjectURL(previous);
         }
       }
-      item.stamp = response.headers.get("X-Frame-Stamp");
+      const stamp = response.headers.get("X-Frame-Stamp");
+      if (stamp && stamp !== item.stamp) {
+        const now = performance.now();
+        cameraFrameRate(item, now);
+        item.drawTimes.push(now);
+        item.timestamped = true;
+      }
+      item.stamp = stamp;
       // Older servers return snapshots immediately. Bound their polling rate.
       if (!item.stamp) await new Promise(resolve => setTimeout(resolve, 80));
     }
@@ -515,11 +528,13 @@ function cameras(p) {
       canvas.setAttribute("aria-label", name);
       node.append(context ? canvas : img, label);
       $("feeds").append(node);
-      item = {node, img, context, label, url: "", stamp: null, controller: new AbortController()};
+      item = {node, img, context, label, url: "", stamp: null, controller: new AbortController(),
+              createdAt: performance.now(), drawTimes: [], timestamped: false};
       feeds.set(name, item);
     }
     const age = p.age[name.split("/")[0]] ?? 0;
-    item.label.textContent = name + (age > 2 ? tr(" · Data stale") : "");
+    const fps = cameraFrameRate(item, performance.now());
+    item.label.textContent = name + " · " + fps + " FPS" + (age > 2 ? tr(" · Data stale") : "");
     updateCamera(name, item);
   }
 }

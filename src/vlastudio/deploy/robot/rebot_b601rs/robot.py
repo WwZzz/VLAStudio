@@ -52,6 +52,7 @@ class RebotB601RS(AliciaD):
         if not np.isfinite(self.home_gripper_tolerance) or self.home_gripper_tolerance<=self.gripper_deadband:
             raise ValueError('Gripper home tolerance must exceed its control deadband')
         self._tracking_time=None
+        self._delta_direction = np.zeros(6)
         self._ik_tracking_status=None
         self._home_status=None
         self.bus = None
@@ -125,6 +126,7 @@ class RebotB601RS(AliciaD):
         self._smooth_qpos = self._current_joint_angles.copy()
         self._current_gripper = self._target_gripper = float(obs['qpos'][6]*1000)
         self._ik_initialized = False
+        self._delta_direction.fill(0)
         self._tracking_time = None
 
     def enable(self):
@@ -181,6 +183,17 @@ class RebotB601RS(AliciaD):
             ok,q,_,_ = self.ik_solver.solve(target,q_init=self.get_observation()['joint_angles'])
             return dict(message,action=np.r_[q,a[6]] if ok else None)
         if self.control_mode == 'delta_ee':
+            # Keep accumulated deltas during a held key. On direction changes
+            # the raw IK pose may be a whole step ahead of the filtered command.
+            # Drop that outstanding step before composing the new increment.
+            direction = np.sign(a[:6])
+            if not np.array_equal(direction, self._delta_direction):
+                self._delta_direction = direction
+                if self._smooth_qpos is not None:
+                    self.ik_solver.set_reference(self._smooth_qpos[:6])
+                self._prev_ik_qpos = None
+                self._still_count = 0
+                self._teleop_holding_still = False
             # Keyboard sends normalized opening increments. Unlike Alicia's loop,
             # Rebot.start() does not update the gripper before process_action().
             self._target_gripper = float(np.clip(self._target_gripper + a[6]*1000, 0, 1000))
