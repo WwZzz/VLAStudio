@@ -233,9 +233,12 @@ class Session:
                                        if getattr(resolve(t), 'browser_keyboard', False)), 0)
             self.keyboard_bindings = next((resolve(t).bindings_for_arms(int(a.get('arms', 1)), a.get('key_bindings'))
                                            for _, t, a in keyboard_rows if getattr(resolve(t), 'browser_keyboard', False)), [])
+            self.keyboard_base_bindings = next((resolve(t).bindings_for_base(a.get('base_bindings'))
+                                               for _, t, a in keyboard_rows if hasattr(resolve(t), 'bindings_for_base')), [])
             self.keyboard_axes = catalog()['robot_options'].get(self.robot, {}).get('keyboard_axes', list(range(7)))
             self.keyboard_keys = {key for arm in self.keyboard_bindings for axis, pair in enumerate(arm)
                                   if axis in self.keyboard_axes for key in pair}
+            self.keyboard_keys.update(key for pair in self.keyboard_base_bindings for key in pair)
             self.keyboard_owner = None
             self.keyboard_last_seen = 0
             if self.keyboard_arms:
@@ -355,6 +358,7 @@ class Session:
                         options=self.options if live else {},
                         keyboard_arms=self.keyboard_arms if live else 0,
                         keyboard_bindings=self.keyboard_bindings if live else [],
+                        keyboard_base_bindings=self.keyboard_base_bindings if live else [],
                         keyboard_axes=self.keyboard_axes if live else [],
                         tele=("blocked" if simulation['paused'] else "running" if self.box[1]==RUN else "homing" if self.box[1]==RESETTING else "paused")
                         if live and self.gated else "", actions=allowed, logs=list(self.logs), exit=self.code)

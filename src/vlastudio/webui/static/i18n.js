@@ -1,5 +1,9 @@
 "use strict";
 const chinese = {
+  "Mobile base (robot frame)": "移动底盘（机器人坐标系）",
+  "Forward / backward": "前进 / 后退",
+  "Left / right": "左移 / 右移",
+  "Turn left / right": "左转 / 右转",
   "Simulation reached its step limit. Reset to continue.": "仿真达到步数上限，请 Reset 后继续。",
   "Simulation stopped or rejected an action. Reset to continue.": "仿真终止或动作不可达，请 Reset 后继续。",
   "Simulation paused after task success. Reset to continue.": "任务成功后仿真已暂停，请 Reset 后继续。",

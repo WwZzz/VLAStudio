@@ -119,7 +119,7 @@ class BenchmarkRobot(BaseRobot):
         self.pending = value.copy()
 
     def get_action_dim(self):
-        return self.arms * self.width
+        return int(getattr(self.adapter, 'action_dim', self.arms * self.width))
 
     def is_running(self):
         return self.env is not None
