@@ -11,14 +11,18 @@ class RoboTwinAdapter(CartesianAdapter):
         self.control_frequency = float(getattr(env.config, 'control_freq', 20))
         if self.arms != 2 or self.rotation != 'quat_wxyz' or self.native_type != 'abs':
             raise ValueError('RoboTwin EE control requires two absolute xyz + WXYZ + gripper targets')
-        native = self._pose_matrices(self.target.reshape(2, 8)[:, :7])
+        measured = self.target.copy().reshape(2, 8)
+        measured[:, :7] = env.get_ee_control_poses()
+        native = self._pose_matrices(measured[:, :7])
         tcp = self._pose_matrices(env.get_tcp_poses())
         # Calibrate the rigid tool transform from the loaded embodiment, not a
         # hard-coded distance. Reset rebinds it when the robot is recreated.
         self.native_to_tcp = np.linalg.inv(native) @ tcp
         self.tcp_to_native = np.linalg.inv(self.native_to_tcp)
         self.tcp_controls = CartesianAdapter(self.config)
-        self.tcp_controls.target = self._change_control_point(self.target, self.native_to_tcp)
+        self.tcp_controls.target = self._change_control_point(measured, self.native_to_tcp)
+        if getattr(env.config, 'input_mode', 'ee_delta') != 'native':
+            self.target = measured.reshape(-1).copy()
 
     @staticmethod
     def _pose_matrices(poses):

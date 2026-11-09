@@ -71,9 +71,12 @@ class CartesianAdapter:
         scale = np.broadcast_to(self.config.get("delta_scale", [1] * 6), (6,))
         for i, increment in enumerate(delta):
             if self.native_type == "abs":
-                result[i, :3] += increment[:3] * scale[:3]
-                rotation = Rotation.from_rotvec(increment[3:6] * scale[3:])
                 current = self._rotation(result[i, 3:-1])
+                translation = increment[:3] * scale[:3]
+                if self.config.get("translation_frame", "world") == "local":
+                    translation = current.apply(translation)
+                result[i, :3] += translation
+                rotation = Rotation.from_rotvec(increment[3:6] * scale[3:])
                 if self.config.get("rotation_frame", "world") == "local":
                     rotation = current * rotation
                 else:

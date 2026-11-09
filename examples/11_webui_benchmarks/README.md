@@ -155,24 +155,31 @@ Interactive collection continues after native evaluation success; explicit Reset
 restores the seeded scene. Policies must match this EE controller and image/state
 contract. Joint-space policies need their own matching deployment profile.
 
-Keyboard translation and rotation act at the measured gripper TCP, with
-world-aligned axes. The adapter obtains each TCP from the loaded robot and
-calibrates its rigid transform from the native EE frame after every Reset.
+Keyboard translation and rotation use the gripper TCP's **local axes**, which
+turn with the gripper. The profile explicitly selects `translation_frame: local`
+and `rotation_frame: local`, and its marker provider selects `frame: tcp`.
+Other Cartesian profiles retain world-axis translation by default.
+The adapter obtains tool calibration from the loaded robot after every Reset.
+Actual tool orientation comes from the moving child link's native FK, including
+the last wrist joint; the native joint anchor alone does not include that roll.
 Rotation targets keep the gripper center fixed, then convert back to RoboTwin's
 native EE action frame. The requested TCP goal is retained between frames;
 servo tracking error is not accumulated as another movement command.
-For the prepared embodiment those two
-origins differ by 12 cm; that distance is not hard-coded in the adapter.
-Preview axes are labeled `TCP-L` / `TCP-R` and use the same measured TCP origins.
+For the prepared embodiment the native EE and TCP origins differ by 12 cm;
+that distance is not hard-coded in the adapter. Preview axes are labeled
+`TCP-L` / `TCP-R` and use the same measured TCP origins and local orientations.
 The recorded `state`, `state_ee` and 16-value policy actions retain the original
 native EE representation; they must not be interpreted as TCP poses.
 
-On QZ, after lifting both arms into a reachable pose, rotations of about 0.20 rad
-around each world X/Y/Z axis kept both measured TCPs within 0.08 mm of their
-starting positions. The native home pose did not track a larger positive X
-rotation: a planned joint target was not physically reached. TCP target
-conversion does not remove native motion constraints; lift the arms before
-attempting that rotation from home.
+Teleoperator increments stored in `teleop/action` use these profile-selected
+local axes; the executed action remains the native absolute EE vector.
+
+QZ checks after lifting and repositioning the tools covered both signs of each
+local X/Y/Z rotation and translation along all three local axes. Measured signed
+axis cosines exceeded 0.9999, maximum rotational TCP drift was 0.32 mm, and the
+head-camera axes visibly updated after wrist roll. Recording pause/resume,
+save, Reset, and nine native policy requests over TCP also passed. The native motion
+planner and physics still determine which requested tool poses are reachable.
 
 On QZ RTX 4090, WebUI checks covered both arms and grippers, three camera marker
 packets, unmarked HDF5 recording, pause, seeded Reset, and TCP policy requests
