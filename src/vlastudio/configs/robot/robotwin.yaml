@@ -38,6 +38,7 @@
       space: ee
       type: abs
       rotation: quat_wxyz
+      # Native EE state/action format; the teleop adapter controls the gripper TCP.
       initial_target: state_ee
     observation:
       fields:

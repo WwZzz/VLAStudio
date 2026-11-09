@@ -155,6 +155,25 @@ Interactive collection continues after native evaluation success; explicit Reset
 restores the seeded scene. Policies must match this EE controller and image/state
 contract. Joint-space policies need their own matching deployment profile.
 
+Keyboard translation and rotation act at the measured gripper TCP, with
+world-aligned axes. The adapter obtains each TCP from the loaded robot and
+calibrates its rigid transform from the native EE frame after every Reset.
+Rotation targets keep the gripper center fixed, then convert back to RoboTwin's
+native EE action frame. The requested TCP goal is retained between frames;
+servo tracking error is not accumulated as another movement command.
+For the prepared embodiment those two
+origins differ by 12 cm; that distance is not hard-coded in the adapter.
+Preview axes are labeled `TCP-L` / `TCP-R` and use the same measured TCP origins.
+The recorded `state`, `state_ee` and 16-value policy actions retain the original
+native EE representation; they must not be interpreted as TCP poses.
+
+On QZ, after lifting both arms into a reachable pose, rotations of about 0.20 rad
+around each world X/Y/Z axis kept both measured TCPs within 0.08 mm of their
+starting positions. The native home pose did not track a larger positive X
+rotation: a planned joint target was not physically reached. TCP target
+conversion does not remove native motion constraints; lift the arms before
+attempting that rotation from home.
+
 On QZ RTX 4090, WebUI checks covered both arms and grippers, three camera marker
 packets, unmarked HDF5 recording, pause, seeded Reset, and TCP policy requests
 through the existing `collect_data` / `eval_real` entrypoints. The policy check

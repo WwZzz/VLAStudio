@@ -105,8 +105,8 @@ class RoboTwinMarkerProvider:
 
     def get_marker_from_observation(self, observation):
         task = self.environment.task_env
-        effectors = [dict(label=side[0].upper(), position=task.get_arm_pose(side)[:3])
-                     for side in ('left', 'right')]
+        effectors = [dict(label='TCP-' + side[0].upper(), position=pose[:3])
+                     for side, pose in zip(('left', 'right'), self.environment.get_tcp_poses())]
         images = {}
         for image, native_name in self.cameras:
             native = task.now_obs['observation'].get(native_name, {})

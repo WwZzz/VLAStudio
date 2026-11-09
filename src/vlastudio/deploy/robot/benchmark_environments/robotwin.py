@@ -60,6 +60,11 @@ class RoboTwinDeploymentEnv(RoboTwinEnv):
             result.raw_lang = self.task_name.replace('_', ' ')
         return result
 
+    def get_tcp_poses(self):
+        """Measured gripper centers, distinct from native EE action origins."""
+        robot = self.task_env.robot
+        return np.asarray([robot.get_left_tcp_pose(), robot.get_right_tcp_pose()], dtype=float)
+
     def reset(self):
         with self._context():
             if self._env_initialized:
