@@ -106,7 +106,6 @@ planner still need a separate GPU-backed interactive adapter and live checks.
 ## Reproduce the checks
 
 ```bash
-python -m pytest tests/test_benchmark_deployment.py -q
 python examples/11_webui_benchmarks/validate_session.py \
   --profile metaworld --result /tmp/metaworld-session.json
 python examples/11_webui_benchmarks/validate_session.py \
