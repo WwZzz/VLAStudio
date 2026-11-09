@@ -7,13 +7,33 @@ AXES = (("X", (48, 48, 225)), ("Y", (55, 180, 35)), ("Z", (235, 105, 40)))
 
 def project(points, camera, width, height):
     points = np.asarray(points, dtype=float)
-    local = (points - np.asarray(camera['position'])) @ np.asarray(camera['rotation']).reshape(3, 3)
-    depth = -local[:, 2]
-    focal = height / (2 * np.tan(np.deg2rad(camera['fovy']) / 2))
+    position = np.asarray(camera['position'], dtype=float).reshape(3)
+    rotation = np.asarray(camera['rotation'], dtype=float).reshape(3, 3)
+    if not np.all(np.isfinite(np.r_[points.reshape(-1), position, rotation.reshape(-1)])):
+        raise ValueError('Non-finite preview geometry')
+    local = (points - position) @ rotation
+    forward = camera.get('forward_axis', -1)
+    if forward not in (-1, 1):
+        raise ValueError('Camera forward_axis must be -1 or 1')
+    depth = forward * local[:, 2]
     valid = depth > .001
     pixels = np.full((len(points), 2), np.nan)
-    pixels[valid, 0] = (width - 1) / 2 + focal * local[valid, 0] / depth[valid]
-    pixels[valid, 1] = (height - 1) / 2 - focal * local[valid, 1] / depth[valid]
+    if 'intrinsics' in camera:
+        intrinsics = np.asarray(camera['intrinsics'], dtype=float).reshape(3, 3)
+        source_size = np.asarray(camera['image_size'], dtype=float).reshape(2)
+        if (not np.all(np.isfinite(intrinsics)) or not np.all(np.isfinite(source_size))
+                or np.any(source_size <= 0) or abs(np.linalg.det(intrinsics)) < 1e-12):
+            raise ValueError('Invalid preview camera intrinsics')
+        homogeneous = local[valid] @ intrinsics.T
+        pixels[valid] = homogeneous[:, :2] / homogeneous[:, 2:3]
+        pixels[valid] = (pixels[valid] + .5) * np.array([width, height]) / source_size - .5
+    else:
+        fovy = float(camera['fovy'])
+        if not 0 < fovy < 180:
+            raise ValueError('Invalid preview camera field of view')
+        focal = height / (2 * np.tan(np.deg2rad(fovy) / 2))
+        pixels[valid, 0] = (width - 1) / 2 + focal * local[valid, 0] / depth[valid]
+        pixels[valid, 1] = (height - 1) / 2 - focal * local[valid, 1] / depth[valid]
     if camera.get('flip_x'):
         pixels[:, 0] = width - 1 - pixels[:, 0]
     if camera.get('flip_y'):
@@ -23,11 +43,16 @@ def project(points, camera, width, height):
 
 def draw_axes(image, camera, effectors):
     """Draw only on the preview's owned, resized BGR buffer."""
+    if not isinstance(camera, dict) or not isinstance(effectors, (list, tuple)):
+        return
     height, width = image.shape[:2]
     for effector in effectors:
-        origin = np.asarray(effector['position'], dtype=float)
-        points = np.vstack([origin, origin + np.eye(3) * .08])
-        pixels = project(points, camera, width, height)
+        try:
+            origin = np.asarray(effector['position'], dtype=float).reshape(3)
+            points = np.vstack([origin, origin + np.eye(3) * .08])
+            pixels = project(points, camera, width, height)
+        except (KeyError, TypeError, ValueError, IndexError):
+            continue
         if not np.all(np.isfinite(pixels[0])):
             continue
         start = tuple(np.rint(pixels[0]).astype(int))
@@ -43,7 +68,7 @@ def draw_axes(image, camera, effectors):
                 cv2.circle(image, start, 7, (255, 255, 255), 3, cv2.LINE_AA)
                 cv2.circle(image, start, 7, color, 2, cv2.LINE_AA)
                 camera_z = np.asarray(camera['rotation']).reshape(3, 3)[:, 2]
-                if np.dot(points[index] - points[0], camera_z) > 0:
+                if -camera.get('forward_axis', -1) * np.dot(points[index] - points[0], camera_z) > 0:
                     cv2.circle(image, start, 2, color, -1, cv2.LINE_AA)
                 else:
                     for sign in (-1, 1):

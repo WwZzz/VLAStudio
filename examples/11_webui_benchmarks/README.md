@@ -129,6 +129,31 @@ preview, HDF5 recording, keyboard response after 550 steps, pause, Reset and
 TCP policy round trips through the existing collection/inference entrypoints.
 The TCP checks used a diagnostic policy; learned task success was not evaluated.
 
+## Optional preview geometry
+
+Deployment environments may implement `get_preview_metadata(observation)`.
+Return `None` when geometry is unavailable. Otherwise return a dictionary with
+`frame: world`, `effectors` (a list of `label` / world `position` dictionaries),
+and `cameras` in the same order as the emitted RGB images. A missing individual
+camera can be `None`. Camera `position` and `rotation` describe camera-to-world
+geometry. Provide either vertical `fovy` in degrees (OpenGL camera, looking down
+local -Z), or `intrinsics`, source `image_size: [width, height]`, and
+`forward_axis: 1` for a calibrated +Z camera. Intrinsics must describe the emitted
+image, including its signed axes; optional `flip_x` / `flip_y` describe any
+additional image flips. Moving camera geometry must be refreshed with each frame.
+The existing action-adapter `preview_data` hook remains a fallback for older profiles.
+
+RLBench reads calibration from the original observation's `misc`; robosuite reads
+its existing camera geometry and measured EE position. Neither adds objects to
+the simulator or changes its RGB rendering. The WebUI draws world X (red),
+Y (green), Z (blue) at each end effector, matching keyboard translation axes.
+Unavailable or invalid camera information simply omits the overlay.
+
+`__preview__` is display-only side metadata. The preview process draws on its
+own resized image buffer before JPEG encoding. Original RGB arrays and policy
+observations stay unchanged; the device's existing save hook removes
+`__preview__` before recordings are written. The RGB markers are never recorded.
+
 Policy output already uses native units and bypasses teleoperation scaling.
 The UI accepts a VLAStudio server address or compatible local checkpoint.
 Local checkpoint inference automatically uses CUDA when available and CPU

@@ -70,5 +70,30 @@ class RobosuiteDeploymentEnv(RobomimicEnv):
         # robomimic suppresses done; read the underlying robosuite horizon.
         return obs, reward, False, bool(self.env.base_env.done), info
 
+    def get_preview_metadata(self, observation):
+        """Read camera/EE geometry without adding simulator markers or changing RGB."""
+        from robosuite import macros
+        sim = self.env.base_env.sim
+        cameras = []
+        for key in self.img_keys:
+            camera = None
+            try:
+                index = sim.model.camera_name2id(key.removesuffix('_image'))
+                if index >= 0:
+                    camera = dict(position=sim.data.cam_xpos[index].tolist(),
+                                  rotation=sim.data.cam_xmat[index].reshape(3, 3).tolist(),
+                                  fovy=float(sim.model.cam_fovy[index]),
+                                  # robomimic flips RGB vertically after robosuite's convention.
+                                  flip_y=macros.IMAGE_CONVENTION == 'opencv')
+            except (AttributeError, KeyError, ValueError, IndexError):
+                pass
+            cameras.append(camera)
+        if not any(cameras):
+            return None
+        poses = np.asarray(observation['state_ee']).reshape(-1, 8)
+        effectors = [dict(label='EE' if len(poses) == 1 else f'R{i}', position=pose[:3].tolist())
+                     for i, pose in enumerate(poses)]
+        return dict(cameras=cameras, effectors=effectors, frame='world')
+
     def close(self):
         self.env.base_env.close()

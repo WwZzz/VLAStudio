@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import time
 
 import numpy as np
+from loguru import logger
 
 from vlastudio.deploy.robot.base import BaseRobot
 from vlastudio.utils.extensions import resolve
@@ -81,11 +82,20 @@ class BenchmarkRobot(BaseRobot):
         if self.last_action is not None:
             data["executed_action"] = self.last_action.copy()
             data["action"] = self.last_action.copy()
-        preview = getattr(self.adapter, 'preview_data', None)
-        if self.space == 'ee' and preview is not None:
-            hints = preview(self.env, self.raw)
-            hints['cameras'] = dict(zip(self.observation_config.get('cameras', []), hints['cameras']))
-            data['__preview__'] = hints
+        preview = getattr(self.env, 'get_preview_metadata', None)
+        legacy_preview = getattr(self.adapter, 'preview_data', None)
+        if self.space == 'ee' and (callable(preview) or callable(legacy_preview)):
+            try:
+                hints = preview(self.raw) if callable(preview) else legacy_preview(self.env, self.raw)
+                if hints:
+                    cameras = dict(zip(self.observation_config.get('cameras', []), hints['cameras']))
+                    data['__preview__'] = dict(hints, cameras=cameras)
+            except Exception as error:
+                # Optional display information must never stop control or recording.
+                message = str(error)
+                if message != getattr(self, '_preview_error', None):
+                    logger.warning('Preview metadata unavailable: {}', error)
+                    self._preview_error = message
         self.cached = data
 
     @classmethod

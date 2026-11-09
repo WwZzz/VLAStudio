@@ -38,7 +38,31 @@ class RLBenchDeploymentEnv(RLBenchEnv):
         result = super().obs2meta(obs)
         result.state_joint = np.r_[obs.joint_positions, obs.gripper_open].astype(np.float32)
         result.state_ee = np.r_[obs.gripper_pose, obs.gripper_open].astype(np.float32)
+        # RLBench already supplies calibration for the RGB frame, including wrist motion.
+        misc = getattr(obs, 'misc', None) or {}
+        self._preview_cameras = []
+        for name in self.camera_names:
+            extrinsics = misc.get(name + '_camera_extrinsics')
+            intrinsics = misc.get(name + '_camera_intrinsics')
+            rgb = getattr(obs, name + '_rgb', None)
+            camera = None
+            if extrinsics is not None and intrinsics is not None and rgb is not None:
+                extrinsics, intrinsics = np.asarray(extrinsics), np.asarray(intrinsics)
+                if extrinsics.shape == (4, 4) and intrinsics.shape == (3, 3):
+                    camera = dict(position=extrinsics[:3, 3].tolist(),
+                                  rotation=extrinsics[:3, :3].tolist(),
+                                  intrinsics=intrinsics.tolist(), image_size=[rgb.shape[1], rgb.shape[0]],
+                                  forward_axis=1)
+            self._preview_cameras.append(camera)
         return result
+
+    def get_preview_metadata(self, observation):
+        """Optional display-only data, separate from MetaObs and simulator rendering."""
+        cameras = getattr(self, '_preview_cameras', [])
+        if not any(cameras):
+            return None
+        return dict(cameras=cameras, effectors=[dict(label='EE', position=observation['state_ee'][:3].tolist())],
+                    frame='world')
 
     def reset(self):
         np.random.seed(int(getattr(self.config, 'seed', 7)))
