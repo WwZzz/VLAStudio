@@ -120,7 +120,7 @@
     fps: 20
     task: ReachTarget
     environment:
-      type: vlastudio.deploy.robot.benchmark_environments.rlbench.RLBenchDeploymentEnv
+      type: vlastudio.benchmark.rlbench.interactive.RLBenchInteractiveEnv
       args:
         ctrl_space: ee
         ctrl_type: abs

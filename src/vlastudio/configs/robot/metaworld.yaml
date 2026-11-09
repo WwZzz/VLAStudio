@@ -67,7 +67,7 @@
     fps: 20
     task: reach-v3
     environment:
-      type: vlastudio.deploy.robot.benchmark_environments.metaworld.MetaWorldDeploymentEnv
+      type: vlastudio.benchmark.metaworld.interactive.MetaWorldInteractiveEnv
       args:
         ctrl_space: ee
         camera_name: corner

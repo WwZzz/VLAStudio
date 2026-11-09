@@ -17,7 +17,7 @@
     fps: 20
     task: empty
     environment:
-      type: vlastudio.deploy.robot.benchmark_environments.behavior.BehaviorDeploymentEnv
+      type: vlastudio.benchmark.behavior1k.interactive.BehaviorInteractiveEnv
       args:
         ctrl_space: ee
         ctrl_type: delta

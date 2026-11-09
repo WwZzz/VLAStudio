@@ -13,7 +13,7 @@
     input_mode: native
     task: sim_transfer_cube_scripted
     environment:
-      type: vlastudio.deploy.robot.benchmark_environments.aloha.AlohaDeploymentEnv
+      type: vlastudio.benchmark.aloha.interactive.AlohaInteractiveEnv
       args:
         ctrl_space: joint
         ctrl_type: abs
