@@ -2,6 +2,7 @@
 import argparse
 import base64
 import json
+import os
 from pathlib import Path
 import signal
 import socket
@@ -93,7 +94,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--runtimes", type=Path, help="Site JSON mapping simulator names to Python launchers")
     args = parser.parse_args()
+    if args.runtimes is not None:
+        os.environ['VLASTUDIO_WEBUI_RUNTIMES'] = str(args.runtimes.expanduser().resolve())
     server = ThreadingHTTPServer((args.host,args.port), Handler)
     server.session = Session()
     print(f"VLAStudio WebUI http://{socket.gethostname()}:{args.port}", flush=True)

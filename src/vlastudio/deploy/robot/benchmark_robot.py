@@ -46,6 +46,7 @@ class BenchmarkRobot(BaseRobot):
     def connect(self):
         if self.env is None:
             config = dict(self.environment_config.get("args", {}))
+            config.setdefault('input_mode', self.input_mode)
             if self.task:
                 config["task"] = self.task
             factory = resolve(self.environment_config["type"])
@@ -76,7 +77,7 @@ class BenchmarkRobot(BaseRobot):
         data.update(sim_step=self.steps, sim_time=self.steps / self.fps,
                     episode_id=self.episode, reward=float(reward or 0),
                     success=self.success, terminated=bool(terminated), truncated=bool(truncated),
-                    paused=self.blocked, raw_lang=obs.get("raw_lang", ""))
+                    paused=self.blocked, action_rejected=False, raw_lang=obs.get("raw_lang", ""))
         if self.last_action is not None:
             data["executed_action"] = self.last_action.copy()
             data["action"] = self.last_action.copy()
@@ -146,14 +147,23 @@ class BenchmarkRobot(BaseRobot):
         if action is None:
             action = self.adapter.idle_action()
         self.adapter.target = action.copy()
-        result = self.env.step(self.adapter.environment_action(action))
-        self.last_action = action
+        # Policy output already uses the environment's native action units.
+        # Teleoperation alone needs adapter-specific gripper/scale conversion.
+        if self.input_mode == 'native':
+            from vlastudio.benchmark.base import MetaAction
+            environment_action = MetaAction(action=action.copy(), ctrl_space=self.space, ctrl_type=self.native_type)
+        else:
+            environment_action = self.adapter.environment_action(action)
+        result = self.env.step(environment_action)
         self.steps += 1
         if len(result) == 5:
             obs, reward, terminated, truncated, info = result
         else:
             obs, reward, done, info = result
             terminated, truncated = bool(done), False
+        rejected = bool(info.get('action_rejected', False)) if isinstance(info, dict) else False
+        if not rejected:
+            self.last_action = np.asarray(environment_action['action']).copy()
         success_key = self.environment_config.get("success_key", "success")
         success = bool(info.get(success_key, False)) if isinstance(info, dict) else False
         if self.environment_config.get("done_is_success", False):
@@ -162,6 +172,9 @@ class BenchmarkRobot(BaseRobot):
             truncated = True
         self.blocked = bool((success and self.on_success == "pause") or terminated or truncated)
         self._cache(obs, reward, terminated, truncated, success)
+        self.cached['action_rejected'] = rejected
+        if rejected and self.input_mode != 'native':
+            self.adapter.reset(self.env, self.raw)
         if (terminated or truncated) and self.on_termination == "reset":
             self._reset_next = True
 

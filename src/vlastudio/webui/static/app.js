@@ -194,7 +194,8 @@ async function init() {
   profiles = await api("catalog");
   robotTasks = await api("tasks");
   fillRobotTasks();
-  fill("robot", profiles.robot);
+  fill("robot", profiles.robot.filter((name) =>
+    (profiles.robot_options?.[name]?.modes || ["collect", "infer"]).includes(mode)));
   fill("teleop", profiles.teleop, tr("None \u00b7 Observations only"));
   fill("sync", profiles.recording, tr("Native synchronization"));
   fill("manager", profiles.action_manager);
@@ -373,6 +374,12 @@ function renderSession(s) {
   }
   $("status").textContent = other
     ? tr("A session is running on the other page.")
+    : s.active && s.simulation?.paused
+      ? s.robot + " · " + tr({
+          limit: "Simulation reached its step limit. Reset to continue.",
+          terminated: "Simulation stopped or rejected an action. Reset to continue.",
+          success: "Simulation paused after task success. Reset to continue.",
+        }[s.simulation.reason])
     : s.active
       ? s.robot +
         (s.tele
@@ -644,7 +651,9 @@ function keyboardEnabled() {
   );
 }
 function mappedKeys() {
-  return new Set((state?.session.keyboard_bindings || []).flat(2));
+  const axes = state?.session.keyboard_axes || [0, 1, 2, 3, 4, 5, 6];
+  return new Set((state?.session.keyboard_bindings || [])
+    .flatMap((arm) => arm.filter((_, axis) => axes.includes(axis))).flat());
 }
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
@@ -688,7 +697,8 @@ setInterval(async () => {
 }, 50);
 function renderKeyboard() {
   const bindings = state?.session.keyboard_bindings || [];
-  const signature = JSON.stringify([bindings, language]);
+  const axes = state?.session.keyboard_axes || [0, 1, 2, 3, 4, 5, 6];
+  const signature = JSON.stringify([bindings, axes, language]);
   if ($("keyboardBindings").dataset.signature === signature) return;
   $("keyboardBindings").dataset.signature = signature;
   $("keyboardBindings").replaceChildren();
@@ -728,6 +738,7 @@ function renderKeyboard() {
     });
     block.append(header);
     ["Translation", "Rotation"].forEach((label, group) => {
+      if (![0, 1, 2].some((axis) => axes.includes(group * 3 + axis))) return;
       const row = el("div", "key-table-row " + (group ? "key-rotation" : "key-translation"));
       const rowLabel = el("span", "key-group-label");
       const icon = el("span", "key-motion-icon", group ? "↻" : "↔");

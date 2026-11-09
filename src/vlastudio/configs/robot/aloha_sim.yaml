@@ -1,6 +1,8 @@
 - type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
   name: aloha_sim
   webui:
+    runtime: aloha
+    runtime_imports: [dm_control, mujoco]
     rate: 30
     tasks:
     - sim_transfer_cube_scripted

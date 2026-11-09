@@ -144,3 +144,65 @@ class LiberoAdapter(CartesianAdapter):
                                 fovy=float(sim.model.cam_fovy[index]), flip_x=True,
                                 flip_y=macros.IMAGE_CONVENTION == 'opencv'))
         return dict(cameras=cameras, effectors=[dict(label='EE', position=observation['state_ee'][:3].tolist())], frame='world')
+
+
+class RLBenchAdapter(CartesianAdapter):
+    """Anchor incremental IK targets to measured pose instead of accumulating error."""
+    def teleop_action(self, message, observation):
+        self.target[:7] = np.asarray(observation['state_ee'])[:7]
+        return super().teleop_action(message, observation)
+
+
+class MetaWorldAdapter(CartesianAdapter):
+    """Map physical XYZ increments to MetaWorld's four native controls.
+
+    MetaWorld has fixed orientation. Its fourth control is signed gripper
+    effort (positive closes), not a normalized gripper position.
+    """
+    def __init__(self, config):
+        super().__init__(config)
+        if self.arms != 1 or self.native_type != 'delta':
+            raise ValueError('MetaWorld uses one arm with delta control')
+        self.width = 4
+
+    def reset(self, env, observation):
+        self.target = np.array([0., 0., 0., -1.])
+        self.action_scale = float(env.env.unwrapped.action_scale)
+        if self.action_scale <= 0:
+            raise ValueError('MetaWorld action_scale must be positive')
+
+    def teleop_action(self, message, observation):
+        if message.get('ctrl_space', 'ee') != 'ee' or message.get('ctrl_type', 'delta') != 'delta':
+            raise ValueError('Teleoperation input must declare ee/delta')
+        delta = np.asarray(message['action'], dtype=float).reshape(7)
+        if not np.all(np.isfinite(delta)) or np.any(delta[3:6]):
+            raise ValueError('MetaWorld supports XYZ translation and gripper only')
+        self.target[:3] = np.clip(delta[:3] / self.action_scale, -1, 1)
+        self.target[-1] = np.clip(self.target[-1] - 2 * delta[6], -1, 1)
+        return {'action': self.target.copy()}
+
+    def environment_action(self, action):
+        return MetaAction(action=np.clip(action, -1, 1), ctrl_space='ee', ctrl_type='delta')
+
+
+class NativeJointAdapter:
+    """Hold joint targets between policy messages; no Cartesian teleoperation."""
+    def __init__(self, config):
+        self.arms = int(config['arms'])
+        self.width = int(config['width'])
+        self.space, self.native_type = 'joint', 'abs'
+        self.target = None
+
+    def reset(self, env, observation):
+        self.target = np.asarray(observation['state_joint'], dtype=float).copy()
+        if self.target.size != self.arms * self.width:
+            raise ValueError('Joint state dimension does not match native action dimension')
+
+    def idle_action(self):
+        return self.target.copy()
+
+    def teleop_action(self, message, observation):
+        raise ValueError('Joint inference profile does not support Cartesian teleoperation')
+
+    def environment_action(self, action):
+        return MetaAction(action=action.copy(), ctrl_space=self.space, ctrl_type=self.native_type)

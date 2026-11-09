@@ -1,6 +1,8 @@
 - type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
   name: libero
   webui:
+    runtime: libero
+    runtime_imports: [libero, robosuite]
     rate: 20
     tasks:
     - libero_object_0

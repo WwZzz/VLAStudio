@@ -1,5 +1,8 @@
 "use strict";
 const chinese = {
+  "Simulation reached its step limit. Reset to continue.": "仿真达到步数上限，请 Reset 后继续。",
+  "Simulation stopped or rejected an action. Reset to continue.": "仿真终止或动作不可达，请 Reset 后继续。",
+  "Simulation paused after task success. Reset to continue.": "任务成功后仿真已暂停，请 Reset 后继续。",
   "Data collection": "数据采集",
   "Policy inference": "策略推理",
   Connecting: "连接中",

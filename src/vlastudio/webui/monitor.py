@@ -114,7 +114,7 @@ def run(profile):
             if start - last_view > 4:
                 time.sleep(.2)
                 continue
-            packet = {"images": {}, "axes": {}, "models": {}, "stamps": {}}
+            packet = {"images": {}, "axes": {}, "models": {}, "stamps": {}, "devices": {}}
             for name, typ, args in rows:
                 # A CLI session can restart independently and create a new SHM inode.
                 if name in readers and tick % 8 == 0:
@@ -138,6 +138,12 @@ def run(profile):
                     continue
                 stamp = data.get("__timestamp__", start)
                 packet["stamps"][name] = stamp
+                if 'sim_step' in data:
+                    packet['devices'][name] = dict(step=int(data['sim_step']),
+                        paused=bool(data.get('paused', False)),
+                        terminated=bool(data.get('terminated', False)),
+                        truncated=bool(data.get('truncated', False)),
+                        success=bool(data.get('success', False)))
                 if tick % 2 == 0:
                     packet["images"].update(images(data, name, args.get("bgr_to_rgb") is False))
                 arms = {k: data[k] for k in ("left_qpos", "right_qpos") if k in data}

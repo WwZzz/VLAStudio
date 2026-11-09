@@ -16,18 +16,22 @@ import time
 from .bridge import PHASES, PAUSE, RUN, RESET_A, RESET_B, RESETTING
 from .profiles import ROOT, channels, config, catalog
 from .tasks import get_task
+from .runtimes import resolve_runtime
 
 
 def module(name):
     return [sys.executable, "-u", "-m", name]
 
 
-def command_line(mode, options):
+def command_line(mode, options, runtime=None):
     robot = options["robot"]
     base = "vlastudio.entrypoints."
-    cmd = module(base + ("collect_data" if mode == "collect" else "eval_real"))
+    command_module = base + ("collect_data" if mode == "collect" else "eval_real")
+    cmd = runtime.module(command_module) if runtime is not None else module(command_module)
     cmd += ["--robot", str(config("robot", robot))]
     settings = catalog()['robot_options'].get(robot, {})
+    if mode not in settings.get('modes', ['collect', 'infer']):
+        raise ValueError('Selected robot profile does not support this mode')
     if settings.get('tasks'):
         task = options.get('task') or settings['tasks'][0]
         if task not in settings['tasks']:
@@ -58,6 +62,13 @@ def command_line(mode, options):
         if options.get("sync"):
             cmd += ["--sync-config", str(config("recording", options["sync"]))]
     elif mode == "infer":
+        device = options.get('device', 'auto')
+        if device not in ('auto', 'cpu', 'cuda'):
+            raise ValueError('Policy device must be auto, cpu or cuda')
+        if device == 'auto':
+            import torch
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        cmd += ['--device', device]
         policy = options.get("policy", "").strip()
         if not policy or policy.startswith("-") or len(policy) > 1024:
             raise ValueError("请填写策略服务器地址或服务端的模型路径")
@@ -82,16 +93,20 @@ class Preview:
 
     def clear(self):
         self.images, self.axes, self.models, self.stamps = {}, {}, {}, {}
+        self.devices = {}
         self.profile = ""
         self.error = ""
         self.last_view = 0.
 
-    def start(self, profile):
+    def start(self, profile, runtime=None):
         channels(profile)
+        if runtime is None:
+            runtime = resolve_runtime(profile)
+            runtime.probe()
         self.stop()
         with self.lock:
-            env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1")
-            proc = subprocess.Popen(module("vlastudio.webui.monitor") + [profile], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            env = dict(runtime.env, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1")
+            proc = subprocess.Popen(runtime.module("vlastudio.webui.monitor") + [profile], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, env=env, start_new_session=True)
             os.set_blocking(proc.stdin.fileno(), False)
             self.proc, self.profile = proc, profile
@@ -114,6 +129,7 @@ class Preview:
                     self.images.update(p["images"])
                     self.models.update(p["models"])
                     self.stamps.update(p["stamps"])
+                    self.devices.update(p.get('devices', {}))
                     for key, row in p["axes"].items():
                         self.axes.setdefault(key, collections.deque(maxlen=240)).append(row)
             except (ValueError, KeyError):
@@ -129,6 +145,7 @@ class Preview:
                     pass
                 self.last_view = now
             return dict(profile=self.profile, now=now, images=list(self.images), models=self.models.copy(),
+                        devices={k:dict(v) for k,v in self.devices.items()},
                         axes={k:list(v) for k,v in self.axes.items()}, error=self.error,
                         age={k:round(time.monotonic()-v,2) for k,v in self.stamps.items()})
 
@@ -190,7 +207,13 @@ class Session:
                 raise ValueError(f"共享内存 {name} 正在使用")
 
     def start(self, mode, opts):
-        cmd = command_line(mode, opts)
+        # Resolve the environment before acquiring devices or starting any worker.
+        runtime = resolve_runtime(opts['robot'])
+        info = runtime.probe(check_cuda=mode == 'infer')
+        opts = dict(opts)
+        if mode == 'infer' and opts.get('device', 'auto') == 'auto':
+            opts['device'] = info['device']
+        cmd = command_line(mode, opts, runtime)
         with self.lock:
             if self.proc is not None:
                 raise ValueError("已有会话运行中")
@@ -210,7 +233,9 @@ class Session:
                                        if getattr(resolve(t), 'browser_keyboard', False)), 0)
             self.keyboard_bindings = next((resolve(t).bindings_for_arms(int(a.get('arms', 1)), a.get('key_bindings'))
                                            for _, t, a in keyboard_rows if getattr(resolve(t), 'browser_keyboard', False)), [])
-            self.keyboard_keys = {key for arm in self.keyboard_bindings for pair in arm for key in pair}
+            self.keyboard_axes = catalog()['robot_options'].get(self.robot, {}).get('keyboard_axes', list(range(7)))
+            self.keyboard_keys = {key for arm in self.keyboard_bindings for axis, pair in enumerate(arm)
+                                  if axis in self.keyboard_axes for key in pair}
             self.keyboard_owner = None
             self.keyboard_last_seen = 0
             if self.keyboard_arms:
@@ -227,7 +252,7 @@ class Session:
                     os.ftruncate(fd, 5)
                     self.box = mmap.mmap(fd, 5)
                     self.box[:] = bytes([PAUSE,255,0,0,255])
-                    env = dict(os.environ, VLASTUDIO_WEB_FD=str(fd), PYTHONUNBUFFERED="1",
+                    env = dict(runtime.env, VLASTUDIO_WEB_FD=str(fd), PYTHONUNBUFFERED="1",
                                PYTHONDONTWRITEBYTECODE="1",
                                VLASTUDIO_DEVICE_SETUP="vlastudio.webui.bridge.configure_device")
                     self.keyboard_dir = tempfile.TemporaryDirectory(prefix='vla-keys-')
@@ -249,8 +274,10 @@ class Session:
             self.stopping, self.pending, self.code = False, None, None
             self.reset_after_pause = False
             self.logs.clear()
+            self.runtime = dict(name=runtime.name, python=info['python'])
+            self.logs.append(f"Runtime: {runtime.name} ({info['python']})")
             threading.Thread(target=self._watch, args=(self.proc,), daemon=True).start()
-            self.preview.start(self.robot)
+            self.preview.start(self.robot, runtime)
 
     def _release(self):
         directory = getattr(self, 'keyboard_dir', None)
@@ -314,11 +341,21 @@ class Session:
                 allowed.append("stop")
             if self.stopping and live:
                 phase, allowed = "stopping", []
+            with self.preview.lock:
+                blocked = [row for row in self.preview.devices.values() if row.get('paused')]
+            simulation = dict(paused=bool(live and blocked), reason='')
+            if simulation['paused']:
+                simulation['reason'] = ('limit' if any(row.get('truncated') for row in blocked)
+                                        else 'terminated' if any(row.get('terminated') for row in blocked)
+                                        else 'success')
+                allowed = [action for action in allowed if action not in ('record', 'tele_run')]
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
+                        simulation=simulation,
                         options=self.options if live else {},
                         keyboard_arms=self.keyboard_arms if live else 0,
                         keyboard_bindings=self.keyboard_bindings if live else [],
-                        tele=("running" if self.box[1]==RUN else "homing" if self.box[1]==RESETTING else "paused")
+                        keyboard_axes=self.keyboard_axes if live else [],
+                        tele=("blocked" if simulation['paused'] else "running" if self.box[1]==RUN else "homing" if self.box[1]==RESETTING else "paused")
                         if live and self.gated else "", actions=allowed, logs=list(self.logs), exit=self.code)
 
     def keyboard(self, data):
