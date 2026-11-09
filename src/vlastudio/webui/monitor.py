@@ -112,7 +112,8 @@ def run(profile):
             rest = {k: {"name":path.stem, "links":models[name].links([0.]*6, args.get('ik_end_frame', 'link6')),
                         "control_axes":models[name].control_axes, "rest":True} for k in keys}
             print(json.dumps({"images":{}, "axes":{}, "models":rest, "stamps":{}}), flush=True)
-    tick = 0
+    last_state = {}
+    next_inode_check = 0.0
     last_view = time.monotonic()
     try:
         while True:
@@ -125,9 +126,12 @@ def run(profile):
                 time.sleep(.2)
                 continue
             packet = {"images": {}, "axes": {}, "models": {}, "stamps": {}, "devices": {}}
+            check_inodes = start >= next_inode_check
+            if check_inodes:
+                next_inode_check = start + 1
             for name, typ, args in rows:
                 # A CLI session can restart independently and create a new SHM inode.
-                if name in readers and tick % 8 == 0:
+                if name in readers and check_inodes:
                     try:
                         replaced = Path("/dev/shm", name).stat().st_ino != inodes[name]
                     except FileNotFoundError:
@@ -148,14 +152,17 @@ def run(profile):
                     continue
                 stamp = data.get("__timestamp__", start)
                 packet["stamps"][name] = stamp
+                packet["images"].update(images(data, name, args.get("bgr_to_rgb") is False))
+                # Camera previews follow the latest sample. Joint plots and FK stay at 8 Hz.
+                if start - last_state.get(name, 0) < .125:
+                    continue
+                last_state[name] = start
                 if 'sim_step' in data:
                     packet['devices'][name] = dict(step=int(data['sim_step']),
                         paused=bool(data.get('paused', False)),
                         terminated=bool(data.get('terminated', False)),
                         truncated=bool(data.get('truncated', False)),
                         success=bool(data.get('success', False)))
-                if tick % 2 == 0:
-                    packet["images"].update(images(data, name, args.get("bgr_to_rgb") is False))
                 arms = {k: data[k] for k in ("left_qpos", "right_qpos") if k in data}
                 if not arms:
                     q = data.get("qpos", data.get("joint_angles"))
@@ -169,9 +176,9 @@ def run(profile):
                         model = models[name]
                         packet["models"][arm] = {"name": model.name, "links": model.links(q[:6], args.get('ik_end_frame', 'link6')),
                                                 "control_axes": model.control_axes}
-            print(json.dumps(packet, separators=(",", ":"), allow_nan=False), flush=True)
-            tick += 1
-            time.sleep(max(0, .125 - (time.monotonic()-start)))
+            if packet["stamps"]:
+                print(json.dumps(packet, separators=(",", ":"), allow_nan=False), flush=True)
+            time.sleep(max(0, 1 / 30 - (time.monotonic() - start)))
     finally:
         for reader in readers.values():
             reader.destroy()

@@ -1,3 +1,4 @@
+import base64
 import collections
 import fcntl
 import json
@@ -88,6 +89,7 @@ def command_line(mode, options, runtime=None):
 class Preview:
     def __init__(self):
         self.lock = threading.RLock()
+        self.changed = threading.Condition(self.lock)
         self.proc = None
         self.clear()
 
@@ -126,7 +128,11 @@ class Preview:
                 with self.lock:
                     if proc is not self.proc:
                         return
-                    self.images.update(p["images"])
+                    for name, image in p["images"].items():
+                        stamp = p["stamps"][name.split("/", 1)[0]]
+                        self.images[name] = (str(stamp), base64.b64decode(image))
+                    if p["images"]:
+                        self.changed.notify_all()
                     self.models.update(p["models"])
                     self.stamps.update(p["stamps"])
                     self.devices.update(p.get('devices', {}))
@@ -134,6 +140,17 @@ class Preview:
                         self.axes.setdefault(key, collections.deque(maxlen=240)).append(row)
             except (ValueError, KeyError):
                 continue
+
+    def latest_image(self, name, after):
+        with self.changed:
+            if name not in self.images:
+                return None
+            if after is not None:
+                self.changed.wait_for(
+                    lambda: name not in self.images or self.images[name][0] != after,
+                    timeout=.8,
+                )
+            return self.images.get(name)
 
     def state(self):
         with self.lock:
@@ -153,6 +170,7 @@ class Preview:
         with self.lock:
             proc, self.proc = self.proc, None
             self.clear()
+            self.changed.notify_all()
         if proc is not None:
             proc.terminate()
             try:

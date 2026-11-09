@@ -442,46 +442,69 @@ function renderSession(s) {
     if ($("follow").checked) $("log").scrollTop = $("log").scrollHeight;
   }
 }
-async function cameras(p) {
-  for (const [name, item] of feeds)
+async function updateCamera(name, item) {
+  if (item.loading) return;
+  item.loading = true;
+  const signal = item.controller.signal;
+  try {
+    while (!signal.aborted && !document.hidden && !$("library").open) {
+      const query = new URLSearchParams({name});
+      if (item.stamp) query.set("after", item.stamp);
+      const response = await fetch("/api/image?" + query, {signal, cache: "no-store"});
+      if (response.status === 204) continue;
+      if (!response.ok) break;
+      const blob = await response.blob();
+      if (signal.aborted || document.hidden || $("library").open) break;
+      const url = URL.createObjectURL(blob);
+      const previous = item.url;
+      item.img.src = url;
+      item.url = url;
+      try {
+        await item.img.decode();
+      } finally {
+        if (previous) URL.revokeObjectURL(previous);
+      }
+      item.stamp = response.headers.get("X-Frame-Stamp");
+      // Older servers return snapshots immediately. Bound their polling rate.
+      if (!item.stamp) await new Promise(resolve => setTimeout(resolve, 80));
+    }
+  } catch (error) {
+    if (!signal.aborted) item.label.textContent = name + tr(" · Data stale");
+  } finally {
+    item.loading = false;
+  }
+}
+
+function cameras(p) {
+  for (const [name, item] of feeds) {
     if (!p.images.includes(name)) {
-      URL.revokeObjectURL(item.url);
+      item.controller.abort();
+      if (item.url) URL.revokeObjectURL(item.url);
       item.node.remove();
       feeds.delete(name);
     }
-  let empty = $("feeds").querySelector(".empty");
+  }
+  const empty = $("feeds").querySelector(".empty");
   if (!p.images.length) {
-    if (!empty)
-      $("feeds").append(
-        el("div", "empty camera", tr("Waiting for camera images")),
-      );
-    else empty.textContent = tr("Waiting for camera images");
+    if (empty) empty.textContent = tr("Waiting for camera images");
+    else $("feeds").append(el("div", "empty camera", tr("Waiting for camera images")));
     return;
   }
   empty?.remove();
-  await Promise.all(
-    p.images.map(async (name) => {
-      let item = feeds.get(name);
-      if (!item) {
-        const node = el("div", "feed"),
-          img = el("img"),
-          label = el("span", "", name);
-        img.alt = name;
-        node.append(img, label);
-        $("feeds").append(node);
-        item = { node, img, label, url: "" };
-        feeds.set(name, item);
-      }
-      const age = p.age[name.split("/")[0]] ?? 0;
-      item.label.textContent = name + (age > 2 ? tr(" \u00b7 Data stale") : "");
-      const res = await fetch("/api/image?name=" + encodeURIComponent(name));
-      if (!res.ok) return;
-      const url = URL.createObjectURL(await res.blob());
-      item.img.src = url;
-      if (item.url) URL.revokeObjectURL(item.url);
-      item.url = url;
-    }),
-  );
+  for (const name of p.images) {
+    let item = feeds.get(name);
+    if (!item) {
+      const node = el("div", "feed"), img = el("img"), label = el("span", "", name);
+      img.alt = name;
+      node.append(img, label);
+      $("feeds").append(node);
+      item = {node, img, label, url: "", stamp: null, controller: new AbortController()};
+      feeds.set(name, item);
+    }
+    const age = p.age[name.split("/")[0]] ?? 0;
+    item.label.textContent = name + (age > 2 ? tr(" · Data stale") : "");
+    updateCamera(name, item);
+  }
 }
 function chart(canvas, rows, idx) {
   const w = (canvas.width = 240),
@@ -668,7 +691,7 @@ async function refresh() {
       fill("arm", arms);
     $("modelPanel").hidden = !arms.length;
     drawModel();
-    await cameras(p);
+    cameras(p);
     if (p.error && !p.images.length) $("status").textContent = p.error;
   } finally {
     polling = false;

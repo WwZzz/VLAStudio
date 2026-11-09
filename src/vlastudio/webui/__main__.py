@@ -1,12 +1,12 @@
 """Launch the LAN dashboard: python -m vlastudio.webui [--port 8765]."""
 import argparse
-import base64
 import json
 import os
 from pathlib import Path
 import signal
 import socket
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -22,7 +22,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
-    def reply(self, data, mime="application/json", status=200):
+    def reply(self, data, mime="application/json", status=200, headers=()):
         if mime == "application/json":
             data = json.dumps(data, ensure_ascii=False, allow_nan=False).encode()
         self.send_response(status)
@@ -31,8 +31,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Content-Security-Policy", "default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'")
         self.send_header("Content-Length", str(len(data)))
+        for key, value in headers:
+            self.send_header(key, value)
         self.end_headers()
-        self.wfile.write(data)
+        if data:
+            self.wfile.write(data)
 
     def do_GET(self):
         url = urlparse(self.path)
@@ -67,10 +70,17 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/state":
             return self.reply(dict(session=s.state(), preview=s.preview.state()))
         if url.path == "/api/image":
-            with s.preview.lock:
-                image = s.preview.images.get(parse_qs(url.query).get("name",[""])[0])
-            if image:
-                return self.reply(base64.b64decode(image), "image/jpeg")
+            query = parse_qs(url.query)
+            after = query.get("after", [None])[0]
+            frame = s.preview.latest_image(query.get("name", [""])[0], after)
+            if frame:
+                stamp, image = frame
+                if stamp == after:
+                    return self.reply(b"", "image/jpeg", status=204)
+                age_ms = max(0, (time.monotonic() - float(stamp)) * 1000)
+                return self.reply(image, "image/jpeg", headers=(
+                    ("X-Frame-Stamp", stamp), ("X-Frame-Age-Ms", f"{age_ms:.1f}"),
+                ))
         self.reply({"error":"Not found"},status=404)
 
     def do_POST(self):
