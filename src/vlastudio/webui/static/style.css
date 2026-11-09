@@ -671,8 +671,8 @@ textarea {
 #teleSwitch[aria-checked=true] .switch-track {background:var(--green)}
 #teleSwitch[aria-checked=true] .switch-track::after {transform:translateX(14px)}
 #episodeNumber.recording-now::before {content:"";display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:50%;background:#bf3138}
-.transport-key.record,.transport-key.record_resume {color:var(--green)}
-.transport-key.tele_run,.transport-key.run {color:var(--green)}
+.transport-key.record,.transport-key.finish {color:#bf3138;background:#fff2f3;border-color:#edc5c5}
+.transport-key.record_resume,.transport-key.run {color:var(--green)}
 .transport-key:disabled {opacity:.4}
 .library-button {margin-left:auto;white-space:nowrap}
 #library {width:min(900px,calc(100vw - 28px));max-width:94vw;max-height:86vh;overflow:auto}

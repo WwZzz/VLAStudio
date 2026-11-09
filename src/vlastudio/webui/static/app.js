@@ -303,6 +303,7 @@ async function act(action) {
 }
 function transportIcon(key) {
   const shapes = {
+    record: '<circle cx="12" cy="12" r="7" fill="currentColor"/>',
     run: '<path d="M7 4.5 20 12 7 19.5Z" fill="currentColor"/>',
     pause: '<path d="M7 5v14m10-14v14" stroke-width="4"/>',
     stop: '<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/>',
@@ -311,7 +312,7 @@ function transportIcon(key) {
     discard: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    shapes[({record:"run",record_resume:"run",record_pause:"pause",finish:"stop",home:"reset"})[key] || key] + '</svg>';
+    shapes[({record_resume:"run",record_pause:"pause",finish:"stop",home:"reset"})[key] || key] + '</svg>';
 }
 $("teleSwitch").onclick = (event) => {
   if (event.detail) $("teleSwitch").blur();
@@ -383,9 +384,12 @@ function renderSession(s) {
   $("teleSwitchLabel").textContent = toggleLabel;
   toggle.setAttribute("aria-label", toggleLabel);
   $("episodeNumber").classList.toggle("recording-now", collecting && !other && s.phase === "recording");
-  const recordingAction = s.phase === "recording" ? "record_pause" : s.phase === "record_paused" ? "record_resume" : "record";
+  const inEpisode = s.phase === "recording" || s.phase === "record_paused";
+  const recordButton = inEpisode ? "finish" : "record";
+  const pauseButton = s.phase === "recording" ? "record_pause" : "record_resume";
+  const enterAction = s.phase === "save" ? "save" : inEpisode ? pauseButton : "record";
   const displayed = collecting
-    ? [recordingAction, "finish", "home"]
+    ? [recordButton, pauseButton, "home"]
     : [allowed.includes("pause") ? "pause" : "run", "stop", "reset"];
   for (const key of ["save", "discard"]) if (allowed.includes(key)) displayed.push(key);
   $("episodeNumber").textContent = s.active && !other && Number.isInteger(s.episode)
@@ -396,7 +400,7 @@ function renderSession(s) {
     lastButtons = sig;
     $("buttons").replaceChildren();
     for (const key of displayed) {
-      const enter = collecting && (key === recordingAction || key === "save");
+      const enter = collecting && key === enterAction;
       const label = tr(names[key]) + (enter ? " (Enter)" : "");
       const button = el("button", "transport-key " + key);
       button.innerHTML = transportIcon(key);
