@@ -1,0 +1,43 @@
+- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+  name: robosuite_transport
+  webui:
+    runtime: robosuite
+    runtime_imports: [robosuite, robomimic]
+    rate: 20
+    tasks: [TwoArmTransport_Panda]
+    teleop: keyboard_delta_2arm_20hz
+  args:
+    name: robosuite_transport
+    control_shm_name: keyboard_delta
+    fps: 20
+    environment:
+      type: vlastudio.deploy.robot.benchmark_environments.robosuite.RobosuiteDeploymentEnv
+      args:
+        ctrl_space: ee
+        ctrl_type: delta
+        use_img: true
+        use_wrist_img: true
+        continuous: true
+        control_freq: 20
+        seed: 7
+    task: TwoArmTransport_Panda
+    on_success: continue
+    on_termination: pause
+    action:
+      adapter: vlastudio.deploy.robot.robosuite_adapter.RobosuiteAdapter
+      arms: 2
+      space: ee
+      type: delta
+      rotation: rotvec
+      initial_gripper: 1
+      gripper_scale: -2
+      gripper_offset: 1
+    observation:
+      fields:
+        qpos: state_joint
+        state: state
+        state_joint: state_joint
+        state_ee: state_ee
+      image: image
+      image_layout: KCHW
+      cameras: [head_camera, right_camera, wrist_camera, right_wrist_camera]

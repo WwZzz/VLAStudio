@@ -9,7 +9,7 @@ simulator environments using a site runtime registry:
 python -m vlastudio.webui --host 127.0.0.1 --port 8765 --runtimes /site/webui-runtimes.json
 ```
 
-Robot profiles declare a runtime name (`metaworld`, `rlbench`, `aloha`, `libero`).
+Robot profiles declare a runtime name (`metaworld`, `rlbench`, `aloha`, `libero`, `robosuite`).
 The site JSON maps names to an argument-list launcher, environment variables,
 and optional extra package paths. Paths belong in site configuration, not the
 versioned robot YAML. For example:
@@ -24,6 +24,10 @@ versioned robot YAML. For example:
     "rlbench": {
       "command": ["/site/envs/rlbench/bin/python"],
       "env": {"COPPELIASIM_ROOT": "/site/CoppeliaSim", "DISPLAY": ":99"}
+    },
+    "robosuite": {
+      "command": ["/site/envs/robosuite/bin/python"],
+      "env": {"MUJOCO_GL": "osmesa", "PYOPENGL_PLATFORM": "osmesa"}
     }
   }
 }
@@ -53,6 +57,8 @@ keyboard-only session running.
 | `aloha_sim` | Transfer cube, insertion | 16 values: two XYZ + quaternion WXYZ + gripper targets; `ee/abs` | Both arms |
 | `aloha_sim_joint` | Transfer cube, insertion | 14 joint/gripper values; `joint/abs` | Inference only; use this for the original ACT model |
 | `libero` | Existing task catalog | 7 native OSC/gripper values; `ee/delta` | Existing single-arm control |
+| `robosuite` | Lift, PickPlaceCan, NutAssemblySquare, ToolHang (Panda) | 7 native OSC/gripper values; `ee/delta` | Single arm, XYZ, rotation and gripper |
+| `robosuite_transport` | TwoArmTransport (two Pandas) | 14 values, robot0 then robot1; `ee/delta` | Both arms, with a separate 20 Hz keyboard profile |
 
 Choose the same state representation, camera order, image size, action units and
 controller as the policy's training data. MetaWorld exposes its original
@@ -95,6 +101,33 @@ and the state used by the target profile; do not use raw keyboard input as the
 policy target. These HDF5 files use the deployment recording schema, not the
 original ALOHA or RLBench demonstration file layout. Existing demonstration
 dataset loaders must not be pointed at these files without a schema adapter.
+
+The robosuite profiles use robosuite 1.5 BASIC composite controllers with
+world-frame delta OSC_POSE and robomimic 0.4, in a runtime separate from
+LIBERO's robosuite 1.4. Keyboard translation/rotation increments are converted
+using each active arm controller's input/output bounds. Native policy actions
+already use those controller units; positive gripper effort closes, negative
+opens. Unsupported controller layouts fail explicitly instead of silently
+reordering actions. See the [robosuite 1.5 controller implementation](https://github.com/ARISE-Initiative/robosuite/blob/v1.5.1/robosuite/controllers/parts/arm/osc.py).
+
+Their `state` retains the original robomimic benchmark's 8 values per robot:
+XYZ, axis-angle rotation, and both finger joint positions. `state_ee` exposes
+the same measured arm fields; `state_joint` has 9 values per Panda. Images use
+the original 256 x 256 size. Single-arm camera order is scene then wrist;
+ToolHang uses sideview as its scene camera. Transport uses shoulder0,
+shoulder1, wrist0, wrist1. Match the camera selection to the policy's data.
+These interactive profiles continue past the native horizon and task success;
+Reset explicitly restores the seeded scene. `environment.args.continuous: false`
+restores the native horizon, reported as a truncation in the WebUI.
+CPU software rendering works, but Transport's four cameras can make its actual
+step rate much lower than the configured 20 Hz. Keyboard motion then advances
+more slowly in wall time; use a GPU renderer for smoother interaction.
+
+QZ CPU checks covered XYZ, rotation, grippers and seeded Reset for all five
+robosuite tasks. The Lift and Transport WebUI sessions also covered camera
+preview, HDF5 recording, keyboard response after 550 steps, pause, Reset and
+TCP policy round trips through the existing collection/inference entrypoints.
+The TCP checks used a diagnostic policy; learned task success was not evaluated.
 
 Policy output already uses native units and bypasses teleoperation scaling.
 The UI accepts a VLAStudio server address or compatible local checkpoint.
