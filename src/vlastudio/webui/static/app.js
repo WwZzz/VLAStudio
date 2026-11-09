@@ -13,12 +13,14 @@ $("keyboardPanel").addEventListener("toggle", () => {
 const names = {
   record: "Start recording",
   finish: "Finish episode",
+  record_pause: "Pause recording",
+  record_resume: "Resume recording",
   save: "Save",
   discard: "Discard episode",
   run: "Start inference",
   pause: "Pause inference",
-  reset: tr("Reset"),
-  home: tr("Reset"),
+  reset: "Reset",
+  home: "Reset",
   tele_run: "Enable teleoperation",
   tele_pause: "Pause teleoperation",
   stop: "Disconnect",
@@ -28,6 +30,7 @@ const phases = {
   loading: "Loading devices",
   ready: "Ready to record",
   recording: "Recording",
+  record_paused: "Recording paused",
   save: "Awaiting save",
   infer_ready: "Policy ready",
   running: "Inference running",
@@ -303,15 +306,29 @@ function transportIcon(key) {
     run: '<path d="M7 4.5 20 12 7 19.5Z" fill="currentColor"/>',
     pause: '<path d="M7 5v14m10-14v14" stroke-width="4"/>',
     stop: '<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/>',
-    record: '<circle cx="12" cy="12" r="7" fill="currentColor"/>',
-    finish: '<rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/>',
     reset: '<path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/>',
     save: '<path d="m4 12 5 5L20 6"/>',
     discard: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    shapes[({tele_run:"run",tele_pause:"pause",home:"reset"})[key] || key] + '</svg>';
+    shapes[({record:"run",record_resume:"run",record_pause:"pause",finish:"stop",home:"reset"})[key] || key] + '</svg>';
 }
+$("teleSwitch").onclick = (event) => {
+  if (event.detail) $("teleSwitch").blur();
+  const enabled = $("teleSwitch").getAttribute("aria-checked") === "true";
+  if (enabled) heldKeys.clear();
+  act(enabled ? "tele_pause" : "tele_run");
+};
+document.addEventListener("keydown", (event) => {
+  if (!collecting || event.key !== "Enter" || event.isComposing || event.defaultPrevented ||
+      event.ctrlKey || event.altKey || event.metaKey || event.shiftKey ||
+      document.querySelector("dialog[open]") ||
+      event.target.closest("input,textarea,select,button,a,summary,[contenteditable=true]")) return;
+  const action = $("buttons").querySelector("[data-enter]:enabled");
+  if (!action) return;
+  event.preventDefault();
+  if (!event.repeat) action.click();
+});
 function renderSession(s) {
   const other = s.active && s.mode !== mode;
   if (s.active && !other) {
@@ -357,10 +374,19 @@ function renderSession(s) {
       ? tr("Close read-only preview")
       : tr("Read-only preview");
   const allowed = other ? [] : s.actions;
+  const toggle = $("teleSwitch");
+  toggle.hidden = !collecting;
+  const enabled = collecting && !other && s.active && s.controls_enabled;
+  toggle.setAttribute("aria-checked", String(enabled));
+  toggle.disabled = busy || !allowed.includes(enabled ? "tele_pause" : "tele_run");
+  const toggleLabel = tr(s.active && !other && !s.options?.teleop ? "Enable controls" : "Enable teleoperation");
+  $("teleSwitchLabel").textContent = toggleLabel;
+  toggle.setAttribute("aria-label", toggleLabel);
+  $("episodeNumber").classList.toggle("recording-now", collecting && !other && s.phase === "recording");
+  const recordingAction = s.phase === "recording" ? "record_pause" : s.phase === "record_paused" ? "record_resume" : "record";
   const displayed = collecting
-    ? [allowed.includes("tele_pause") ? "tele_pause" : "tele_run", allowed.includes("finish") ? "finish" : "record"]
-    : [allowed.includes("pause") ? "pause" : "run"];
-  displayed.push("stop", collecting ? "home" : "reset");
+    ? [recordingAction, "finish", "home"]
+    : [allowed.includes("pause") ? "pause" : "run", "stop", "reset"];
   for (const key of ["save", "discard"]) if (allowed.includes(key)) displayed.push(key);
   $("episodeNumber").textContent = s.active && !other && Number.isInteger(s.episode)
     ? (s.phase === "ready" && collecting ? tr("Next episode") : "Episode") + " " + String(s.episode).padStart(4, "0")
@@ -370,13 +396,18 @@ function renderSession(s) {
     lastButtons = sig;
     $("buttons").replaceChildren();
     for (const key of displayed) {
-      const label = tr(names[key]);
+      const enter = collecting && (key === recordingAction || key === "save");
+      const label = tr(names[key]) + (enter ? " (Enter)" : "");
       const button = el("button", "transport-key " + key);
       button.innerHTML = transportIcon(key);
       button.title = label;
       button.setAttribute("aria-label", label);
       button.disabled = busy || !allowed.includes(key);
-      button.onclick = () => act(key);
+      if (enter) button.dataset.enter = "true";
+      button.onclick = (event) => {
+        if (event.detail) button.blur();
+        act(key);
+      };
       $("buttons").append(button);
     }
   }

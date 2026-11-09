@@ -664,7 +664,14 @@ textarea {
 #transport #buttons {display:flex;gap:6px;margin:0;justify-content:center}
 .transport-key,#playEpisode {width:40px;height:38px;padding:8px;display:inline-grid;place-items:center}
 .transport-key svg,#playEpisode svg {width:20px;height:20px}
-.transport-key.record,.transport-key.finish {color:#bf3138;background:#fff2f3;border-color:#edc5c5}
+#teleSwitch {display:inline-flex;align-items:center;gap:8px;white-space:nowrap;background:transparent;border:0;padding:6px 2px}
+#teleSwitch[hidden] {display:none}
+.switch-track {box-sizing:border-box;display:inline-flex;align-items:center;width:34px;height:20px;border-radius:10px;background:#929a91;padding:3px;flex:none}
+.switch-track::after {content:"";width:14px;height:14px;border-radius:50%;background:white}
+#teleSwitch[aria-checked=true] .switch-track {background:var(--green)}
+#teleSwitch[aria-checked=true] .switch-track::after {transform:translateX(14px)}
+#episodeNumber.recording-now::before {content:"";display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:50%;background:#bf3138}
+.transport-key.record,.transport-key.record_resume {color:var(--green)}
 .transport-key.tele_run,.transport-key.run {color:var(--green)}
 .transport-key:disabled {opacity:.4}
 .library-button {margin-left:auto;white-space:nowrap}
@@ -684,7 +691,8 @@ textarea {
 #playerMessage:empty {display:none}
 @media(max-width:650px) {
   #transport {flex-wrap:wrap;gap:6px}
-  .transport-state {flex:1 1 60%}
+  .transport-state {flex:1;min-width:65px}
+  #teleSwitch {max-width:40%;white-space:normal;text-align:left}
   #transport #buttons {order:3;width:100%}
   .transport-key {height:34px}
 }

@@ -4,7 +4,7 @@ import os
 import select
 import sys
 
-PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy")
+PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy", "record_paused")
 PAUSE, RUN, RESET_A, RESET_B, RESETTING = range(5)
 
 
@@ -42,6 +42,8 @@ def request_home():
 
 class WebKeys:
     """Line-based equivalent of KBHit on the supervisor's private stdin pipe."""
+    resumable_recording = True
+
     def get_input(self):
         if not select.select([sys.stdin], [], [], 0)[0]:
             return None

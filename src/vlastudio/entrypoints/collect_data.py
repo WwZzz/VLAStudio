@@ -297,13 +297,20 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                 device_names=device_names_list,
                 teleop_device=teleop_name,
             )
-            logger.info("Recording episode {}. Press Enter to STOP...", actual_idx)
+            resumable = getattr(kb, "resumable_recording", False)
+            logger.info("Recording episode {}. Press Enter to {}...", actual_idx, "PAUSE" if resumable else "STOP")
             phase("recording")
             
             rate_limiter = RateLimiter()
 
+            # The synchronizer also polls this callback. Keep the actual input so
+            # an Enter received while waiting for a device can pause the recording.
+            command = None
+
             def stop_requested() -> bool:
-                return read_input() is not None
+                nonlocal command
+                command = read_input()
+                return command is not None
 
             recording_start_time = time.perf_counter()
             sync.begin_episode(recording_start_time)
@@ -315,13 +322,25 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
             slow_sync_count = 0  # sync_wait > 50ms
             sum_sync_ms = 0.0
             
-            while not stop_requested():
+            while True:
                 loop_start = time.perf_counter()
                 frame = sync.get_synced_frame_blocking(stop_check=stop_requested, debug=False)
                 sync_time = time.perf_counter()
                 
                 if frame is None:
-                    break
+                    if not resumable or command != "":
+                        break
+                    paused_at = time.perf_counter()
+                    phase("record_paused")
+                    while (command := read_input()) is None:
+                        time.sleep(0.01)
+                    resumed_at = time.perf_counter()
+                    recording_start_time += resumed_at - paused_at
+                    if command != "":
+                        break
+                    sync.begin_episode(resumed_at)
+                    phase("recording")
+                    continue
                 
                 # Use actual recording time as sync reference
                 ref_ts = time.perf_counter()

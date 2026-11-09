@@ -163,7 +163,8 @@ class Preview:
 
 
 KEYS = {
-    "ready": {"record": ""}, "recording": {"finish": ""}, "save": {"save": "", "discard": "x"},
+    "ready": {"record": ""}, "recording": {"record_pause": "", "finish": "finish"},
+    "record_paused": {"record_resume": "", "finish": "finish"}, "save": {"save": "", "discard": "x"},
     "infer_ready": {"run": ""}, "running": {"pause": ""}, "paused": {"run": "", "reset": "r", "save": "s"},
 }
 
@@ -247,6 +248,7 @@ class Session:
                 if expected and self.keyboard_arms != expected:
                     raise ValueError('Keyboard arm count does not match robot configuration')
             self.output = opts.get("output", "").strip()
+            self.observation_controls = False
             self.gated = mode == "collect" and (self.teleop or self.reset_ok)
             try:
                 self._resources(self.robot, self.teleop)
@@ -325,7 +327,11 @@ class Session:
             if live and self.pending == self.box[3]:
                 phase = "busy"
             allowed = list(KEYS.get(phase, {})) if live else []
-            if live and self.gated and phase in ("ready","recording","save"):
+            collect_controls = live and self.mode == "collect" and phase in ("ready", "recording", "record_paused", "save")
+            controls_enabled = False
+            if live and self.mode == "collect":
+                controls_enabled = self.box[0] == self.box[1] == RUN if self.gated else self.observation_controls
+            if collect_controls and self.gated:
                 ack, cmd = self.box[1], self.box[0]
                 if ack == RUN and cmd == RUN:
                     allowed.append("tele_pause")
@@ -335,8 +341,11 @@ class Session:
                     allowed.append("tele_run")
                     if self.reset_ok:
                         allowed.append("home")
-                if self.teleop and ack != RUN and "record" in allowed:
-                    allowed.remove("record")
+            if collect_controls:
+                if not self.gated:
+                    allowed.append("tele_pause" if controls_enabled else "tele_run")
+                if not controls_enabled:
+                    allowed = [a for a in allowed if a in ("tele_run", "home")]
             if live and self.gated and self.box[1] == RESETTING:
                 phase, allowed = "homing", []
             if live and self.mode == "infer" and phase == "running" and self.reset_ok:
@@ -358,7 +367,16 @@ class Session:
                 simulation['reason'] = ('limit' if any(row.get('truncated') for row in blocked)
                                         else 'terminated' if any(row.get('terminated') for row in blocked)
                                         else 'success')
-                allowed = [action for action in allowed if action not in ('record', 'tele_run')]
+                allowed = [action for action in allowed if action not in ('record', 'record_resume', 'tele_run')]
+            if not controls_enabled and not simulation["paused"] and "home" in allowed:
+                allowed.remove("home")
+            tele = ""
+            if live and self.mode == "collect":
+                tele = "running" if controls_enabled else "paused"
+                if simulation["paused"]:
+                    tele = "blocked"
+                elif self.gated and self.box[1] == RESETTING:
+                    tele = "homing"
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
                         simulation=simulation,
                         options=self.options if live else {}, episode=self.episode if live else None,
@@ -366,8 +384,7 @@ class Session:
                         keyboard_bindings=self.keyboard_bindings if live else [],
                         keyboard_base_bindings=self.keyboard_base_bindings if live else [],
                         keyboard_axes=self.keyboard_axes if live else [],
-                        tele=("blocked" if simulation['paused'] else "running" if self.box[1]==RUN else "homing" if self.box[1]==RESETTING else "paused")
-                        if live and self.gated else "", actions=allowed, logs=list(self.logs), exit=self.code)
+                        tele=tele, controls_enabled=controls_enabled, actions=allowed, logs=list(self.logs), exit=self.code)
 
     def keyboard(self, data):
         with self.lock:
@@ -405,12 +422,14 @@ class Session:
                 if action == "home":
                     self.box[1] = RESETTING
                     self.box[0] = RESET_B if self.box[0] == RESET_A else RESET_A
-                    if state["phase"] == "recording":
-                        self._key("finish", "recording")
-                else:
+                    if state["phase"] in ("recording", "record_paused"):
+                        self._key("finish", state["phase"])
+                elif self.gated:
                     self.box[0] = RUN if action == "tele_run" else PAUSE
+                else:
+                    self.observation_controls = action == "tele_run"
                 if action == "tele_pause" and state["phase"] == "recording":
-                    self._key("finish", "recording")
+                    self._key("record_pause", "recording")
             else:
                 if self.mode == "infer" and action == "reset" and state["phase"] == "running":
                     self.reset_after_pause = True
