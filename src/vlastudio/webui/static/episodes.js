@@ -5,7 +5,8 @@
   const dataset = $("libraryDataset"), episode = $("libraryEpisode");
   const seek = $("frameSeek"), play = $("playEpisode"), remove = $("deleteEpisode");
   let rows = [], selected, meta, frame = 0, playing = false;
-  let request, timer, revision = 0, imageUrls = [];
+  let request, timer, revision = 0;
+  const cameraViews = new Map();
 
   function buttons() {
     play.disabled = seek.disabled = !meta;
@@ -21,9 +22,9 @@
     clearTimeout(timer);
     buttons();
   }
-  function releaseImages() {
-    for (const url of imageUrls) URL.revokeObjectURL(url);
-    imageUrls = [];
+  function clearImages() {
+    cameraViews.clear();
+    $("recordedImages").replaceChildren();
   }
   function cancel() {
     revision++;
@@ -40,20 +41,29 @@
     if (!response.ok) throw Error(data.error);
     return data;
   }
-  function display(data, index) {
-    releaseImages();
-    const views = [];
-    for (const [name, encoded] of Object.entries(data.images)) {
-      const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], {type:"image/jpeg"}));
-      imageUrls.push(url);
-      const figure = el("figure", ""), img = el("img", "");
-      img.src = url;
-      img.alt = name;
-      figure.append(img, el("figcaption", "", name));
-      views.push(figure);
+  function display(data, index, images) {
+    for (const [name, image] of images) {
+      let view = cameraViews.get(name);
+      if (!view) {
+        const figure = el("figure", ""), canvas = el("canvas", "");
+        canvas.setAttribute("role", "img");
+        canvas.setAttribute("aria-label", name);
+        figure.append(canvas, el("figcaption", "", name));
+        view = {figure, canvas, context: canvas.getContext("2d", {alpha: false})};
+        cameraViews.set(name, view);
+        $("recordedImages").append(figure);
+      }
+      const {canvas, context} = view;
+      if (canvas.width !== image.naturalWidth) canvas.width = image.naturalWidth;
+      if (canvas.height !== image.naturalHeight) canvas.height = image.naturalHeight;
+      context.drawImage(image, 0, 0);
     }
-    $("recordedImages").replaceChildren(...views);
+    for (const [name, view] of cameraViews) {
+      if (!Object.hasOwn(data.images, name)) {
+        view.figure.remove();
+        cameraViews.delete(name);
+      }
+    }
     const values = Object.entries(data.values).map(([name, vector]) => {
       const row = el("div", "signal-row");
       row.append(el("span", "", name), el("code", "", vector.join("   ")));
@@ -71,15 +81,30 @@
   }
   async function show(index, token) {
     const data = await getFrame({frame:index});
-    if (token === revision && dialog.open) display(data, index);
+    if (token !== revision || !dialog.open) return;
+    // Keep the previous frame visible until every camera in this frame is ready.
+    const urls = [];
+    try {
+      const images = await Promise.all(Object.entries(data.images).map(async ([name, encoded]) => {
+        const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], {type: "image/jpeg"}));
+        urls.push(url);
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+        return [name, image];
+      }));
+      if (token === revision && dialog.open) display(data, index, images);
+    } finally {
+      urls.forEach(url => URL.revokeObjectURL(url));
+    }
   }
   async function selectEpisode() {
     cancel();
     const token = revision;
     selected = rows.find(row => row.dataset === dataset.value && String(row.index) === episode.value);
     meta = null;
-    releaseImages();
-    $("recordedImages").replaceChildren();
+    clearImages();
     $("recordedValues").replaceChildren();
     $("frameNumber").textContent = "";
     seek.value = 0;
@@ -163,7 +188,7 @@
   dialog.addEventListener("close", () => {
     cancel();
     selected = meta = null;
-    releaseImages();
+    clearImages();
   });
   new ResizeObserver(entries => {
     document.body.style.paddingBottom = entries[0].target.offsetHeight + 16 + "px";
