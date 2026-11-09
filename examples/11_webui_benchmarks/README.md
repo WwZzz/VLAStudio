@@ -9,7 +9,7 @@ simulator environments using a site runtime registry:
 python -m vlastudio.webui --host 127.0.0.1 --port 8765 --runtimes /site/webui-runtimes.json
 ```
 
-Robot profiles declare a runtime name (`metaworld`, `rlbench`, `aloha`, `libero`, `robosuite`, `robotwin`).
+Robot profiles declare a runtime name (`metaworld`, `rlbench`, `aloha`, `libero`, `robosuite`, `robotwin`, `behavior`).
 The site JSON maps names to an argument-list launcher, environment variables,
 and optional extra package paths. Paths belong in site configuration, not the
 versioned robot YAML. For example:
@@ -60,6 +60,7 @@ keyboard-only session running.
 | `robosuite` | Lift, PickPlaceCan, NutAssemblySquare, ToolHang (Panda) | 7 native OSC/gripper values; `ee/delta` | Single arm, XYZ, rotation and gripper |
 | `robosuite_transport` | TwoArmTransport (two Pandas) | 14 values, robot0 then robot1; `ee/delta` | Both arms, with a separate 20 Hz keyboard profile |
 | `robotwin` | click_bell, adjust_bottle | 16 values: left then right XYZ + quaternion WXYZ + opening; `ee/abs` | Both arms using the installed native planner |
+| `behavior` | R1Pro empty scene; configured household tasks require full licensed assets | Native controller vector, currently 21 values; `ee/delta` | Holonomic base, both arms, rotation and grippers |
 
 Choose the same state representation, camera order, image size, action units and
 controller as the policy's training data. MetaWorld exposes its original
@@ -159,6 +160,63 @@ packets, unmarked HDF5 recording, pause, seeded Reset, and TCP policy requests
 through the existing `collect_data` / `eval_real` entrypoints. The policy check
 used a diagnostic hold policy and does not establish learned task success.
 
+## BEHAVIOR / OmniGibson mobile robot
+
+The `behavior` profile uses OmniGibson 3.7.2 / Isaac Sim 4.5 with R1Pro.
+Its dedicated runtime needs `VLASTUDIO_RUNTIME_BEHAVIOR_ROOT`,
+`OMNIGIBSON_DATA_PATH`, `OMNIGIBSON_APPDATA_PATH`, `OMNIGIBSON_HEADLESS`,
+and the accepted Isaac Sim EULA setting. Install simulator dependencies in this
+runtime, separately from RoboTwin. Full household tasks additionally require
+the licensed BEHAVIOR assets and challenge task instances. The `empty` scene
+only exercises the robot and floor; it is not a household-task success test.
+
+Use `keyboard_mobile_2arm`: Up/Down move forward/back, Left/Right strafe,
+and Home/End turn. Base velocity is in the robot frame; arm XYZ/rotation keys
+retain world-aligned axes and are converted to the robot frame for native IK.
+Release, focus loss, input timeout and pause produce zero base velocity.
+
+The adapter obtains action slots from `controller_action_idx`, rather than
+assuming two seven-value arms. With the configured R1Pro controllers the native
+policy/recording action is: base body velocity (3), absolute trunk positions (4),
+left IK pose delta (6), left gripper (1), right IK pose delta (6), right gripper
+(1). Translation uses metres, rotation radians and base velocity metres/second
+or radians/second; smooth gripper input is in [-1, 1]. Policies must match this
+controller configuration, not the original benchmark's joint-controller setup.
+The policy path forwards this full native vector without teleoperation scaling.
+
+`state` and `state_joint` contain all 28 measured joint coordinates, including
+virtual base and trunk joints. `state_ee` contains two world XYZ + quaternion
+XYZW + mean measured finger position blocks; the finger position is in metres.
+Camera order is head, left wrist, right wrist, at 320 x 240. Optional UI markers
+read native camera calibration and measured end-effector poses. They are drawn
+on preview copies and removed from the recorded frame metadata.
+The initial end effectors can be outside the head camera's view; their axes are
+visible in the wrist views. Out-of-view marker origins are omitted.
+
+The deployment wrapper leaves benchmark classes and upstream simulation code
+unchanged. Its dedicated device stops after the current native frame and closes
+Kit before Python finalization; it allows 30 seconds for process shutdown.
+The profile uses spawn and limits native task/physics threads to eight for the
+10-CPU QZ instance. Cold initialization can take several minutes; it has a
+900-second connection timeout. Warm starts also depend on shader and filesystem
+caches, so a requested control rate is not an initialization-time guarantee.
+
+QZ checks with driver 550.163.01 and the prepared Python 3.10.14 runtime covered
+all six base-key directions, both arms and grippers, release/timeout stops,
+three camera marker packets, unmarked HDF5 recording of 21-value native actions,
+pause, Reset, TCP diagnostic policy requests and clean process shutdown.
+The `assembling_gift_baskets` household scene also passed base motion, both-arm
+rotation, three-camera recording, pause, Reset and clean shutdown through the
+existing collection entrypoint. Its first initialization took about 552 seconds;
+recording ran at roughly 5 FPS on this 10-CPU / RTX 4090 instance. Configuring
+20 Hz does not guarantee that wall-clock rate. TCP policy checks used the empty
+scene and a diagnostic policy; learned task success was not evaluated.
+
+The fixed household archives passed their complete SHA256 checks. The native
+loader nevertheless warned that some object USD hashes differ from their saved
+states. Keep that warning when assessing asset/task-instance compatibility for
+formal benchmark evaluation; interactive control checks do not establish it.
+
 ## Optional UI marker providers
 
 Simulator classes and action adapters have no display-method requirement.
@@ -228,8 +286,8 @@ provider failure all leave the RGB preview usable without those markers.
 Provider binding uses the existing WebUI worker setup hook and a per-instance
 observation observer. It does not add methods to or modify the simulator class.
 Ordinary CLI training/evaluation/collection does not bind UI providers. Built-in
-bindings cover RLBench, robosuite, ALOHA EE and LIBERO; profiles can choose other
-providers or omit them entirely.
+bindings cover RLBench, robosuite, ALOHA EE, LIBERO, RoboTwin and BEHAVIOR;
+profiles can choose other providers or omit them entirely.
 The built-in providers currently emit EE axes. Custom providers can emit joint
 markers with their own joint IDs and projected positive-motion directions.
 
@@ -243,8 +301,8 @@ Policy output already uses native units and bypasses teleoperation scaling.
 The UI accepts a VLAStudio server address or compatible local checkpoint.
 Local checkpoint inference automatically uses CUDA when available and CPU
 otherwise. API callers can select `device: cpu` or `device: cuda` explicitly.
-RoboTwin is not included in this CPU validation: its SAPIEN renderer and EE path
-planner still need a separate GPU-backed interactive adapter and live checks.
+RoboTwin and BEHAVIOR use the GPU deployment profiles described above; they are
+not part of the CPU simulator checks.
 
 ## Reproduce the checks
 

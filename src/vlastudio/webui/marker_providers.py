@@ -121,3 +121,35 @@ class RoboTwinMarkerProvider:
                           intrinsics=native['intrinsic_cv'], image_size=[width, height], forward_axis=1)
             images[image] = axes_markers(camera, effectors, [width, height])
         return dict(version=1, images=images)
+
+
+class BehaviorMarkerProvider:
+    def __init__(self, environment, image_names):
+        from omnigibson.learning.utils.eval_utils import ROBOT_CAMERA_NAMES
+        self.environment = environment
+        self.images = list(zip(image_names, environment.camera_names))
+        self.native_names = ROBOT_CAMERA_NAMES[environment.robot.model_name]
+
+    def get_marker_from_observation(self, observation):
+        from scipy.spatial.transform import Rotation
+
+        def array(value):
+            return value.detach().cpu().numpy() if hasattr(value, 'detach') else np.asarray(value)
+
+        robot = self.environment.robot
+        effectors = [dict(label=arm[0].upper(), position=array(robot.get_eef_position(arm)))
+                     for arm in robot.arm_names]
+        images = {}
+        for i, (image, camera_name) in enumerate(self.images):
+            sensor_name = self.native_names[camera_name].split('::', 1)[1]
+            sensor = robot.sensors.get(sensor_name)
+            if sensor is None:
+                continue
+            position, quaternion = sensor.get_position_orientation()
+            # USD cameras look down -Z with +Y up; convert to CV +Z/+Y down.
+            rotation = Rotation.from_quat(array(quaternion)).as_matrix() @ np.diag([1, -1, -1])
+            height, width = observation['image'][i].shape[-2:]
+            camera = dict(position=array(position), rotation=rotation, intrinsics=array(sensor.intrinsic_matrix),
+                          image_size=[width, height], forward_axis=1)
+            images[image] = axes_markers(camera, effectors, [width, height])
+        return dict(version=1, images=images)

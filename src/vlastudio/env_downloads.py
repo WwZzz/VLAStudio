@@ -18,20 +18,34 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def _cleanup_parts(parts, count):
+    """Remove only our cached parts; preserve notebook or user sidecars."""
+    if not parts.is_dir():
+        return
+    for index in range(count):
+        for suffix in ('', '.partial'):
+            part = parts / (str(index) + suffix)
+            if part.is_file():
+                part.unlink()
+    if not any(parts.iterdir()):
+        parts.rmdir()
+
+
 def download(url, path, size, digest, *, offline=False):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with FileLock(str(path) + '.lock', timeout=3600):
+        parts = path.with_name(path.name + '.parts')
+        chunk = 8 * 1024 * 1024
+        count = (size + chunk - 1) // chunk
         if path.exists():
             if path.stat().st_size == size and sha256(path) == digest:
+                _cleanup_parts(parts, count)
                 return path
             raise ValueError(f'Cached resource failed SHA-256 verification: {path}')
         if offline:
             raise ValueError(f'Resource is not cached: {path.name}')
-        parts = path.with_name(path.name + '.parts')
         parts.mkdir(exist_ok=True)
-        chunk = 8 * 1024 * 1024
-        count = (size + chunk - 1) // chunk
 
         def fetch(index):
             start, stop = index * chunk, min(size, (index + 1) * chunk)
@@ -90,7 +104,5 @@ def download(url, path, size, digest, *, offline=False):
         if sha256(temporary) != digest:
             raise ValueError(f'Download failed SHA-256 verification: {path.name}; inspect {parts}')
         temporary.replace(path)
-        for part in parts.iterdir():
-            part.unlink()
-        parts.rmdir()
+        _cleanup_parts(parts, count)
         return path

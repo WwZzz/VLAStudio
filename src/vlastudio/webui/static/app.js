@@ -660,8 +660,10 @@ function keyboardEnabled() {
 }
 function mappedKeys() {
   const axes = state?.session.keyboard_axes || [0, 1, 2, 3, 4, 5, 6];
-  return new Set((state?.session.keyboard_bindings || [])
-    .flatMap((arm) => arm.filter((_, axis) => axes.includes(axis))).flat());
+  return new Set([
+    ...(state?.session.keyboard_bindings || []).flatMap((arm) => arm.filter((_, axis) => axes.includes(axis))).flat(),
+    ...(state?.session.keyboard_base_bindings || []).flat(),
+  ]);
 }
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
@@ -705,8 +707,9 @@ setInterval(async () => {
 }, 50);
 function renderKeyboard() {
   const bindings = state?.session.keyboard_bindings || [];
+  const baseBindings = state?.session.keyboard_base_bindings || [];
   const axes = state?.session.keyboard_axes || [0, 1, 2, 3, 4, 5, 6];
-  const signature = JSON.stringify([bindings, axes, language]);
+  const signature = JSON.stringify([bindings, baseBindings, axes, language]);
   if ($("keyboardBindings").dataset.signature === signature) return;
   $("keyboardBindings").dataset.signature = signature;
   $("keyboardBindings").replaceChildren();
@@ -776,6 +779,17 @@ function renderKeyboard() {
     block.append(gripper);
     $("keyboardBindings").append(block);
   });
+  if (baseBindings.length) {
+    const block = el("div", "keyboard-arm");
+    block.append(el("strong", "", tr("Mobile base (robot frame)")));
+    ["Forward / backward", "Left / right", "Turn left / right"].forEach((label, index) => {
+      const row = el("div", "key-gripper-row");
+      row.append(el("span", "key-group-label", tr(label)));
+      baseBindings[index].forEach((key) => row.append(el("kbd", "", keyName(key))));
+      block.append(row);
+    });
+    $("keyboardBindings").append(block);
+  }
 }
 function applyLanguage() {
   document.documentElement.lang = language === "zh" ? "zh-CN" : "en";

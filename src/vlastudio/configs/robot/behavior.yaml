@@ -1,0 +1,48 @@
+- type: vlastudio.deploy.robot.behavior_robot.BehaviorRobot
+  name: behavior
+  webui:
+    runtime: behavior
+    runtime_imports: [omnigibson, isaacsim]
+    runtime_required_env: [VLASTUDIO_RUNTIME_BEHAVIOR_ROOT, OMNIGIBSON_DATA_PATH]
+    marker_provider: vlastudio.webui.marker_providers.BehaviorMarkerProvider
+    rate: 20
+    tasks: [empty, assembling_gift_baskets, boxing_books_up_for_storage]
+    teleop: keyboard_mobile_2arm
+  args:
+    name: behavior
+    process_start_method: spawn
+    spawns_children: true
+    control_shm_name: keyboard_delta
+    connect_timeout: 900
+    fps: 20
+    task: empty
+    environment:
+      type: vlastudio.deploy.robot.benchmark_environments.behavior.BehaviorDeploymentEnv
+      args:
+        ctrl_space: ee
+        ctrl_type: delta
+        control_freq: 20
+        cpu_threads: 8
+        continuous: true
+        headless: true
+        instance_id: 0
+        max_timesteps: 1000000000
+        image_size: [240, 320]
+    on_success: continue
+    on_termination: pause
+    # Native action concatenates base, trunk, arms and grippers in controller_order.
+    # Its dimension is obtained from the loaded robot, not arms * 7.
+    action:
+      adapter: vlastudio.deploy.robot.behavior_adapter.BehaviorAdapter
+      arms: 2
+      space: ee
+      type: delta
+      base_velocity_limit: [.25, .25, .5]
+    observation:
+      fields:
+        qpos: state_joint
+        state: state
+        state_joint: state_joint
+        state_ee: state_ee
+      image_layout: KCHW
+      cameras: [head_camera, left_camera, right_camera]
