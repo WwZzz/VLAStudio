@@ -104,6 +104,10 @@ class BenchmarkRobot(BaseRobot):
         if not np.isclose(native_frequency, self.fps):
             raise ValueError(f'Robot fps={self.fps} must match environment control frequency {native_frequency}')
 
+    def reset_for_teleoperation(self):
+        self.reset()
+        return True
+
     def process_action(self, message):
         return self.adapter.teleop_action(message, self.raw)
 

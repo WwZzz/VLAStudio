@@ -292,6 +292,9 @@ class RebotB601RS(AliciaD):
             self._still_count = 0
             self._teleop_holding_still = False
 
+    def reset_for_teleoperation(self):
+        return self.set_home()
+
     def start(self):
         # Override BaseDevice's immediate-close signal handler. Repeated signals
         # request the same shutdown; they must not interrupt parking or disable.

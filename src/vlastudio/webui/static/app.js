@@ -287,10 +287,10 @@ async function act(action) {
       ),
       home: simulation
         ? tr(
-            "Pause teleoperation and reset the robot and simulation scene. Any current episode will finish for you to save or discard.",
+            "Reset the robot and simulation scene. After confirmed reset, enabled teleoperation resumes. Any current episode will finish for you to save or discard.",
           )
         : tr(
-            "Pause teleoperation and reset the robot. Any current episode will finish for you to save or discard.",
+            "Reset the robot. After confirmed reset, enabled teleoperation resumes. Any current episode will finish for you to save or discard.",
           ),
       discard: tr("Discard this episode?"),
       stop: tr(
@@ -299,6 +299,7 @@ async function act(action) {
     };
     if (!(await confirmAction(tr(names[action]), msg[action]))) return;
   }
+  if (action === "home") heldKeys.clear();
   await post("action", { id: sid, action });
 }
 function transportIcon(key) {
@@ -455,14 +456,26 @@ async function updateCamera(name, item) {
       if (!response.ok) break;
       const blob = await response.blob();
       if (signal.aborted || document.hidden || $("library").open) break;
-      const url = URL.createObjectURL(blob);
-      const previous = item.url;
-      item.img.src = url;
-      item.url = url;
-      try {
-        await item.img.decode();
-      } finally {
-        if (previous) URL.revokeObjectURL(previous);
+      if (item.context) {
+        const frame = await createImageBitmap(blob);
+        try {
+          if (signal.aborted || document.hidden || $("library").open) break;
+          const canvas = item.context.canvas;
+          if (canvas.width !== frame.width) canvas.width = frame.width;
+          if (canvas.height !== frame.height) canvas.height = frame.height;
+          item.context.drawImage(frame, 0, 0);
+        } finally {
+          frame.close();
+        }
+      } else {
+        const previous = item.url;
+        item.url = URL.createObjectURL(blob);
+        item.img.src = item.url;
+        try {
+          await item.img.decode();
+        } finally {
+          if (previous) URL.revokeObjectURL(previous);
+        }
       }
       item.stamp = response.headers.get("X-Frame-Stamp");
       // Older servers return snapshots immediately. Bound their polling rate.
@@ -496,9 +509,13 @@ function cameras(p) {
     if (!item) {
       const node = el("div", "feed"), img = el("img"), label = el("span", "", name);
       img.alt = name;
-      node.append(img, label);
+      const canvas = el("canvas");
+      const context = window.createImageBitmap && canvas.getContext("2d", {alpha: false, desynchronized: true});
+      canvas.setAttribute("role", "img");
+      canvas.setAttribute("aria-label", name);
+      node.append(context ? canvas : img, label);
       $("feeds").append(node);
-      item = {node, img, label, url: "", stamp: null, controller: new AbortController()};
+      item = {node, img, context, label, url: "", stamp: null, controller: new AbortController()};
       feeds.set(name, item);
     }
     const age = p.age[name.split("/")[0]] ?? 0;

@@ -113,6 +113,7 @@ def run(profile):
                         "control_axes":models[name].control_axes, "rest":True} for k in keys}
             print(json.dumps({"images":{}, "axes":{}, "models":rest, "stamps":{}}), flush=True)
     last_state = {}
+    next_read, image_slot = {}, {}
     next_inode_check = 0.0
     last_view = time.monotonic()
     try:
@@ -147,12 +148,23 @@ def run(profile):
                         readers[name] = SharedMemoryChannel(name, is_writer=False, timeout=0)
                     except (OSError, ValueError, TimeoutError):
                         continue
+                if start < next_read.get(name, 0):
+                    continue
                 data = readers[name].read(blocking=False, skip_unchanged=True, copy=False)
                 if not data:
                     continue
                 stamp = data.get("__timestamp__", start)
                 packet["stamps"][name] = stamp
-                packet["images"].update(images(data, name, args.get("bgr_to_rgb") is False))
+                views = dict(images(data, name, args.get("bgr_to_rgb") is False))
+                if views:
+                    packet["images"].update(views)
+                    # A spare frame slot absorbs camera jitter. Check for fresh
+                    # SHM data promptly without encoding fast producers at 120 Hz.
+                    slot = max(start, image_slot.get(name, start))
+                    next_read[name] = slot
+                    image_slot[name] = slot + 1 / 30
+                else:
+                    next_read[name] = start + .125
                 # Camera previews follow the latest sample. Joint plots and FK stay at 8 Hz.
                 if start - last_state.get(name, 0) < .125:
                     continue
@@ -178,7 +190,7 @@ def run(profile):
                                                 "control_axes": model.control_axes}
             if packet["stamps"]:
                 print(json.dumps(packet, separators=(",", ":"), allow_nan=False), flush=True)
-            time.sleep(max(0, 1 / 30 - (time.monotonic() - start)))
+            time.sleep(max(0, 1 / 120 - (time.monotonic() - start)))
     finally:
         for reader in readers.values():
             reader.destroy()

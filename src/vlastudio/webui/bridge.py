@@ -5,7 +5,7 @@ import select
 import sys
 
 PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy", "record_paused")
-PAUSE, RUN, RESET_A, RESET_B, RESETTING = range(5)
+PAUSE, RUN, RESET_A, RESET_B, RESETTING, RESET_AND_RESUME = range(6)
 
 
 def mailbox():
@@ -85,6 +85,17 @@ class InputGate:
         if command != self.previous:
             self.previous = command
             self.box[4] = command
+            if command == RESET_AND_RESUME:
+                self.box[1] = RESETTING
+                # A successful reset must be acknowledged by the device. Some
+                # legacy drivers only submit a target and cannot confirm arrival.
+                reset = getattr(robot, "reset_for_teleoperation", None)
+                if reset is None:
+                    return {"cmd": "reset", "go_home": True}
+                confirmed = reset()
+                if self.box[0] == command:
+                    self.box[0] = RUN if confirmed else PAUSE
+                return None
             if command in (RESET_A, RESET_B):
                 self.box[1] = RESETTING
                 return {"cmd": "reset", "go_home": True}
@@ -95,6 +106,8 @@ class InputGate:
             self.reanchor = command == RUN
             self.box[1] = command
             return None  # discard input already queued across a transition
+        if command == RESET_AND_RESUME:
+            self.box[0] = PAUSE
         if command != RUN:
             self.box[1] = PAUSE
             if self.policy and message and message.get("cmd") == "reset":

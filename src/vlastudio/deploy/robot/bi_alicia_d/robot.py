@@ -180,6 +180,9 @@ class BiAliciaD(BaseRobot):
                     if arm._ik_solver is not None:
                         arm._ik_solver.reset(measured[:6])
 
+    def reset_for_teleoperation(self):
+        return self.set_home()
+
     def _read_home_state(self):
         """Fresh replies, unchanged fault checks, and live observations during home."""
         for arm in (self.left, self.right):

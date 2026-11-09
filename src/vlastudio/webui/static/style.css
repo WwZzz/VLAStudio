@@ -250,7 +250,7 @@ p {
   place-items: center;
   color: #98a88c;
 }
-.feed img {
+.feed img, .feed canvas {
   width: 100%;
   display: block;
   object-fit: contain;

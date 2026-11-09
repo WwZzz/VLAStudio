@@ -111,10 +111,10 @@ const chinese = {
   "Connect ": "连接 ",
   "This starts the selected devices. Real robots may enable or move during connection.":
     "这会启动所选设备，真实机械臂可能使能或执行连接动作。",
-  "Pause teleoperation and reset the robot and simulation scene. Any current episode will finish for you to save or discard.":
-    "暂停遥操作并复位机器人及仿真场景。当前录制片段会先结束，供你保存或丢弃。",
-  "Pause teleoperation and reset the robot. Any current episode will finish for you to save or discard.":
-    "暂停遥操作并复位机器人。当前录制片段会先结束，供你保存或丢弃。",
+  "Reset the robot and simulation scene. After confirmed reset, enabled teleoperation resumes. Any current episode will finish for you to save or discard.":
+    "复位机器人及仿真场景。复位确认后自动恢复已启用的遥操作。当前录制片段会先结束，供你保存或丢弃。",
+  "Reset the robot. After confirmed reset, enabled teleoperation resumes. Any current episode will finish for you to save or discard.":
+    "复位机器人。复位确认后自动恢复已启用的遥操作。当前录制片段会先结束，供你保存或丢弃。",
   "Pause inference, reset the policy and robot. The current unsaved inference recording follows the native discard behavior.":
     "暂停推理并复位策略和机器人。未保存的推理录像按原生流程丢弃。",
   "Discard this episode?": "丢弃这段录制？",

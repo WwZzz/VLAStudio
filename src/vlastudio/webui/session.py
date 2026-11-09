@@ -14,7 +14,7 @@ import tempfile
 import threading
 import time
 
-from .bridge import PHASES, PAUSE, RUN, RESET_A, RESET_B, RESETTING
+from .bridge import PHASES, PAUSE, RUN, RESET_A, RESET_B, RESETTING, RESET_AND_RESUME
 from .profiles import ROOT, channels, config, catalog
 from .tasks import get_task
 from .runtimes import resolve_runtime
@@ -348,7 +348,10 @@ class Session:
             collect_controls = live and self.mode == "collect" and phase in ("ready", "recording", "record_paused", "save")
             controls_enabled = False
             if live and self.mode == "collect":
-                controls_enabled = self.box[0] == self.box[1] == RUN if self.gated else self.observation_controls
+                if self.gated:
+                    controls_enabled = self.box[0] == self.box[1] == RUN or self.box[0] == RESET_AND_RESUME
+                else:
+                    controls_enabled = self.observation_controls
             if collect_controls and self.gated:
                 ack, cmd = self.box[1], self.box[0]
                 if ack == RUN and cmd == RUN:
@@ -439,7 +442,10 @@ class Session:
             elif action in ("tele_pause", "tele_run", "home"):
                 if action == "home":
                     self.box[1] = RESETTING
-                    self.box[0] = RESET_B if self.box[0] == RESET_A else RESET_A
+                    if state["controls_enabled"]:
+                        self.box[0] = RESET_AND_RESUME
+                    else:
+                        self.box[0] = RESET_B if self.box[0] == RESET_A else RESET_A
                     if state["phase"] in ("recording", "record_paused"):
                         self._key("finish", state["phase"])
                 elif self.gated:
