@@ -124,6 +124,8 @@ class RebotB601RS(AliciaD):
         self._target_qpos = self._current_joint_angles.copy()
         self._smooth_qpos = self._current_joint_angles.copy()
         self._current_gripper = self._target_gripper = float(obs['qpos'][6]*1000)
+        self._ik_initialized = False
+        self._tracking_time = None
 
     def enable(self):
         if not self._connected:
@@ -178,7 +180,11 @@ class RebotB601RS(AliciaD):
             target = _transform_matrix_from_xyz_rpy(a[:3],a[3:6])
             ok,q,_,_ = self.ik_solver.solve(target,q_init=self.get_observation()['joint_angles'])
             return dict(message,action=np.r_[q,a[6]] if ok else None)
-        if message.get('unsqueeze_active',False):
+        if self.control_mode == 'delta_ee':
+            # Keyboard sends normalized opening increments. Unlike Alicia's loop,
+            # Rebot.start() does not update the gripper before process_action().
+            self._target_gripper = float(np.clip(self._target_gripper + a[6]*1000, 0, 1000))
+        if message.get('unsqueeze_active',False) and self.control_mode != 'delta_ee':
             if self.gripper_absolute:
                 self._target_gripper = float(np.clip(a[6]*1000,0,1000))
             else:
