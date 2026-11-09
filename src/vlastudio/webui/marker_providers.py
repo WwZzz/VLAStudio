@@ -1,4 +1,5 @@
 """Simulator-specific, read-only marker adapters owned by the UI."""
+import numpy as np
 from .ee_overlay import axes_markers
 
 
@@ -93,5 +94,30 @@ class AlohaMarkerProvider:
                           rotation=physics.named.data.cam_xmat[camera_name].reshape(3, 3),
                           fovy=float(physics.named.model.cam_fovy[camera_name]))
             height, width = observation['image'][i].shape[-2:]
+            images[image] = axes_markers(camera, effectors, [width, height])
+        return dict(version=1, images=images)
+
+
+class RoboTwinMarkerProvider:
+    def __init__(self, environment, image_names):
+        self.environment = environment
+        self.cameras = list(zip(image_names, environment.camera_names))
+
+    def get_marker_from_observation(self, observation):
+        task = self.environment.task_env
+        effectors = [dict(label=side[0].upper(), position=task.get_arm_pose(side)[:3])
+                     for side in ('left', 'right')]
+        images = {}
+        for image, native_name in self.cameras:
+            native = task.now_obs['observation'].get(native_name, {})
+            if not all(key in native for key in ('intrinsic_cv', 'extrinsic_cv', 'rgb')):
+                continue
+            world_to_camera = np.eye(4)
+            extrinsics = np.asarray(native['extrinsic_cv'])
+            world_to_camera[:extrinsics.shape[0], :4] = extrinsics
+            camera_to_world = np.linalg.inv(world_to_camera)
+            height, width = native['rgb'].shape[:2]
+            camera = dict(position=camera_to_world[:3, 3], rotation=camera_to_world[:3, :3],
+                          intrinsics=native['intrinsic_cv'], image_size=[width, height], forward_axis=1)
             images[image] = axes_markers(camera, effectors, [width, height])
         return dict(version=1, images=images)

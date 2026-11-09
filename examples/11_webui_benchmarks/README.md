@@ -9,7 +9,7 @@ simulator environments using a site runtime registry:
 python -m vlastudio.webui --host 127.0.0.1 --port 8765 --runtimes /site/webui-runtimes.json
 ```
 
-Robot profiles declare a runtime name (`metaworld`, `rlbench`, `aloha`, `libero`, `robosuite`).
+Robot profiles declare a runtime name (`metaworld`, `rlbench`, `aloha`, `libero`, `robosuite`, `robotwin`).
 The site JSON maps names to an argument-list launcher, environment variables,
 and optional extra package paths. Paths belong in site configuration, not the
 versioned robot YAML. For example:
@@ -59,6 +59,7 @@ keyboard-only session running.
 | `libero` | Existing task catalog | 7 native OSC/gripper values; `ee/delta` | Existing single-arm control |
 | `robosuite` | Lift, PickPlaceCan, NutAssemblySquare, ToolHang (Panda) | 7 native OSC/gripper values; `ee/delta` | Single arm, XYZ, rotation and gripper |
 | `robosuite_transport` | TwoArmTransport (two Pandas) | 14 values, robot0 then robot1; `ee/delta` | Both arms, with a separate 20 Hz keyboard profile |
+| `robotwin` | click_bell, adjust_bottle | 16 values: left then right XYZ + quaternion WXYZ + opening; `ee/abs` | Both arms using the installed native planner |
 
 Choose the same state representation, camera order, image size, action units and
 controller as the policy's training data. MetaWorld exposes its original
@@ -128,6 +129,35 @@ robosuite tasks. The Lift and Transport WebUI sessions also covered camera
 preview, HDF5 recording, keyboard response after 550 steps, pause, Reset and
 TCP policy round trips through the existing collection/inference entrypoints.
 The TCP checks used a diagnostic policy; learned task success was not evaluated.
+
+## RoboTwin GPU runtime
+
+Reuse the installed RoboTwin environment and assets. Current RoboTwin uses
+`env_cfg/task_config` and the public `scripts.eval_policy_xpolicylab` loader;
+the deployment wrapper handles that layout without modifying native task code.
+The runtime registry entry needs a launcher and `VLASTUDIO_RUNTIME_ROBOTWIN_ROOT`.
+For the prepared QZ launcher, set `ROBOTWIN_EXTRA_PYTHONPATH` to this checkout's
+`src` directory so collection, inference and preview run the same source.
+
+The profile selects `args.process_start_method: spawn` and
+`args.spawns_children: true`. CuRobo initializes CUDA during import and cannot
+run in a forked device after the inference supervisor has initialized CUDA.
+Spawn explicitly transfers the private WebUI control mailbox. Existing profiles
+retain their normal multiprocessing defaults. The non-daemon device also allows
+native planners that create their own child processes.
+
+`state` and `state_ee` retain the native 16-value end-pose representation;
+`state_joint` contains 14 measured joint/gripper values. The three RGB cameras
+are head, left wrist and right wrist, at 320 x 240. The planner runs each
+increment to completion, so configured 20 Hz is not a wall-clock rate guarantee.
+Interactive collection continues after native evaluation success; explicit Reset
+restores the seeded scene. Policies must match this EE controller and image/state
+contract. Joint-space policies need their own matching deployment profile.
+
+On QZ RTX 4090, WebUI checks covered both arms and grippers, three camera marker
+packets, unmarked HDF5 recording, pause, seeded Reset, and TCP policy requests
+through the existing `collect_data` / `eval_real` entrypoints. The policy check
+used a diagnostic hold policy and does not establish learned task success.
 
 ## Optional UI marker providers
 
