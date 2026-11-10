@@ -107,6 +107,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply(create_task(data['name'], data.get('instruction', '')))
             if self.path == "/api/robot/connect":
                 s.connect(data)
+            elif self.path == "/api/disconnect":
+                s.disconnect(data["connection"], all_sources=True)
             elif self.path == "/api/robot/disconnect":
                 s.disconnect(data["connection"])
             elif self.path == "/api/start":

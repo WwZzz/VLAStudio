@@ -746,3 +746,6 @@ textarea {
   .transport-key .reset-shortcut {display:none}
   .transport-key.home,.transport-key.reset {width:40px}
 }
+
+#loadAll.disconnect-all {background:#b52b3a;border-color:#b52b3a;color:white}
+#loadAll.disconnect-all:hover:enabled {background:#92202d;border-color:#92202d}

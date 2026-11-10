@@ -223,11 +223,15 @@ class Studio:
                     self.selected = sid
                 runner.action(sid, action)
 
-    def disconnect(self, token):
+    def disconnect(self, token, all_sources=False):
         with self.lock:
             if not self.host or self.connected.get("id") != token:
                 raise ValueError("Robot connection changed")
-            if any(r.proc is not None for r in self.runners.values()):
+            if all_sources:
+                collect = self.runners["collect"].state()
+                if collect["phase"] in ("recording", "record_paused", "save"):
+                    raise ValueError("Finish and save or discard the current episode first")
+            elif any(r.proc is not None for r in self.runners.values()):
                 raise ValueError("Unload teleoperation and policy before disconnecting the robot")
             code = self._close()
             if code:

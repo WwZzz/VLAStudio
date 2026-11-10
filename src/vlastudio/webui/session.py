@@ -481,6 +481,7 @@ class Session:
         with self.lock:
             proc = self.proc
             if proc is not None and not self.stopping:
+                self.box[0] = PAUSE
                 self.stopping = True
                 proc.terminate()
         if proc is not None:

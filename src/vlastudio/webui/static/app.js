@@ -41,6 +41,7 @@ const phases = {
   stopping: "Disconnecting",
 };
 let connecting = false;
+let disconnecting = false;
 let robotTasks = [];
 sessionStorage.removeItem("vla-key");
 let state = null,
@@ -264,6 +265,20 @@ $("loadAll").onclick = async () => {
   if (busy) return;
   const opts = options();
   const connection = state.session.connection;
+  if (connection) {
+    if (!(await confirmAction(tr("Disconnect all"), tr(
+      "Disconnect the devices after completing their shutdown procedure. Save any recordings you need first.",
+    )))) return;
+    heldKeys.clear();
+    disconnecting = true;
+    try {
+      await post("disconnect", {connection:connection.id});
+    } finally {
+      disconnecting = false;
+      if (state) renderSession(state.session);
+    }
+    return;
+  }
   if (!connection && !(await confirmAction(
     tr("Connect ") + opts.robot,
     tr("This starts the selected devices. Real robots may enable or move during connection."),
@@ -416,12 +431,12 @@ function renderSession(s) {
           ? (collecting ? "Unload teleoperation" : "Unload policy")
           : (collecting ? "Load teleoperation" : "Load policy"),
   );
-  const allLoaded = !!c?.ready && s.active && !["loading", "waiting_robot"].includes(s.phase);
-  const allLoading = connecting || (!!c && s.active && !allLoaded);
-  $("loadAll").disabled = busy || connecting || (!!c && s.active) ||
-    !(profiles.robot_options?.[$("robot").value]?.modes || ["collect", "infer"]).includes(mode);
+  const allLoading = connecting || disconnecting;
+  $("loadAll").disabled = busy || connecting || disconnecting || (!c &&
+    !(profiles.robot_options?.[$("robot").value]?.modes || ["collect", "infer"]).includes(mode));
+  $("loadAll").classList.toggle("disconnect-all", !!c);
   $("loadAll").setAttribute("aria-busy", String(allLoading));
-  $("loadAllLabel").textContent = tr(allLoading ? "Loading devices" : allLoaded ? "All loaded" : "Load all");
+  $("loadAllLabel").textContent = tr(disconnecting ? "Disconnecting" : connecting ? "Loading devices" : c ? "Disconnect all" : "Load all");
   $("loadAllProgress").hidden = !allLoading;
   const allowed = other ? [] : s.actions;
   const toggle = $("teleSwitch");

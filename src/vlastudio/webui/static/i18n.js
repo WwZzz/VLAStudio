@@ -72,7 +72,8 @@ const chinese = {
   "Native synchronization": "原生同步",
   "Connect devices": "连接设备",
   "Load all": "一键加载",
-  "All loaded": "已加载",
+  "Disconnect all": "一键断开",
+  "Finish and save or discard the current episode first": "请先结束当前录制，再保存或丢弃片段",
   "Resume inference": "恢复推理",
   "Please wait for the device to become ready": "请等待设备就绪",
   "Available after connecting a device that supports reset":
