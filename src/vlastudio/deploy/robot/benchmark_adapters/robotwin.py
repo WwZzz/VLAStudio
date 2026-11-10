@@ -10,7 +10,7 @@ from scipy.spatial.transform import Rotation
 from vlastudio.benchmark.robotwin import RoboTwinEnv
 
 
-class RoboTwinInteractiveEnv(RoboTwinEnv):
+class RoboTwinEnvironment(RoboTwinEnv):
     def __init__(self, config):
         root = Path(getattr(config, 'robotwin_root', os.environ.get('VLASTUDIO_RUNTIME_ROBOTWIN_ROOT', '')))
         if not (root / 'envs').is_dir():

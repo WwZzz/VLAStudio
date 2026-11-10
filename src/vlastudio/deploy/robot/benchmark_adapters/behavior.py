@@ -14,7 +14,7 @@ def array(value):
     return value.detach().cpu().numpy() if hasattr(value, 'detach') else np.asarray(value)
 
 
-class BehaviorInteractiveEnv(Behavior1kEnv):
+class BehaviorEnvironment(Behavior1kEnv):
     def __init__(self, config):
         config = copy(config)
         if getattr(config, 'task', None) == 'empty':

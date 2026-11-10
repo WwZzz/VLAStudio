@@ -1,7 +1,4 @@
-"""Compatibility import for existing deployment configurations.
-
-Interactive environment behavior now lives alongside the benchmark environment.
-"""
-from vlastudio.benchmark.libero.interactive import LiberoInteractiveEnv as LiberoDeploymentEnv
+"""Compatibility import for existing robot environment configurations."""
+from vlastudio.deploy.robot.benchmark_adapters.libero import LiberoEnvironment as LiberoDeploymentEnv
 
 __all__ = ["LiberoDeploymentEnv"]

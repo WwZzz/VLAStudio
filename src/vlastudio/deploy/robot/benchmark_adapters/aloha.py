@@ -4,7 +4,7 @@ import numpy as np
 from vlastudio.benchmark.aloha import AlohaSimEnv
 
 
-class AlohaInteractiveEnv(AlohaSimEnv):
+class AlohaEnvironment(AlohaSimEnv):
     def __init__(self, config):
         config = copy(config)
         if getattr(config, 'continue_after_success', False):

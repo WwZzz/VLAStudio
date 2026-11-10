@@ -2,7 +2,8 @@
 
 Custom adapters implement reset(env, observation), teleop_action(message, observation),
 idle_action(), and environment_action(action), and expose target/arms/width/space/native_type.
-The environment remains responsible for emitting MetaObs and its step result.
+Adapters may also implement create_environment(config). An explicit environment
+factory in a robot config takes precedence for existing custom integrations.
 """
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -92,6 +93,11 @@ class CartesianAdapter:
 
 class AlohaAdapter(CartesianAdapter):
     """Preserve the model's calibrated mocap-to-gripper weld transform."""
+    @staticmethod
+    def create_environment(config):
+        from .aloha import AlohaEnvironment
+        return AlohaEnvironment(config)
+
     def reset(self, env, observation):
         super().reset(env, observation)
         if self.arms != 2 or self.rotation != 'quat_wxyz' or self.native_type != 'abs':
@@ -106,6 +112,11 @@ class AlohaAdapter(CartesianAdapter):
 
 class LiberoAdapter(CartesianAdapter):
     """Convert physical Cartesian increments using the active OSC controller scale."""
+    @staticmethod
+    def create_environment(config):
+        from .libero import LiberoEnvironment
+        return LiberoEnvironment(config)
+
     def reset(self, env, observation):
         super().reset(env, observation)
         controller = env.env.env.robots[0].controller
@@ -126,6 +137,11 @@ class LiberoAdapter(CartesianAdapter):
 
 class RLBenchAdapter(CartesianAdapter):
     """Anchor incremental IK targets to measured pose instead of accumulating error."""
+    @staticmethod
+    def create_environment(config):
+        from .rlbench import RLBenchEnvironment
+        return RLBenchEnvironment(config)
+
     def teleop_action(self, message, observation):
         self.target[:7] = np.asarray(observation['state_ee'])[:7]
         return super().teleop_action(message, observation)
@@ -137,6 +153,11 @@ class MetaWorldAdapter(CartesianAdapter):
     MetaWorld has fixed orientation. Its fourth control is signed gripper
     effort (positive closes), not a normalized gripper position.
     """
+    @staticmethod
+    def create_environment(config):
+        from .metaworld import MetaWorldEnvironment
+        return MetaWorldEnvironment(config)
+
     def __init__(self, config):
         super().__init__(config)
         if self.arms != 1 or self.native_type != 'delta':
@@ -184,3 +205,11 @@ class NativeJointAdapter:
 
     def environment_action(self, action):
         return MetaAction(action=action.copy(), ctrl_space=self.space, ctrl_type=self.native_type)
+
+
+class AlohaJointAdapter(NativeJointAdapter):
+    """Native joint control using ALOHA's deployment lifecycle."""
+    @staticmethod
+    def create_environment(config):
+        from .aloha import AlohaEnvironment
+        return AlohaEnvironment(config)

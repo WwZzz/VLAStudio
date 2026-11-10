@@ -20,7 +20,6 @@
     fps: 20
     task: click_bell
     environment:
-      type: vlastudio.benchmark.robotwin.interactive.RoboTwinInteractiveEnv
       args:
         ctrl_space: ee
         ctrl_type: abs

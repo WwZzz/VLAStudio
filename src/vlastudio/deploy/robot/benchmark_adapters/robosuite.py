@@ -12,7 +12,7 @@ from vlastudio.benchmark.robomimic.constant import ALL_ENV_CONFIGS, ALL_ENV_LANG
 from vlastudio.data_utils.pose_utils import quat2axisangle
 
 
-class RobosuiteInteractiveEnv(RobomimicEnv):
+class RobosuiteEnvironment(RobomimicEnv):
     def create_env(self):
         env_name, robot_name = self.config.task.split('_')
         metadata = deepcopy(ALL_ENV_CONFIGS[env_name][robot_name])

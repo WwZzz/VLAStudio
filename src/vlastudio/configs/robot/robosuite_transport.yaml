@@ -12,7 +12,6 @@
     control_shm_name: keyboard_delta
     fps: 20
     environment:
-      type: vlastudio.benchmark.robomimic.interactive.RobosuiteInteractiveEnv
       args:
         ctrl_space: ee
         ctrl_type: delta

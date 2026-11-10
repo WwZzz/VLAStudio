@@ -5,7 +5,7 @@ import numpy as np
 from vlastudio.benchmark.libero import LiberoEnv
 
 
-class LiberoInteractiveEnv(LiberoEnv):
+class LiberoEnvironment(LiberoEnv):
     def __init__(self, config):
         config = copy(config)
         if getattr(config, 'continue_after_success', False):

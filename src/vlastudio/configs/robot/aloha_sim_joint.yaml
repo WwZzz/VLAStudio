@@ -13,7 +13,6 @@
     input_mode: native
     task: sim_transfer_cube_scripted
     environment:
-      type: vlastudio.benchmark.aloha.interactive.AlohaInteractiveEnv
       args:
         ctrl_space: joint
         ctrl_type: abs
@@ -23,7 +22,7 @@
         continue_after_success: true
         separate_termination: true
     action:
-      adapter: vlastudio.deploy.robot.benchmark_adapters.NativeJointAdapter
+      adapter: vlastudio.deploy.robot.benchmark_adapters.AlohaJointAdapter
       arms: 2
       width: 7
       space: joint

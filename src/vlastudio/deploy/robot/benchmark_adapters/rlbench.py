@@ -5,7 +5,7 @@ from loguru import logger
 from vlastudio.benchmark.rlbench import RLBenchEnv
 
 
-class RLBenchInteractiveEnv(RLBenchEnv):
+class RLBenchEnvironment(RLBenchEnv):
     def _create_rlbench_env(self):
         import os
         from rlbench.environment import Environment

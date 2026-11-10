@@ -13,7 +13,7 @@ def _without_time_limits(env):
     return env
 
 
-class MetaWorldInteractiveEnv(MetaWorldEnv):
+class MetaWorldEnvironment(MetaWorldEnv):
     def __init__(self, config):
         super().__init__(config)
         self.ctrl_space, self.ctrl_type = 'ee', 'delta'

@@ -49,7 +49,10 @@ class BenchmarkRobot(BaseRobot):
             config.setdefault('input_mode', self.input_mode)
             if self.task:
                 config["task"] = self.task
-            factory = resolve(self.environment_config["type"])
+            reference = self.environment_config.get("type")
+            factory = resolve(reference) if reference else getattr(self.adapter, "create_environment", None)
+            if factory is None:
+                raise ValueError("Provide environment.type or an adapter with create_environment(config)")
             self.env = factory(SimpleNamespace(**config))
             self.reset()
         return True

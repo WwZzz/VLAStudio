@@ -6,6 +6,11 @@ from .benchmark_adapters import CartesianAdapter
 
 
 class RoboTwinAdapter(CartesianAdapter):
+    @staticmethod
+    def create_environment(config):
+        from .benchmark_adapters.robotwin import RoboTwinEnvironment
+        return RoboTwinEnvironment(config)
+
     def reset(self, env, observation):
         super().reset(env, observation)
         self.control_frequency = float(getattr(env.config, 'control_freq', 20))

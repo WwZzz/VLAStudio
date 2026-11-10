@@ -14,7 +14,6 @@
     control_shm_name: keyboard_delta
     fps: 50
     environment:
-      type: vlastudio.benchmark.aloha.interactive.AlohaInteractiveEnv
       args:
         ctrl_space: ee
         ctrl_type: abs

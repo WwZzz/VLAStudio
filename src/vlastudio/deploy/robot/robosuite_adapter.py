@@ -5,6 +5,11 @@ from .benchmark_adapters import CartesianAdapter
 
 
 class RobosuiteAdapter(CartesianAdapter):
+    @staticmethod
+    def create_environment(config):
+        from .benchmark_adapters.robosuite import RobosuiteEnvironment
+        return RobosuiteEnvironment(config)
+
     def reset(self, env, observation):
         super().reset(env, observation)
         base = env.env.base_env

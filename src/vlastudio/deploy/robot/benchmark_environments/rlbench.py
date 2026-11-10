@@ -1,7 +1,4 @@
-"""Compatibility import for existing deployment configurations.
-
-Interactive environment behavior now lives alongside the benchmark environment.
-"""
-from vlastudio.benchmark.rlbench.interactive import RLBenchInteractiveEnv as RLBenchDeploymentEnv
+"""Compatibility import for existing robot environment configurations."""
+from vlastudio.deploy.robot.benchmark_adapters.rlbench import RLBenchEnvironment as RLBenchDeploymentEnv
 
 __all__ = ["RLBenchDeploymentEnv"]

@@ -12,6 +12,11 @@ def array(value):
 class BehaviorAdapter:
     arms, width, space, native_type = 2, 7, 'ee', 'delta'
 
+    @staticmethod
+    def create_environment(config):
+        from .benchmark_adapters.behavior import BehaviorEnvironment
+        return BehaviorEnvironment(config)
+
     def __init__(self, config):
         self.config = dict(config)
         self.target = None
