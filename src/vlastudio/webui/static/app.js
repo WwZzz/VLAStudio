@@ -353,7 +353,7 @@ $("teleSwitch").onclick = (event) => {
   act(enabled ? "tele_pause" : "tele_run");
 };
 document.addEventListener("keydown", (event) => {
-  if (!collecting || event.key !== "Enter" || event.isComposing || event.defaultPrevented ||
+  if (reviewingEpisode() || !collecting || event.key !== "Enter" || event.isComposing || event.defaultPrevented ||
       event.ctrlKey || event.altKey || event.metaKey || event.shiftKey ||
       document.querySelector("dialog[open]") ||
       event.target.closest("input,textarea,select,button,a,summary,[contenteditable=true]")) return;
@@ -363,7 +363,7 @@ document.addEventListener("keydown", (event) => {
   if (!event.repeat) action.click();
 });
 document.addEventListener("keydown", (event) => {
-  if (event.code !== "KeyR" || !event.ctrlKey || !event.altKey ||
+  if (reviewingEpisode() || event.code !== "KeyR" || !event.ctrlKey || !event.altKey ||
       event.repeat || event.isComposing || event.defaultPrevented ||
       event.metaKey || event.shiftKey || busy ||
       document.querySelector("dialog[open]") ||
@@ -520,23 +520,26 @@ function cameraFrameRate(item, now) {
     item.drawTimes.shift();
   return now - item.createdAt >= 1000 && item.timestamped ? item.drawTimes.length : "—";
 }
+function reviewingEpisode() {
+  return !$("episodePlayer").hidden;
+}
 async function updateCamera(name, item) {
   if (item.loading) return;
   item.loading = true;
   const signal = item.controller.signal;
   try {
-    while (!signal.aborted && !document.hidden && !$("library").open) {
+    while (!signal.aborted && !document.hidden && !reviewingEpisode()) {
       const query = new URLSearchParams({name});
       if (item.stamp) query.set("after", item.stamp);
       const response = await fetch("/api/image?" + query, {signal, cache: "no-store"});
       if (response.status === 204) continue;
       if (!response.ok) break;
       const blob = await response.blob();
-      if (signal.aborted || document.hidden || $("library").open) break;
+      if (signal.aborted || document.hidden || reviewingEpisode()) break;
       if (item.context) {
         const frame = await createImageBitmap(blob);
         try {
-          if (signal.aborted || document.hidden || $("library").open) break;
+          if (signal.aborted || document.hidden || reviewingEpisode()) break;
           const canvas = item.context.canvas;
           if (canvas.width !== frame.width) canvas.width = frame.width;
           if (canvas.height !== frame.height) canvas.height = frame.height;
@@ -640,8 +643,7 @@ function chart(canvas, rows, idx) {
   }
   c.stroke();
 }
-function axes(p) {
-  const root = $("axes");
+function axes(p, root = $("axes")) {
   root.replaceChildren();
   for (const [key, rows] of Object.entries(p.axes)) {
     if (!rows.length) continue;
@@ -782,6 +784,7 @@ async function refresh() {
     $("link").textContent = tr("Service connected");
     $("link").className = "chip online";
     renderSession(state.session);
+    if (reviewingEpisode()) return;
     const p = state.preview;
     axes(p);
     modelData = p.models;
@@ -810,6 +813,7 @@ const keyboardOwner = [...crypto.getRandomValues(new Uint8Array(16))]
 function keyboardEnabled() {
   const element = document.activeElement;
   return (
+    !reviewingEpisode() &&
     state?.session.mode === mode &&
     state.session.tele === "running" &&
     state.session.keyboard_arms &&

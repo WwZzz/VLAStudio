@@ -2,7 +2,7 @@
 
 (() => {
   const dataset = $("libraryDataset"), list = $("episodeList");
-  const dialog = $("library"), playerDataset = $("playerDataset"), playerEpisode = $("playerEpisode");
+  const jointHistory = new Map();
   const episodeLabel = item => "Episode " + String(item.index).padStart(4, "0");
   const seek = $("frameSeek"), play = $("playEpisode"), remove = $("deleteEpisode");
   let rows = [], selected, meta, frame = 0, playing = false;
@@ -66,7 +66,23 @@
         cameraViews.delete(name);
       }
     }
-    const values = Object.entries(data.values).map(([name, vector]) => {
+    const now = timeAt(index);
+    const entries = Object.entries(data.values);
+    const positions = entries.filter(([name]) => /(^|\/)(left_qpos|right_qpos|qpos)$/.test(name));
+    if (!positions.length) positions.push(...entries.filter(([name]) => /(^|\/)joint_angles$/.test(name)));
+    const traces = {};
+    for (const [name, vector] of positions) {
+      if (!vector.length || !vector.every(Number.isFinite)) continue;
+      const history = jointHistory.get(name) || [];
+      while (history.length && history[0][0] < now - 30) history.shift();
+      if (!history.length || history.at(-1)[0] < now) history.push([now, vector]);
+      jointHistory.set(name, history);
+      traces[name] = history;
+    }
+    $("recordedJoints").hidden = !Object.keys(traces).length;
+    if (!$("recordedJoints").hidden) axes({axes:traces, now}, $("recordedAxes"));
+    $("recordedSignals").hidden = !entries.length;
+    const values = entries.map(([name, vector]) => {
       const row = el("div", "signal-row");
       row.append(el("span", "", name), el("code", "", vector.join("   ")));
       return row;
@@ -117,7 +133,13 @@
     seek.value = 0;
     highlight();
     $("episodePlayer").hidden = !selected;
-    $("emptyPlayer").hidden = !!selected;
+    document.body.classList.toggle("reviewing", !!selected);
+    $("playbackTransport").hidden = remove.hidden = !selected;
+    $("recordedSignals").hidden = $("recordedJoints").hidden = true;
+    jointHistory.clear();
+    $("recordedAxes").replaceChildren();
+    heldKeys.clear();
+    $("playbackTitle").textContent = selected ? selected.dataset + " · " + episodeLabel(selected) : "";
     buttons();
     $("playerMessage").textContent = selected ? tr("Loading recording") : "";
     if (!selected) return;
@@ -132,34 +154,21 @@
       buttons();
     } catch (error) { failed(error, token); }
   }
-  function renderPlayer(item) {
-    playerDataset.replaceChildren(...Array.from(dataset.options, o => new Option(o.text, o.value)));
-    playerDataset.value = dataset.value;
-    const items = rows.filter(row => row.dataset === playerDataset.value);
-    playerEpisode.replaceChildren(...items.map(row => new Option(episodeLabel(row), row.index)));
-    playerEpisode.disabled = !items.length;
-    const next = items.find(row => row.version === item?.version) || items[0];
-    if (next) playerEpisode.value = String(next.index);
-    if (!next || selected?.version !== next.version) selectEpisode(next);
-  }
-  function openLibrary(item) {
-    heldKeys.clear();
-    dialog.showModal();
-    renderPlayer(item);
-    load();
-  }
   function renderList() {
     const items = rows.filter(r => r.dataset === dataset.value);
     list.replaceChildren(...items.map(item => {
       const row = el("button", "", episodeLabel(item));
       row.type = "button";
       row.dataset.version = item.version;
-      row.setAttribute("aria-haspopup", "dialog");
-      row.onclick = () => openLibrary(item);
+      row.setAttribute("aria-controls", "episodePlayer");
+      row.onclick = () => {
+        selectEpisode(item);
+        $("episodePlayer").scrollIntoView({block:"nearest"});
+      };
       return row;
     }));
     $("emptyEpisodes").hidden = items.length > 0;
-    if (dialog.open) renderPlayer(selected);
+    if (selected && !items.some(item => item.version === selected.version)) selectEpisode(null);
     highlight();
   }
   async function load() {
@@ -185,6 +194,7 @@
     buttons();
     const token = revision;
     let next = frame === meta.count - 1 ? 0 : frame;
+    if (next === 0) jointHistory.clear();
     const start = performance.now() - timeAt(next) * 1000;
     async function tick() {
       if (revision !== token || !playing) return;
@@ -201,19 +211,17 @@
   };
   seek.oninput = () => {
     cancel();
+    jointHistory.clear();
     const token = revision;
     show(Number(seek.value), token).catch(e => failed(e, token));
   };
   dataset.onchange = renderList;
-  playerDataset.onchange = () => {
-    dataset.value = playerDataset.value;
-    renderList();
+  $("libraryOpen").onclick = async () => {
+    heldKeys.clear();
+    await load();
+    $("episodePanel").scrollIntoView({block:"nearest"});
+    (list.querySelector('[aria-pressed="true"]') || list.firstElementChild || dataset).focus({preventScroll:true});
   };
-  playerEpisode.onchange = () => selectEpisode(rows.find(row =>
-    row.dataset === playerDataset.value && String(row.index) === playerEpisode.value));
-  $("libraryOpen").onclick = () => openLibrary();
-  $("libraryClose").onclick = () => dialog.close();
-  dialog.addEventListener("close", () => selectEpisode(null));
   $("currentEpisode").onclick = event => {
     if (output && dataset.value !== output) {
       dataset.value = output;
@@ -221,6 +229,7 @@
     }
     selectEpisode(null);
     if (event.detail) event.currentTarget.blur();
+    refresh().catch(error => notice(error.message));
   };
   remove.onclick = async () => {
     if (!selected) return;

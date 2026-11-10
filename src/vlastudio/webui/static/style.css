@@ -719,17 +719,22 @@ textarea {
 #episodeList {display:grid;gap:4px;max-height:33vh;overflow-y:auto}
 #episodeList:empty {display:none}
 #episodeList button {background:var(--paper);font-variant-numeric:tabular-nums}
-#episodePlayer {min-width:0;border-top:1px solid var(--border);padding-top:12px}
-#library {width:min(900px,94vw);max-height:86vh;overflow:auto}
-.library-pickers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+#episodePlayer {display:grid;gap:16px;min-width:0}
+#episodePlayer .heading {margin-bottom:12px;gap:8px}
+#playbackTitle {overflow-wrap:anywhere}
+#recordedSignals summary {cursor:pointer}
+body.reviewing .workspace > :not(#episodePlayer),
+body.reviewing #transport :is(#buttons,#teleSwitch,.transport-state) {display:none}
+#playbackTransport {display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+#playbackTransport #playEpisode {flex:none}
 #libraryOpen {background:#edf3ed;color:#294936;border-color:#c6d6cb;white-space:nowrap}
-#episodePanel select, #library select {max-width:100%;min-width:0}
+#episodePanel select {max-width:100%;min-width:0}
 #deleteEpisode {color:#a13535}
 #recordedImages {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px}
 #recordedImages figure {margin:0;background:var(--side);border-radius:8px;overflow:hidden}
 #recordedImages canvas {display:block;width:100%;height:clamp(140px,24vh,260px);object-fit:contain}
 #recordedImages figcaption {padding:4px 8px;font:12px monospace}
-.player-strip {display:flex;align-items:center;gap:10px;margin:12px 0}
+body.reviewing #transport {display:flex;flex-wrap:nowrap}
 #frameSeek {flex:1;min-width:40px;accent-color:var(--green);padding:0}
 #frameNumber {font:12px monospace;white-space:nowrap}
 #recordedValues {max-height:23vh;overflow:auto}
