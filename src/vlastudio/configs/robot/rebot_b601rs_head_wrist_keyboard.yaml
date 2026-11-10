@@ -52,3 +52,6 @@
     fourcc: MJPG
     max_size_mb: 4
     bgr_to_rgb: true
+    v4l2_controls:
+      exposure_auto: 1
+      exposure_absolute: 320

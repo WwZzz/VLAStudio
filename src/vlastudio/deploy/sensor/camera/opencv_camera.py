@@ -73,6 +73,14 @@ class OpenCVCamera(BaseDevice):
         self._configure_capture_settings()
         if self.warmup_s > 0:
             self._warmup()
+        if self.v4l2_controls.get("exposure_auto") == 1 and "exposure_absolute" in self.v4l2_controls:
+            # Some UVC firmware resets exposure while entering manual mode.
+            # Apply it after streaming starts, even when warmup is disabled.
+            if self.warmup_s <= 0:
+                ok, _ = self.camera.read()
+                if not ok:
+                    raise RuntimeError(f"{self.name}: no frame before applying manual exposure")
+            self._apply_v4l2_controls({"exposure_absolute": self.v4l2_controls["exposure_absolute"]})
 
     def _configure_capture_settings(self) -> None:
         """Set FOURCC (if given), then width/height, then FPS."""
@@ -120,9 +128,10 @@ class OpenCVCamera(BaseDevice):
 
         self._apply_v4l2_controls()
 
-    def _apply_v4l2_controls(self) -> None:
+    def _apply_v4l2_controls(self, controls: Optional[dict] = None) -> None:
         """Apply explicit Linux controls after mode setup, including on reopen."""
-        if not self.v4l2_controls:
+        controls = self.v4l2_controls if controls is None else controls
+        if not controls:
             return
         if platform.system() != "Linux":
             raise ValueError("v4l2_controls requires Linux")
@@ -137,12 +146,12 @@ class OpenCVCamera(BaseDevice):
             "backlight_compensation": 0x98091c,
             "power_line_frequency": 0x980918,
         }
-        unknown = set(self.v4l2_controls) - set(ids)
+        unknown = set(controls) - set(ids)
         if unknown:
             raise ValueError(f"Unsupported v4l2_controls keys: {sorted(unknown)}")
         path = f"/dev/video{self.index_or_path}" if isinstance(self.index_or_path, int) else self.index_or_path
         with open(path, "rb+", buffering=0) as device:
-            for key, value in self.v4l2_controls.items():
+            for key, value in controls.items():
                 value = int(value)
                 data = bytearray(struct.pack("Ii", ids[key], value))
                 fcntl.ioctl(device, 0xc008561c, data)  # VIDIOC_S_CTRL
@@ -150,7 +159,7 @@ class OpenCVCamera(BaseDevice):
                 actual = struct.unpack("Ii", data)[1]
                 if actual != value:
                     raise RuntimeError(f"{self.name}: {key} requested {value}, got {actual}")
-        logger.info(f"[{self.name}] V4L2 controls applied: {self.v4l2_controls}")
+        logger.info(f"[{self.name}] V4L2 controls applied: {controls}")
 
     def _warmup(self) -> None:
         """Read frames for warmup_s seconds to stabilize camera."""
