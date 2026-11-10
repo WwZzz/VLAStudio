@@ -3,7 +3,7 @@
   name: rebot_b601rs
   webui:
     rate: 30
-    teleop: keyboard_delta_1arm
+    teleop: keyboard_delta_1arm_30hz
   args:
     name: rebot_b601rs
     control_shm_name: keyboard_delta
