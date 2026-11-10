@@ -138,6 +138,7 @@ class OpenCVCamera(BaseDevice):
         import fcntl
         import struct
         ids = {
+            "brightness": 0x980900,
             "exposure_auto": 0x9a0901,
             "exposure_absolute": 0x9a0902,  # 100 microsecond units
             "exposure_auto_priority": 0x9a0903,

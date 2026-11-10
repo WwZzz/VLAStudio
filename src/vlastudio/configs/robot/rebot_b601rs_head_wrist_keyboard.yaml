@@ -55,3 +55,5 @@
     v4l2_controls:
       exposure_auto: 1
       exposure_absolute: 320
+      gamma: 160
+      brightness: 8
