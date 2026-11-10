@@ -304,6 +304,7 @@ class Session:
             self.stopping, self.pending, self.code = False, None, None
             self.reset_after_pause = False
             self.episode = None
+            self.retaking = False
             self.logs.clear()
             self.runtime = dict(name=runtime.name, python=info['python'])
             self.logs.append(f"Runtime: {runtime.name} ({info['python']})")
@@ -372,7 +373,7 @@ class Session:
             if collect_controls:
                 if not self.gated:
                     allowed.append("tele_pause" if controls_enabled else "tele_run")
-                if not controls_enabled:
+                if not controls_enabled and not (self.retaking and phase in ("recording", "record_paused", "save")):
                     allowed = [a for a in allowed if a in ("tele_run", "home")]
             if live and self.gated and self.box[1] == RESETTING:
                 phase, allowed = "homing", []
@@ -470,6 +471,8 @@ class Session:
                     return
                 if self.mode == "infer" and action == "pause":
                     self.box[0] = PAUSE  # ignore late policy output while inference returns
+                if action == "record":
+                    self.retaking = False
                 command = None
                 if action == "record" and self.mode == "collect" and real_task is not None:
                     if catalog()["robot_options"].get(self.robot, {}).get("tasks"):
@@ -480,6 +483,10 @@ class Session:
                         instruction = task["instruction"] or task["name"]
                     command = json.dumps({"task": instruction}, ensure_ascii=False)
                 self._key(action, state["phase"], command)
+
+    def start_retake(self, index, version, task):
+        self._key("record", "ready", json.dumps(dict(index=index, version=version, task=task)))
+        self.retaking = True
 
     def _key(self, action, phase, command=None):
         self.pending = self.box[3]

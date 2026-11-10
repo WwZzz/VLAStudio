@@ -8,6 +8,8 @@
   let rows = [], selected, meta, frame = 0, playing = false;
   let request, timer, revision = 0;
   let catalogRequest = 0, sessionKey, output;
+  const retake = $("retakeEpisode");
+  retake.innerHTML = transportIcon("record");
   const cameraViews = new Map();
 
   function buttons() {
@@ -15,6 +17,15 @@
     play.innerHTML = transportIcon(playing ? "pause" : "run");
     play.title = tr(playing ? "Pause playback" : "Playback");
     play.setAttribute("aria-label", play.title);
+    const session = state?.session;
+    retake.hidden = !collecting;
+    const unavailable = !session?.connection?.ready ? "Connect the robot to re-record" :
+      !selected?.rerecordable ? "Only standalone collection episodes can be re-recorded" :
+      session.active && session.options.output !== selected.dataset ? "Connect collection to the selected dataset" :
+      session.active && session.phase !== "ready" ? "Collection is not ready for a new recording" : "";
+    retake.disabled = busy || !!unavailable;
+    retake.title = tr(unavailable || "Re-record episode");
+    retake.setAttribute("aria-label", tr("Re-record episode"));
     const locked = state?.session.active && state.session.options?.output === selected?.dataset;
     remove.disabled = !selected || locked;
     remove.title = locked ? tr("Disconnect before deleting from this dataset") : tr("Delete episode");
@@ -203,7 +214,12 @@
         while (next + 1 < meta.count && timeAt(next + 1) <= elapsed) next++;
         await show(next, token);
         if (token !== revision || !playing) return;
-        if (++next >= meta.count) { pause(); return; }
+        if (++next >= meta.count) {
+          pause();
+          jointHistory.clear();
+          await show(0, token);
+          return;
+        }
         timer = setTimeout(tick, Math.max(0, start + timeAt(next)*1000 - performance.now()));
       } catch (error) { failed(error, token); }
     }
@@ -230,6 +246,25 @@
     selectEpisode(null);
     if (event.detail) event.currentTarget.blur();
     refresh().catch(error => notice(error.message));
+  };
+  retake.onclick = async () => {
+    const item = selected, session = state.session;
+    if (!item || busy || retake.disabled) return;
+    cancel();
+    const label = item.dataset + " · " + episodeLabel(item);
+    if (!await confirmAction(tr("Re-record episode"), label + " — " + tr("Re-record this episode? Saving the new recording will overwrite the original."))) return;
+    busy = true;
+    buttons();
+    try {
+      await api("episode/rerecord", {...item, connection:session.connection.id,
+        id:session.active ? session.id : null, options:options()});
+      selectEpisode(null);
+    } catch (error) { notice(tr(error.message)); }
+    finally {
+      busy = false;
+      await refresh();
+      buttons();
+    }
   };
   remove.onclick = async () => {
     if (!selected) return;

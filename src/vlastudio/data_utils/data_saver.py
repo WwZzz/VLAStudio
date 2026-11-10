@@ -713,9 +713,7 @@ class HDF5DataSaver(BaseDataSaver):
         
         # Rename temp to final
         final_path = self._get_episode_path(episode_idx)
-        if final_path.exists():
-            final_path.unlink()
-        tmp_path.rename(final_path)
+        tmp_path.replace(final_path)
         
         return frame_count
     

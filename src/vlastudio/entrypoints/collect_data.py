@@ -57,7 +57,7 @@ from vlastudio.deploy.utils import (
 from vlastudio.deploy.visualizer.base import start_all_visualizers, stop_all_visualizers
 from vlastudio.data_utils.data_saver import create_data_saver, generate_task_config
 from vlastudio.utils.extensions import resolve
-from vlastudio.webui.bridge import wait_for_robot, keyboard, phase, episode_task
+from vlastudio.webui.bridge import wait_for_robot, keyboard, phase, episode_options
 
 
 def main():
@@ -272,9 +272,10 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                 pass
 
             # Start recording episode
-            data_saver.task = episode_task(start_command, args.task)
+            options = episode_options(start_command)
+            data_saver.task = options.get("task", args.task)
             actual_idx = data_saver.start_episode(
-                episode_idx=episode_idx,
+                episode_idx=options.get("index", episode_idx),
                 device_names=device_names_list,
                 teleop_device=teleop_name,
             )
@@ -403,11 +404,20 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                     logger.warning("No frames to save.")
                     data_saver.finish_episode(save=False)
                 else:
+                    if "version" in options:
+                        from vlastudio.webui.episodes import checked
+                        try:
+                            checked(Path(args.output_dir).name, actual_idx, options["version"])
+                        except (OSError, ValueError) as exc:
+                            data_saver.finish_episode(save=False)
+                            logger.error("Re-recording not saved: {}", exc)
+                            continue
                     saved_frames = data_saver.finish_episode(save=True)
                     if saved_frames > 0:
                         logger.success("Saved {} frames to {} (episode {})", saved_frames, data_saver.dataset_path, actual_idx)
                         saved_any = True
-                        episode_idx += 1
+                        if "index" not in options:
+                            episode_idx += 1
                     else:
                         logger.error("Failed to save episode {}", actual_idx)
             else:

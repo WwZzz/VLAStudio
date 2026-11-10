@@ -97,6 +97,9 @@ class Handler(BaseHTTPRequestHandler):
             if not 1 <= size <= 8192:
                 raise ValueError("Invalid request size")
             data = json.loads(self.rfile.read(size))
+            if self.path == "/api/episode/rerecord":
+                s.rerecord(data)
+                return self.reply({"ok": True})
             if self.path == "/api/episode/delete":
                 with s.lock:
                     if any(r.proc and r.output == data["dataset"] for r in s.runners.values()):

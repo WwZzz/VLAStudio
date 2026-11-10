@@ -46,7 +46,8 @@ def catalog(active_video=None):
         for index in sorted(indices):
             paths = files(directory.name, index)
             if paths and not (directory.name == active_video and paths[0].suffix == ".mp4"):
-                rows.append(dict(dataset=directory.name, index=index, version=revision(paths)))
+                rows.append(dict(dataset=directory.name, index=index, version=revision(paths),
+                                 rerecordable=len(paths) == 1 and paths[0].suffix == ".hdf5"))
     return rows
 
 
@@ -55,6 +56,15 @@ def checked(dataset, index, version):
     if not paths or revision(paths) != version:
         raise ValueError("Recording changed. Reopen the episode library.")
     return paths
+
+
+def replacement_task(dataset, index, version):
+    import h5py
+    paths = checked(dataset, index, version)
+    if len(paths) != 1 or paths[0].suffix != ".hdf5":
+        raise ValueError("Only standalone collection episodes can be re-recorded")
+    with h5py.File(paths[0], "r") as recording:
+        return str(recording.attrs.get("task", ""))
 
 
 def remove(dataset, index, version):

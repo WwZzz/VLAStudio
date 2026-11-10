@@ -34,11 +34,11 @@ def keyboard(native):
     return WebKeys() if os.environ.get("VLASTUDIO_WEB_FD") else native()
 
 
-def episode_task(start_command, default):
-    """A web recording can carry its task on the same line that starts it."""
+def episode_options(start_command):
+    """Optional per-episode metadata carried by a web start command."""
     if os.environ.get("VLASTUDIO_WEB_FD") and start_command:
-        return json.loads(start_command)["task"]
-    return default
+        return json.loads(start_command)
+    return {}
 
 
 def wait_for_robot():

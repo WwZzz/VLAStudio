@@ -226,6 +226,45 @@ class Studio:
                     self.selected = sid
                 runner.action(sid, action, real_task=real_task)
 
+    def rerecord(self, data):
+        from .episodes import replacement_task
+        dataset, index, version = (data[k] for k in ("dataset", "index", "version"))
+        connection = data["connection"]
+        def check_connection():
+            if connection != self.connected.get("id") or not self.ready():
+                raise ValueError("Robot connection changed")
+            if self.selected and self.selected == self.runners["infer"].sid:
+                raise ValueError("Release policy control before re-recording")
+        with self.lock:
+            check_connection()
+            task = replacement_task(dataset, index, version)
+            if self.connected.get("task") and task != self.connected["task"]:
+                raise ValueError("Connect the simulation task used by this episode")
+            runner = self.runners["collect"]
+            if data.get("id") != (runner.sid if runner.proc else None):
+                raise ValueError("Collection session changed")
+            if not runner.proc:
+                opts = dict(data["options"], robot=self.connected["robot"], output=dataset,
+                            connection=connection, real_task="")
+                self.start("collect", opts)
+            if runner.output != dataset:
+                raise ValueError("Connect collection to the selected dataset")
+            sid = runner.sid
+        deadline = time.monotonic() + 30
+        while True:
+            with self.lock, runner.lock:
+                check_connection()
+                state = runner.state()
+                if not state["active"] or runner.sid != sid:
+                    raise ValueError("Collection session changed")
+                if state["phase"] == "ready" and not state["simulation"]["paused"]:
+                    task = replacement_task(dataset, index, version)
+                    runner.start_retake(index, version, task)
+                    return
+                if state["phase"] not in ("loading", "waiting_robot") or time.monotonic() >= deadline:
+                    raise ValueError("Collection is not ready for a new recording")
+            time.sleep(.1)
+
     def disconnect(self, token, all_sources=False):
         with self.lock:
             if not self.host or self.connected.get("id") != token:
