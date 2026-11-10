@@ -374,7 +374,7 @@ class Session:
                 if not self.gated:
                     allowed.append("tele_pause" if controls_enabled else "tele_run")
                 if not controls_enabled and not (self.retaking and phase in ("recording", "record_paused", "save")):
-                    allowed = [a for a in allowed if a in ("tele_run", "home")]
+                    allowed = [a for a in allowed if a in ("tele_run", "home", "save", "discard")]
             if live and self.gated and self.box[1] == RESETTING:
                 phase, allowed = "homing", []
             if live and self.mode == "infer" and phase == "running" and self.reset_ok:
@@ -397,7 +397,8 @@ class Session:
                                         else 'terminated' if any(row.get('terminated') for row in blocked)
                                         else 'success')
                 allowed = [action for action in allowed if action not in ('record', 'record_resume', 'tele_run')]
-            if not controls_enabled and not simulation["paused"] and "home" in allowed:
+            paired_leader = getattr(self, "descriptor", {}).get("align_leader", False)
+            if not controls_enabled and not simulation["paused"] and not paired_leader and "home" in allowed:
                 allowed.remove("home")
             tele = ""
             if live and self.mode == "collect":
@@ -495,12 +496,16 @@ class Session:
         self.proc.stdin.write((command + "\n").encode())
         self.proc.stdin.flush()
 
-    def shutdown(self):
+    def request_shutdown(self):
         with self.lock:
             proc = self.proc
             if proc is not None and not self.stopping:
                 self.box[0] = PAUSE
                 self.stopping = True
                 proc.terminate()
+            return proc
+
+    def shutdown(self):
+        proc = self.request_shutdown()
         if proc is not None:
             proc.wait()

@@ -44,6 +44,8 @@ class SourceGate(SourceSelector):
             self.reader.destroy()
             self.reader = None
         if self.gate is not None:
+            if hasattr(self.gate, "cancel"):
+                self.gate.cancel()
             self.gate.box.close()
             self.gate = None
         bus = getattr(robot, "bus", None)
@@ -71,7 +73,11 @@ class SourceGate(SourceSelector):
                 raise ValueError("Input device has no live action channel")
             self.reader.read(skip_unchanged=True)
         box = mapping(Path(source["mailbox"]))
-        self.gate = InputGate(box, source["kind"] == "infer")
+        if source.get("align_leader"):
+            from .leader_gate import LeaderGate
+            self.gate = LeaderGate(box, Path(source["mailbox"]).with_name("leader.sock"))
+        else:
+            self.gate = InputGate(box, source["kind"] == "infer")
         self.gate.filter(robot, None)
 
     def filter(self, robot, unused):

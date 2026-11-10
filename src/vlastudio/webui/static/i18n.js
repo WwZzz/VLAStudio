@@ -142,8 +142,8 @@ const chinese = {
   "Pause inference, reset the policy and robot. The current unsaved inference recording follows the native discard behavior.":
     "暂停推理并复位策略和机器人。未保存的推理录像按原生流程丢弃。",
   "Discard this episode?": "丢弃这段录制？",
-  "Disconnect the devices after completing their shutdown procedure. Save any recordings you need first.":
-    "完成设备退出流程后断开连接，请先保存需要的录制数据。",
+  "Disconnect all devices and discard the current unsaved episode?":
+    "断开全部设备并丢弃当前未保存的片段？",
   "Session state changed. Please retry.": "会话状态已改变，请重试",
   "A session is already running.": "已有会话运行中",
   "Use the current session data source while devices are connected.":

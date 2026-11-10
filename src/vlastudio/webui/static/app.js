@@ -271,7 +271,7 @@ $("loadAll").onclick = async () => {
   const connection = state.session.connection;
   if (connection) {
     if (!(await confirmAction(tr("Disconnect all"), tr(
-      "Disconnect the devices after completing their shutdown procedure. Save any recordings you need first.",
+      "Disconnect all devices and discard the current unsaved episode?",
     )))) return;
     heldKeys.clear();
     disconnecting = true;

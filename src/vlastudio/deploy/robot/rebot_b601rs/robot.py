@@ -179,8 +179,9 @@ class RebotB601RS(AliciaD):
                 self.control_mode = 'ee' if self.profile_control_mode == 'ee' else 'qpos'
             elif source['channel']:
                 mode = source.get('control_mode')
-                if mode not in ('delta_ee', 'rel_ee'):
-                    raise ValueError("Rebot teleoperation requires a declared Cartesian input mode")
+                mapped = mode == 'qpos' and source.get('qpos_contract') == 'rebot_b601rs'
+                if not mapped and mode not in ('delta_ee', 'rel_ee'):
+                    raise ValueError("Rebot requires a Cartesian source or mapped Rebot joint coordinates")
                 self.control_mode = mode
                 self.gripper_absolute = source['absolute_gripper']
         self._seed(self.get_observation())

@@ -115,9 +115,9 @@ class Studio:
                 self._close()
 
     def _close(self, stop_sources=True):
-        if stop_sources:
-            for runner in self.runners.values():
-                runner.shutdown()
+        # Begin parking as soon as control is paused. Discarding a large temporary
+        # recording may take longer than the hardware shutdown.
+        sources = [r.request_shutdown() for r in self.runners.values()] if stop_sources else []
         host, self.host = self.host, None
         code = None
         if host is not None:
@@ -125,6 +125,9 @@ class Studio:
             code = host.wait()
             self.robot_exit = code
             self.logs.append(f"Robot shutdown exit code {code}")
+        for source in sources:
+            if source is not None:
+                source.wait()
         self.preview.stop()
         if self.selector:
             self.selector.control.close()
@@ -173,6 +176,11 @@ class Studio:
             opts.setdefault("on_success", "continue")
             self._compatible_profile(opts["robot"], opts)
             descriptor = self._source(mode, opts)
+            if descriptor.get("qpos_contract") == "rebot_b601rs" and not any(
+                typ.endswith(".RebotB601RS") and not args.get("read_only")
+                for _, typ, args in channels(opts["robot"])
+            ):
+                raise ValueError("This mapped leader requires a writable Rebot B601-RS")
             other = self.runners["infer" if mode == "collect" else "collect"]
             if opts.get("output") and other.proc and opts["output"] == other.output:
                 raise ValueError("Use a different output dataset for each loaded source")
@@ -269,11 +277,7 @@ class Studio:
         with self.lock:
             if not self.host or self.connected.get("id") != token:
                 raise ValueError("Robot connection changed")
-            if all_sources:
-                collect = self.runners["collect"].state()
-                if collect["phase"] in ("recording", "record_paused", "save"):
-                    raise ValueError("Finish and save or discard the current episode first")
-            elif any(r.proc is not None for r in self.runners.values()):
+            if not all_sources and any(r.proc is not None for r in self.runners.values()):
                 raise ValueError("Unload teleoperation and policy before disconnecting the robot")
             code = self._close()
             if code:

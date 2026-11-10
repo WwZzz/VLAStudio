@@ -455,6 +455,8 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         
         # Finalize data saver (important for LeRobot to close parquet writers)
         if data_saver is not None:
+            if os.environ.get("VLASTUDIO_ATTACHED_ROBOT") and data_saver.is_recording:
+                data_saver.finish_episode(save=False)
             data_saver.finalize()
             if args.gen_config:
                 generate_task_config(
