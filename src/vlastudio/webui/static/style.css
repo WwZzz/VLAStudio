@@ -739,3 +739,10 @@ textarea {
   .transport-state {grid-area:state;min-width:0}
   #transport #buttons {grid-area:actions;justify-content:end;max-width:132px}
 }
+
+.transport-key.home,.transport-key.reset {width:auto;display:inline-flex;gap:6px}
+.reset-shortcut {font-family:inherit;font-size:11px;border:1px solid currentColor;border-radius:3px;padding:1px 3px}
+@media(max-width:650px) {
+  .transport-key .reset-shortcut {display:none}
+  .transport-key.home,.transport-key.reset {width:40px}
+}

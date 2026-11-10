@@ -351,6 +351,17 @@ document.addEventListener("keydown", (event) => {
   event.preventDefault();
   if (!event.repeat) action.click();
 });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Home" || event.repeat || event.isComposing || event.defaultPrevented ||
+      event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || busy ||
+      document.querySelector("dialog[open]") ||
+      event.target.closest("input,textarea,select,[contenteditable=true]")) return;
+  const reset = $("buttons").querySelector(".home:enabled,.reset:enabled");
+  if (!reset) return;
+  event.preventDefault();
+  heldKeys.clear();
+  reset.click();
+});
 function renderSession(s) {
   const other = s.active && s.mode !== mode;
   const c = s.connection;
@@ -440,8 +451,13 @@ function renderSession(s) {
       const enter = collecting && key === enterAction;
       const label = tr(names[key]) + (enter ? " (Enter)" : "");
       const button = el("button", "transport-key " + key);
+      const isReset = key === "home" || key === "reset";
       button.innerHTML = transportIcon(key);
-      button.title = label;
+      if (isReset) {
+        button.append(el("kbd", "reset-shortcut", "Home"));
+        button.setAttribute("aria-keyshortcuts", "Home");
+      }
+      button.title = label + (isReset ? " (Home)" : "");
       button.setAttribute("aria-label", label);
       button.disabled = busy || !allowed.includes(key);
       if (enter) button.dataset.enter = "true";
