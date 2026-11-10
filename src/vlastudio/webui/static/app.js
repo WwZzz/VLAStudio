@@ -23,12 +23,12 @@ const names = {
   home: "Reset",
   tele_run: "Enable teleoperation",
   tele_pause: "Pause teleoperation",
-  stop: collecting ? "Unload teleoperation" : "Unload policy",
+  stop: collecting ? "Disconnect teleoperation" : "Disconnect policy",
 };
 const phases = {
   idle: "Not connected",
   waiting_robot: "Waiting for robot",
-  loading: "Loading devices",
+  loading: "Connecting devices",
   ready: "Ready to record",
   recording: "Recording",
   record_paused: "Recording paused",
@@ -314,27 +314,16 @@ async function post(route, data) {
 }
 async function act(action) {
   const sid = state.session.id;
-  const simulation = !!profiles.robot_options?.[state.session.robot]?.tasks;
-  if (["reset", "home", "discard", "stop"].includes(action)) {
+  if (["discard", "stop"].includes(action)) {
     const msg = {
-      reset: tr(
-        "Pause inference, reset the policy and robot. The current unsaved inference recording follows the native discard behavior.",
-      ),
-      home: simulation
-        ? tr(
-            "Reset the robot and simulation scene. After confirmed reset, enabled teleoperation resumes. Any current episode will finish for you to save or discard.",
-          )
-        : tr(
-            "Reset the robot. After confirmed reset, enabled teleoperation resumes. Any current episode will finish for you to save or discard.",
-          ),
       discard: tr("Discard this episode?"),
       stop: tr(
-        "Unload this source and keep the robot connected?",
+        "Disconnect this source and keep the robot connected?",
       ),
     };
     if (!(await confirmAction(tr(names[action]), msg[action]))) return;
   }
-  if (action === "home") heldKeys.clear();
+  if (action === "home" || action === "reset") heldKeys.clear();
   await post("action", { mode, id: sid, action });
 }
 function transportIcon(key) {
@@ -424,19 +413,19 @@ function renderSession(s) {
   $("connectionProgress").hidden = !(loading || s.phase === "stopping");
   $("connectionLabel").textContent = tr(
     loading
-      ? "Loading devices"
+      ? "Connecting devices"
       : s.phase === "stopping"
         ? "Disconnecting"
         : s.active
-          ? (collecting ? "Unload teleoperation" : "Unload policy")
-          : (collecting ? "Load teleoperation" : "Load policy"),
+          ? (collecting ? "Disconnect teleoperation" : "Disconnect policy")
+          : (collecting ? "Connect teleoperation" : "Connect policy"),
   );
   const allLoading = connecting || disconnecting;
   $("loadAll").disabled = busy || connecting || disconnecting || (!c &&
     !(profiles.robot_options?.[$("robot").value]?.modes || ["collect", "infer"]).includes(mode));
   $("loadAll").classList.toggle("disconnect-all", !!c);
   $("loadAll").setAttribute("aria-busy", String(allLoading));
-  $("loadAllLabel").textContent = tr(disconnecting ? "Disconnecting" : connecting ? "Loading devices" : c ? "Disconnect all" : "Load all");
+  $("loadAllLabel").textContent = tr(disconnecting ? "Disconnecting" : connecting ? "Connecting devices" : c ? "Disconnect all" : "Connect all");
   $("loadAllProgress").hidden = !allLoading;
   const allowed = other ? [] : s.actions;
   const toggle = $("teleSwitch");
@@ -470,7 +459,6 @@ function renderSession(s) {
       const isReset = key === "home" || key === "reset";
       button.innerHTML = transportIcon(key);
       if (isReset) {
-        button.append(el("kbd", "reset-shortcut", "Ctrl + Alt + R"));
         button.setAttribute("aria-keyshortcuts", "Control+Alt+R");
       }
       button.title = label + (isReset ? " (Ctrl + Alt + R)" : "");
