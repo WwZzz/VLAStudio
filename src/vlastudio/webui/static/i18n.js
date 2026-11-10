@@ -71,8 +71,8 @@ const chinese = {
   "None · Observations only": "无 · 仅记录观测",
   "Native synchronization": "原生同步",
   "Connect devices": "连接设备",
-  "Read-only preview": "只读预览",
-  "Close read-only preview": "关闭只读预览",
+  "Load all": "一键加载",
+  "All loaded": "已加载",
   "Resume inference": "恢复推理",
   "Please wait for the device to become ready": "请等待设备就绪",
   "Available after connecting a device that supports reset":

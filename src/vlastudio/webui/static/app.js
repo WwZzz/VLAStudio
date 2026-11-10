@@ -260,10 +260,29 @@ $("form").onsubmit = async (e) => {
     renderSession(state.session);
   }
 };
-$("observe").onclick = () =>
-  post("preview", {
-    robot: state?.preview.profile === $("robot").value ? "" : $("robot").value,
-  });
+$("loadAll").onclick = async () => {
+  if (busy) return;
+  const opts = options();
+  const connection = state.session.connection;
+  if (!connection && !(await confirmAction(
+    tr("Connect ") + opts.robot,
+    tr("This starts the selected devices. Real robots may enable or move during connection."),
+  ))) return;
+  busy = connecting = true;
+  renderSession(state.session);
+  try {
+    // Validate and preload the source before opening the robot hardware.
+    if (!state.session.active)
+      await api("start", {...opts, connection: connection?.id});
+    if (!connection) await api("robot/connect", opts);
+    localStorage.setItem("vla-" + mode, JSON.stringify(opts));
+  } catch (e) {
+    notice(e.message);
+  } finally {
+    busy = connecting = false;
+    await refresh();
+  }
+};
 async function post(route, data) {
   if (busy) return;
   busy = true;
@@ -385,11 +404,13 @@ function renderSession(s) {
           ? (collecting ? "Unload teleoperation" : "Unload policy")
           : (collecting ? "Load teleoperation" : "Load policy"),
   );
-  $("observe").disabled = !!c || s.active;
-  $("observe").textContent =
-    state.preview.profile === $("robot").value
-      ? tr("Close read-only preview")
-      : tr("Read-only preview");
+  const allLoaded = !!c?.ready && s.active && !["loading", "waiting_robot"].includes(s.phase);
+  const allLoading = connecting || (!!c && s.active && !allLoaded);
+  $("loadAll").disabled = busy || connecting || (!!c && s.active) ||
+    !(profiles.robot_options?.[$("robot").value]?.modes || ["collect", "infer"]).includes(mode);
+  $("loadAll").setAttribute("aria-busy", String(allLoading));
+  $("loadAllLabel").textContent = tr(allLoading ? "Loading devices" : allLoaded ? "All loaded" : "Load all");
+  $("loadAllProgress").hidden = !allLoading;
   const allowed = other ? [] : s.actions;
   const toggle = $("teleSwitch");
   toggle.hidden = !collecting;
