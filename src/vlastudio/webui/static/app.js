@@ -487,7 +487,9 @@ function renderSession(s) {
       $("buttons").append(button);
     }
   }
-  $("status").textContent = other
+  $("status").textContent = s.robot_exit
+    ? tr("Robot shutdown unconfirmed. Check device logs.")
+    : other
     ? tr("A session is running on the other page.")
     : s.active && s.simulation?.paused
       ? s.robot + " · " + tr({

@@ -23,6 +23,7 @@ class Studio:
         self.runners = {mode: Session(self.preview, self._source_exited) for mode in ("collect", "infer")}
         self.host = self.directory = self.selector = None
         self.connected = {}
+        self.robot_exit = None
         self.locks = []
         self.runtime_dir = tempfile.TemporaryDirectory(prefix="vla-studio-")
         self.ready_file = Path(self.runtime_dir.name) / "ready"
@@ -85,6 +86,7 @@ class Studio:
                     env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     start_new_session=True, pass_fds=tuple(f.fileno() for f in self.locks))
                 self.host = host
+                self.robot_exit = None
                 self.logs.clear()
                 threading.Thread(target=self._watch, args=(host,), daemon=True).start()
                 from vlastudio.deploy.utils import load_config, coerce_finalize_deploy_list
@@ -121,6 +123,7 @@ class Studio:
         if host is not None:
             host.stdin.close()
             code = host.wait()
+            self.robot_exit = code
             self.logs.append(f"Robot shutdown exit code {code}")
         self.preview.stop()
         if self.selector:
@@ -240,6 +243,7 @@ class Studio:
     def state(self, mode):
         with self.lock:
             state = self.runners[mode].state()
+            state["robot_exit"] = self.robot_exit
             state["prepared"] = next((r.options for r in self.runners.values() if r.proc), None)
             state["connection"] = dict(self.connected, ready=self.ready()) if self.host else None
             state["loaded"] = [k for k,r in self.runners.items() if r.proc]

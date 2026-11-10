@@ -268,7 +268,10 @@ class RebotB601RS(AliciaD):
         """Explicit B/reset: minimum-jerk return to existing motor zero (all seven)."""
         start = self.get_observation()['qpos'].astype(float)
         previous_velocity = self.bus.velocity
-        self.bus.set_velocity_limit(self.home_velocity, homing=True)
+        # Use the slower coordinated trajectory for disconnect, including its time scaling.
+        speed = min(.2, self.home_velocity) if self._shutting_down else self.home_velocity
+        min_duration = max(6., self.home_duration) if self._shutting_down else self.home_duration
+        self.bus.set_velocity_limit(speed, homing=True)
         goals = []
         if staged:
             intermediate = start.copy()
@@ -282,9 +285,9 @@ class RebotB601RS(AliciaD):
         try:
             for goal in goals:
                 # A normal exit during an in-flight B trajectory interrupts it;
-                # shutdown starts a fresh staged park from measured feedback.
-                duration = max(self.home_duration,
-                    1.9*max(abs(goal[:6]-start[:6]))/self.home_velocity,
+                # shutdown starts a fresh return from measured feedback.
+                duration = max(min_duration,
+                    1.9*max(abs(goal[:6]-start[:6]))/speed,
                     1.9*abs(goal[6]-start[6])*self.gripper_open_rad)
                 steps = max(2,int(duration*50))
                 for s in np.linspace(0,1,steps+1)[1:]:
@@ -414,12 +417,12 @@ class RebotB601RS(AliciaD):
         stage = 'check enable state'
         try:
             if not self.read_only and bus.armed:
-                logger.warning('[RebotB601RS] Exit: cancel target, staged park, verify, then disable')
+                logger.warning('[RebotB601RS] Exit: cancel target, return all six joints to zero, verify, then disable')
                 stage = 'cancel pending target'
                 bus.cancel_pending_target()
                 time.sleep(.3)
                 stage = 'park arm'
-                if not self.set_home(include_gripper=False,staged=True):
+                if not self.set_home(include_gripper=False):
                     raise RuntimeError('Park trajectory did not reach zero')
                 stage = 'confirm parked and still'
                 if not self._confirm_parked_and_still():

@@ -94,6 +94,7 @@ const chinese = {
   "Recorded episodes": "已录制片段",
   "Task for next recording": "下一段录制任务",
   "Recorded values": "录制数值",
+  "Robot shutdown unconfirmed. Check device logs.": "机器人退出未确认，请查看设备日志。",
   "Current Episode": "当前片段",
   "Next episode": "下一段",
   "Dataset": "数据集",
