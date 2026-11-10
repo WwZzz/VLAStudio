@@ -91,6 +91,7 @@ const chinese = {
   "Close library": "关闭片段库",
   "Episodes": "片段库",
   "Recorded episodes": "已录制片段",
+  "Current Episode": "当前片段",
   "Next episode": "下一段",
   "Dataset": "数据集",
   "Delete episode": "删除片段",

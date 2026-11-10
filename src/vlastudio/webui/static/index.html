@@ -97,41 +97,7 @@
               <progress id="loadAllProgress" hidden></progress>
             </button>
           </section>
-          <article class="panel" id="taskPanel">
-            <div class="heading">
-              <h2 data-i18n="Task">Task</h2>
-              <small id="taskKind"></small>
-            </div>
-            <div id="simulationFields" hidden>
-              <label
-                ><span data-i18n="Simulation task">Simulation task</span
-                ><select id="task" form="form"></select
-              ></label>
-              <label
-                ><span data-i18n="After task success">After task success</span
-                ><select id="on_success" form="form">
-                  <option value="continue" data-i18n="Continue operating">
-                    Continue operating
-                  </option>
-                  <option value="pause" data-i18n="Pause until reset">
-                    Pause until reset
-                  </option>
-                </select></label
-              >
-            </div>
-            <div id="realTaskFields">
-              <div class="task-picker">
-                <label
-                  ><span data-i18n="Robot task">Robot task</span
-                  ><select id="real_task" form="form"></select
-                ></label>
-                <button id="newTask" type="button" data-i18n="New task">
-                  New task
-                </button>
-              </div>
-              <p id="realTaskInstruction"></p>
-            </div>
-          </article>
+
 
         </aside>
         <section class="workspace">
@@ -199,6 +165,60 @@
             <pre id="log"></pre>
           </article>
         </section>
+        <aside class="sidebar episode-rail">
+          <article class="panel" id="taskPanel">
+            <div class="heading">
+              <h2 data-i18n="Task">Task</h2>
+              <small id="taskKind"></small>
+            </div>
+            <div id="simulationFields" hidden>
+              <label
+                ><span data-i18n="Simulation task">Simulation task</span
+                ><select id="task" form="form"></select
+              ></label>
+              <label
+                ><span data-i18n="After task success">After task success</span
+                ><select id="on_success" form="form">
+                  <option value="continue" data-i18n="Continue operating">
+                    Continue operating
+                  </option>
+                  <option value="pause" data-i18n="Pause until reset">
+                    Pause until reset
+                  </option>
+                </select></label
+              >
+            </div>
+            <div id="realTaskFields">
+              <div class="task-picker">
+                <label
+                  ><span data-i18n="Robot task">Robot task</span
+                  ><select id="real_task" form="form"></select
+                ></label>
+                <button id="newTask" type="button" data-i18n="New task">
+                  New task
+                </button>
+              </div>
+              <p id="realTaskInstruction"></p>
+            </div>
+          </article>
+          <section class="panel" id="library">
+            <h2 data-i18n="Episodes">Episodes</h2>
+            <button id="currentEpisode" type="button" aria-pressed="true">
+              <strong data-i18n="Current Episode">Current Episode</strong>
+              <span id="currentEpisodeState"></span>
+            </button>
+            <label><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
+            <div id="episodeList" role="group" aria-label="Recorded episodes"></div>
+            <small id="emptyEpisodes" data-i18n="No recordings">No recordings</small>
+            <div id="episodePlayer" hidden>
+              <p id="playerMessage" role="status"></p><div id="recordedImages"></div>
+              <div class="player-strip"><button id="playEpisode" type="button"></button>
+              <input id="frameSeek" type="range" min="0" value="0" aria-label="Playback position"><output id="frameNumber"></output></div>
+              <div id="recordedValues"></div>
+              <button id="deleteEpisode" type="button" data-i18n="Delete episode">Delete episode</button>
+            </div>
+          </section>
+        </aside>
       </div>
     </main>
     <footer id="transport" aria-label="Run controls">
@@ -207,17 +227,8 @@
       </button>
       <div class="transport-state"><strong id="episodeNumber"></strong><small id="status"></small></div>
       <div id="buttons" role="group" aria-label="Run controls"></div>
-      <button id="libraryOpen" type="button" class="library-button"><span aria-hidden="true">▤</span> <span data-i18n="Episodes">Episodes</span></button>
     </footer>
-    <dialog id="library">
-      <div class="heading"><h2 data-i18n="Recorded episodes">Recorded episodes</h2><button id="libraryClose" data-i18n="Close library">Close library</button></div>
-      <div class="library-pickers"><label><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
-      <label>Episode<select id="libraryEpisode"></select></label><button id="deleteEpisode" data-i18n="Delete episode">Delete episode</button></div>
-      <p id="playerMessage" role="status"></p><div id="recordedImages"></div>
-      <div class="player-strip"><button id="playEpisode" type="button"></button>
-      <input id="frameSeek" type="range" min="0" value="0" aria-label="Playback position"><output id="frameNumber"></output></div>
-      <div id="recordedValues"></div>
-    </dialog>
+
     <dialog id="taskDialog">
       <form id="taskForm">
         <h2 data-i18n="New robot task">New robot task</h2>

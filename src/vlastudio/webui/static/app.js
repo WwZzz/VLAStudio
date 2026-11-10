@@ -438,6 +438,12 @@ function renderSession(s) {
   toggle.setAttribute("aria-label", toggleLabel);
   $("episodeNumber").classList.toggle("recording-now", collecting && !other && s.phase === "recording");
   const inEpisode = s.phase === "recording" || s.phase === "record_paused";
+  const current = s.active && !other && Number.isInteger(s.episode) &&
+    (collecting ? inEpisode || s.phase === "save" : !!s.options?.output);
+  $("currentEpisodeState").textContent = current
+    ? "#" + String(s.episode).padStart(4, "0") + " · " + tr(phases[s.phase])
+    : tr(s.active && !other ? phases[s.phase] : phases.idle);
+  document.dispatchEvent(new Event("episode-session"));
   const recordButton = inEpisode ? "finish" : "record";
   const pauseButton = s.phase === "recording" ? "record_pause" : "record_resume";
   const enterAction = s.phase === "save" ? "save" : inEpisode ? pauseButton : "record";
@@ -801,7 +807,7 @@ function keyboardEnabled() {
     state.session.keyboard_arms &&
     document.hasFocus() &&
     !document.hidden &&
-    !element?.closest("input,textarea,select,[contenteditable=true]") &&
+    !element?.closest("input,textarea,select,#library,[contenteditable=true]") &&
     !document.querySelector("dialog[open]")
   );
 }

@@ -1,11 +1,11 @@
 "use strict";
 
 (() => {
-  const dialog = $("library");
-  const dataset = $("libraryDataset"), episode = $("libraryEpisode");
+  const dataset = $("libraryDataset"), list = $("episodeList");
   const seek = $("frameSeek"), play = $("playEpisode"), remove = $("deleteEpisode");
   let rows = [], selected, meta, frame = 0, playing = false;
   let request, timer, revision = 0;
+  let catalogRequest = 0, sessionKey, output;
   const cameraViews = new Map();
 
   function buttons() {
@@ -81,7 +81,7 @@
   }
   async function show(index, token) {
     const data = await getFrame({frame:index});
-    if (token !== revision || !dialog.open) return;
+    if (token !== revision) return;
     // Keep the previous frame visible until every camera in this frame is ready.
     const urls = [];
     try {
@@ -94,22 +94,29 @@
         await image.decode();
         return [name, image];
       }));
-      if (token === revision && dialog.open) display(data, index, images);
+      if (token === revision) display(data, index, images);
     } finally {
       urls.forEach(url => URL.revokeObjectURL(url));
     }
   }
-  async function selectEpisode() {
+  function highlight() {
+    $("currentEpisode").setAttribute("aria-pressed", String(!selected));
+    for (const row of list.children)
+      row.setAttribute("aria-pressed", String(row.dataset.version === selected?.version));
+  }
+  async function selectEpisode(item) {
     cancel();
     const token = revision;
-    selected = rows.find(row => row.dataset === dataset.value && String(row.index) === episode.value);
+    selected = item;
     meta = null;
     clearImages();
     $("recordedValues").replaceChildren();
     $("frameNumber").textContent = "";
     seek.value = 0;
+    highlight();
+    $("episodePlayer").hidden = !selected;
     buttons();
-    $("playerMessage").textContent = tr(selected ? "Loading recording" : "No recordings");
+    $("playerMessage").textContent = selected ? tr("Loading recording") : "";
     if (!selected) return;
     try {
       const result = await getFrame({});
@@ -122,23 +129,34 @@
       buttons();
     } catch (error) { failed(error, token); }
   }
-  function pickDataset() {
-    episode.replaceChildren(...rows.filter(r => r.dataset === dataset.value).map(r =>
-      new Option("Episode " + String(r.index).padStart(4,"0"), r.index)));
-    return selectEpisode();
+  function renderList() {
+    const items = rows.filter(r => r.dataset === dataset.value);
+    list.replaceChildren(...items.map(item => {
+      const row = el("button", "", "Episode " + String(item.index).padStart(4, "0"));
+      row.type = "button";
+      row.dataset.version = item.version;
+      row.onclick = () => selectEpisode(item);
+      return row;
+    }));
+    $("emptyEpisodes").hidden = items.length > 0;
+    if (selected && !items.some(item => item.version === selected.version))
+      selectEpisode(null);
+    else highlight();
   }
-  async function load(preferred) {
-    cancel();
-    const token = revision;
+  async function load() {
+    const token = ++catalogRequest;
     try {
       const result = await api("episodes");
-      if (token !== revision || !dialog.open) return;
+      if (token !== catalogRequest) return;
       rows = result;
-      const names = [...new Set(rows.map(r => r.dataset))];
+      const preferred = dataset.value || output;
+      const names = [...new Set([output, ...rows.map(r => r.dataset)].filter(Boolean))];
       dataset.replaceChildren(...names.map(n => new Option(n,n)));
       if (names.includes(preferred)) dataset.value = preferred;
-      await pickDataset();
-    } catch (error) { failed(error, token); }
+      renderList();
+    } catch (error) {
+      if (token === catalogRequest) { sessionKey = null; notice(error.message); }
+    }
   }
   play.onclick = () => {
     if (playing) { cancel(); return; }
@@ -167,8 +185,15 @@
     const token = revision;
     show(Number(seek.value), token).catch(e => failed(e, token));
   };
-  dataset.onchange = pickDataset;
-  episode.onchange = selectEpisode;
+  dataset.onchange = renderList;
+  $("currentEpisode").onclick = event => {
+    if (output && dataset.value !== output) {
+      dataset.value = output;
+      renderList();
+    }
+    selectEpisode(null);
+    if (event.detail) event.currentTarget.blur();
+  };
   remove.onclick = async () => {
     if (!selected) return;
     const item = selected;
@@ -176,20 +201,28 @@
     if (!await confirmAction(tr("Delete episode"), item.dataset + " · Episode " + item.index + " — " + tr("Move this recording to trash?"))) return;
     try {
       await api("episode/delete", item);
-      await load(item.dataset);
+      await load();
     } catch (error) { $("playerMessage").textContent = tr(error.message); }
   };
-  $("libraryOpen").onclick = () => {
-    heldKeys.clear();
-    dialog.showModal();
-    load($("output").value);
-  };
-  $("libraryClose").onclick = () => dialog.close();
-  dialog.addEventListener("close", () => {
-    cancel();
-    selected = meta = null;
-    clearImages();
-  });
+  function syncLibrary() {
+    const s = state?.session;
+    if (!s) return;
+    const name = (s.options?.output || $("output").value).trim();
+    if (name !== output) {
+      output = name;
+      dataset.selectedIndex = -1;
+      selectEpisode(null);
+    }
+    const key = JSON.stringify([name, s.id, s.phase, s.episode]);
+    if (key !== sessionKey) {
+      sessionKey = key;
+      load();
+    }
+    if (selected) buttons();
+  }
+  document.addEventListener("episode-session", syncLibrary);
+  $("library").addEventListener("focusin", () => heldKeys.clear());
+  syncLibrary();
   new ResizeObserver(entries => {
     document.body.style.paddingBottom = entries[0].target.offsetHeight + 16 + "px";
   }).observe($("transport"));
