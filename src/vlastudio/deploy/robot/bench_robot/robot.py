@@ -35,7 +35,7 @@ class BenchmarkRobot(BaseRobot):
         self.steps = 0
         self.episode = 0
         self.success = False
-        adapter_type = action.get('adapter', 'vlastudio.deploy.robot.benchmark_adapters.CartesianAdapter')
+        adapter_type = action.get('adapter', 'vlastudio.deploy.robot.bench_robot.adapters.base.CartesianAdapter')
         self.adapter = resolve(adapter_type)(action)
         self.arms = self.adapter.arms
         self.width = self.adapter.width

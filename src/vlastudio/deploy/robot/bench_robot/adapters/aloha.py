@@ -2,6 +2,7 @@
 from copy import copy
 import numpy as np
 from vlastudio.benchmark.aloha import AlohaSimEnv
+from .base import CartesianAdapter, NativeJointAdapter
 
 
 class AlohaEnvironment(AlohaSimEnv):
@@ -38,3 +39,28 @@ class AlohaEnvironment(AlohaSimEnv):
         if not getattr(self.config, 'separate_termination', True):
             return obs, reward, success, timestep
         return obs, reward, False, bool(timestep.last()), {'success': bool(success)}
+
+
+class AlohaAdapter(CartesianAdapter):
+    """Preserve the model's calibrated mocap-to-gripper weld transform."""
+    @staticmethod
+    def create_environment(config):
+        return AlohaEnvironment(config)
+
+    def reset(self, env, observation):
+        super().reset(env, observation)
+        if self.arms != 2 or self.rotation != 'quat_wxyz' or self.native_type != 'abs':
+            raise ValueError('ALOHA EE uses two absolute xyz + wxyz + gripper targets')
+        physics = env.env.physics
+        for i in range(self.arms):
+            self.target.reshape(self.arms, self.width)[i, :7] = np.concatenate([
+                physics.data.mocap_pos[i], physics.data.mocap_quat[i]])
+        expected_hz = 1.0 / env.env.control_timestep()
+        self.control_frequency = expected_hz
+
+
+class AlohaJointAdapter(NativeJointAdapter):
+    """Native joint control using ALOHA's deployment lifecycle."""
+    @staticmethod
+    def create_environment(config):
+        return AlohaEnvironment(config)

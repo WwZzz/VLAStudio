@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: metaworld
   webui:
     runtime: metaworld
@@ -78,7 +78,7 @@
         continuous: true
         seed: 7
     action:
-      adapter: vlastudio.deploy.robot.benchmark_adapters.MetaWorldAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.metaworld.MetaWorldAdapter
       arms: 1
       space: ee
       type: delta

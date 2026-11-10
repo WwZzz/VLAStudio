@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: robosuite_transport
   webui:
     marker_provider: vlastudio.webui.marker_providers.RobosuiteMarkerProvider
@@ -24,7 +24,7 @@
     on_success: continue
     on_termination: pause
     action:
-      adapter: vlastudio.deploy.robot.robosuite_adapter.RobosuiteAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.robosuite.RobosuiteAdapter
       arms: 2
       space: ee
       type: delta

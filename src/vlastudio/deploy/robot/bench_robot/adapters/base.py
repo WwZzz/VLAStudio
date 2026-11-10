@@ -1,13 +1,10 @@
-"""Configured adapters isolate simulator control semantics from device lifecycle.
+"""Shared Cartesian and native-joint action conversion.
 
-Custom adapters implement reset(env, observation), teleop_action(message, observation),
-idle_action(), and environment_action(action), and expose target/arms/width/space/native_type.
-Adapters may also implement create_environment(config). An explicit environment
-factory in a robot config takes precedence for existing custom integrations.
+Custom adapters may implement create_environment(config); an explicit environment.type
+in the robot configuration takes precedence.
 """
 import numpy as np
 from scipy.spatial.transform import Rotation
-
 from vlastudio.benchmark.base import MetaAction
 
 
@@ -91,99 +88,6 @@ class CartesianAdapter:
         return {"action": self.target.copy()}
 
 
-class AlohaAdapter(CartesianAdapter):
-    """Preserve the model's calibrated mocap-to-gripper weld transform."""
-    @staticmethod
-    def create_environment(config):
-        from .aloha import AlohaEnvironment
-        return AlohaEnvironment(config)
-
-    def reset(self, env, observation):
-        super().reset(env, observation)
-        if self.arms != 2 or self.rotation != 'quat_wxyz' or self.native_type != 'abs':
-            raise ValueError('ALOHA EE uses two absolute xyz + wxyz + gripper targets')
-        physics = env.env.physics
-        for i in range(self.arms):
-            self.target.reshape(self.arms, self.width)[i, :7] = np.concatenate([
-                physics.data.mocap_pos[i], physics.data.mocap_quat[i]])
-        expected_hz = 1.0 / env.env.control_timestep()
-        self.control_frequency = expected_hz
-
-
-class LiberoAdapter(CartesianAdapter):
-    """Convert physical Cartesian increments using the active OSC controller scale."""
-    @staticmethod
-    def create_environment(config):
-        from .libero import LiberoEnvironment
-        return LiberoEnvironment(config)
-
-    def reset(self, env, observation):
-        super().reset(env, observation)
-        controller = env.env.env.robots[0].controller
-        low = np.asarray(controller.output_min)
-        high = np.asarray(controller.output_max)
-        in_low = np.asarray(controller.input_min)
-        in_high = np.asarray(controller.input_max)
-        if low.size != 6 or not np.allclose(high, -low):
-            raise ValueError('LIBERO teleoperation requires a symmetric 6D OSC_POSE controller')
-        self.config['delta_scale'] = (in_high - in_low) / (high - low)
-        self.control_frequency = float(env.env.env.control_freq)
-
-    def environment_action(self, action):
-        result = super().environment_action(action)
-        result.action[:6] = np.clip(result.action[:6], -1, 1)
-        return result
-
-
-class RLBenchAdapter(CartesianAdapter):
-    """Anchor incremental IK targets to measured pose instead of accumulating error."""
-    @staticmethod
-    def create_environment(config):
-        from .rlbench import RLBenchEnvironment
-        return RLBenchEnvironment(config)
-
-    def teleop_action(self, message, observation):
-        self.target[:7] = np.asarray(observation['state_ee'])[:7]
-        return super().teleop_action(message, observation)
-
-
-class MetaWorldAdapter(CartesianAdapter):
-    """Map physical XYZ increments to MetaWorld's four native controls.
-
-    MetaWorld has fixed orientation. Its fourth control is signed gripper
-    effort (positive closes), not a normalized gripper position.
-    """
-    @staticmethod
-    def create_environment(config):
-        from .metaworld import MetaWorldEnvironment
-        return MetaWorldEnvironment(config)
-
-    def __init__(self, config):
-        super().__init__(config)
-        if self.arms != 1 or self.native_type != 'delta':
-            raise ValueError('MetaWorld uses one arm with delta control')
-        self.width = 4
-
-    def reset(self, env, observation):
-        self.target = np.array([0., 0., 0., -1.])
-        self.action_scale = float(env.env.unwrapped.action_scale)
-        if self.action_scale <= 0:
-            raise ValueError('MetaWorld action_scale must be positive')
-
-    def teleop_action(self, message, observation):
-        if message.get('ctrl_space', 'ee') != 'ee' or message.get('ctrl_type', 'delta') != 'delta':
-            raise ValueError('Teleoperation input must declare ee/delta')
-        delta = np.asarray(message['action'], dtype=float).reshape(7)
-        if not np.all(np.isfinite(delta)) or np.any(delta[3:6]):
-            raise ValueError('MetaWorld supports XYZ translation and gripper only')
-        self.target[:3] = np.clip(delta[:3] / self.action_scale, -1, 1)
-        self.target[-1] = np.clip(self.target[-1] - 2 * delta[6], -1, 1)
-        return {'action': self.target.copy()}
-
-    def environment_action(self, action):
-        return MetaAction(action=np.clip(action, -1, 1), ctrl_space='ee', ctrl_type='delta')
-
-
 class NativeJointAdapter:
     """Hold joint targets between policy messages; no Cartesian teleoperation."""
     def __init__(self, config):
@@ -205,11 +109,3 @@ class NativeJointAdapter:
 
     def environment_action(self, action):
         return MetaAction(action=action.copy(), ctrl_space=self.space, ctrl_type=self.native_type)
-
-
-class AlohaJointAdapter(NativeJointAdapter):
-    """Native joint control using ALOHA's deployment lifecycle."""
-    @staticmethod
-    def create_environment(config):
-        from .aloha import AlohaEnvironment
-        return AlohaEnvironment(config)

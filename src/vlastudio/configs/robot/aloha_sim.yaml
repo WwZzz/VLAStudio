@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: aloha_sim
   webui:
     marker_provider: vlastudio.webui.marker_providers.AlohaMarkerProvider
@@ -34,7 +34,7 @@
       type: abs
       rotation: quat_wxyz
       initial_target: state_ee
-      adapter: vlastudio.deploy.robot.benchmark_adapters.AlohaAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.aloha.AlohaAdapter
     observation:
       fields:
         qpos: state_joint

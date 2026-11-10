@@ -2,6 +2,8 @@
 import numpy as np
 import gymnasium as gym
 from vlastudio.benchmark.metaworld import MetaWorldEnv
+from .base import CartesianAdapter
+from vlastudio.benchmark.base import MetaAction
 
 
 def _without_time_limits(env):
@@ -56,3 +58,39 @@ class MetaWorldEnvironment(MetaWorldEnv):
             terminated = False
         self.prev_obs = self.obs2meta(obs)
         return self.prev_obs, reward, bool(terminated), bool(truncated), info
+
+
+class MetaWorldAdapter(CartesianAdapter):
+    """Map physical XYZ increments to MetaWorld's four native controls.
+
+    MetaWorld has fixed orientation. Its fourth control is signed gripper
+    effort (positive closes), not a normalized gripper position.
+    """
+    @staticmethod
+    def create_environment(config):
+        return MetaWorldEnvironment(config)
+
+    def __init__(self, config):
+        super().__init__(config)
+        if self.arms != 1 or self.native_type != 'delta':
+            raise ValueError('MetaWorld uses one arm with delta control')
+        self.width = 4
+
+    def reset(self, env, observation):
+        self.target = np.array([0., 0., 0., -1.])
+        self.action_scale = float(env.env.unwrapped.action_scale)
+        if self.action_scale <= 0:
+            raise ValueError('MetaWorld action_scale must be positive')
+
+    def teleop_action(self, message, observation):
+        if message.get('ctrl_space', 'ee') != 'ee' or message.get('ctrl_type', 'delta') != 'delta':
+            raise ValueError('Teleoperation input must declare ee/delta')
+        delta = np.asarray(message['action'], dtype=float).reshape(7)
+        if not np.all(np.isfinite(delta)) or np.any(delta[3:6]):
+            raise ValueError('MetaWorld supports XYZ translation and gripper only')
+        self.target[:3] = np.clip(delta[:3] / self.action_scale, -1, 1)
+        self.target[-1] = np.clip(self.target[-1] - 2 * delta[6], -1, 1)
+        return {'action': self.target.copy()}
+
+    def environment_action(self, action):
+        return MetaAction(action=np.clip(action, -1, 1), ctrl_space='ee', ctrl_type='delta')

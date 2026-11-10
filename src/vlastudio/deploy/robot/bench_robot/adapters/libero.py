@@ -3,6 +3,7 @@ from copy import copy
 from dataclasses import asdict
 import numpy as np
 from vlastudio.benchmark.libero import LiberoEnv
+from .base import CartesianAdapter
 
 
 class LiberoEnvironment(LiberoEnv):
@@ -38,3 +39,27 @@ class LiberoEnvironment(LiberoEnv):
             obs, _, _, _ = self.env.step(self.get_libero_dummy_action())
         self.prev_obs = self.obs2meta(obs)
         return self.prev_obs
+
+
+class LiberoAdapter(CartesianAdapter):
+    """Convert physical Cartesian increments using the active OSC controller scale."""
+    @staticmethod
+    def create_environment(config):
+        return LiberoEnvironment(config)
+
+    def reset(self, env, observation):
+        super().reset(env, observation)
+        controller = env.env.env.robots[0].controller
+        low = np.asarray(controller.output_min)
+        high = np.asarray(controller.output_max)
+        in_low = np.asarray(controller.input_min)
+        in_high = np.asarray(controller.input_max)
+        if low.size != 6 or not np.allclose(high, -low):
+            raise ValueError('LIBERO teleoperation requires a symmetric 6D OSC_POSE controller')
+        self.config['delta_scale'] = (in_high - in_low) / (high - low)
+        self.control_frequency = float(env.env.env.control_freq)
+
+    def environment_action(self, action):
+        result = super().environment_action(action)
+        result.action[:6] = np.clip(result.action[:6], -1, 1)
+        return result

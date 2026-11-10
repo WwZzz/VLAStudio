@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.behavior_robot.BehaviorRobot
+- type: vlastudio.deploy.robot.bench_robot.adapters.behavior.BehaviorRobot
   name: behavior
   webui:
     runtime: behavior
@@ -32,7 +32,7 @@
     # Native action concatenates base, trunk, arms and grippers in controller_order.
     # Its dimension is obtained from the loaded robot, not arms * 7.
     action:
-      adapter: vlastudio.deploy.robot.behavior_adapter.BehaviorAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.behavior.BehaviorAdapter
       arms: 2
       space: ee
       type: delta

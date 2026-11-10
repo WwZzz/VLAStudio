@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: libero
   webui:
     marker_provider: vlastudio.webui.marker_providers.LiberoMarkerProvider
@@ -162,7 +162,7 @@
       initial_gripper: 1
       gripper_scale: -2
       gripper_offset: 1
-      adapter: vlastudio.deploy.robot.benchmark_adapters.LiberoAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.libero.LiberoAdapter
     observation:
       fields:
         qpos: state_joint

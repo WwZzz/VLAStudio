@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: aloha_sim_joint
   webui:
     runtime: aloha
@@ -22,7 +22,7 @@
         continue_after_success: true
         separate_termination: true
     action:
-      adapter: vlastudio.deploy.robot.benchmark_adapters.AlohaJointAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.aloha.AlohaJointAdapter
       arms: 2
       width: 7
       space: joint

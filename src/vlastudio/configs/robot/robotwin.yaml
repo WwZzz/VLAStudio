@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: robotwin
   webui:
     runtime: robotwin
@@ -35,7 +35,7 @@
     on_success: continue
     on_termination: pause
     action:
-      adapter: vlastudio.deploy.robot.robotwin_adapter.RoboTwinAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.robotwin.RoboTwinAdapter
       arms: 2
       space: ee
       type: abs

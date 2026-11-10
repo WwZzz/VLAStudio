@@ -1,4 +1,4 @@
-- type: vlastudio.deploy.robot.benchmark_robot.BenchmarkRobot
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
   name: rlbench
   webui:
     marker_provider: vlastudio.webui.marker_providers.RLBenchMarkerProvider
@@ -133,7 +133,7 @@
         headless: true
         seed: 7
     action:
-      adapter: vlastudio.deploy.robot.benchmark_adapters.RLBenchAdapter
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.rlbench.RLBenchAdapter
       arms: 1
       space: ee
       type: abs

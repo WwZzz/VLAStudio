@@ -3,6 +3,7 @@ import numpy as np
 import time
 from loguru import logger
 from vlastudio.benchmark.rlbench import RLBenchEnv
+from .base import CartesianAdapter
 
 
 class RLBenchEnvironment(RLBenchEnv):
@@ -64,3 +65,14 @@ class RLBenchEnvironment(RLBenchEnv):
 
     def close(self):
         self.force_close()
+
+
+class RLBenchAdapter(CartesianAdapter):
+    """Anchor incremental IK targets to measured pose instead of accumulating error."""
+    @staticmethod
+    def create_environment(config):
+        return RLBenchEnvironment(config)
+
+    def teleop_action(self, message, observation):
+        self.target[:7] = np.asarray(observation['state_ee'])[:7]
+        return super().teleop_action(message, observation)
