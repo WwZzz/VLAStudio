@@ -57,7 +57,7 @@ from vlastudio.deploy.utils import (
 from vlastudio.deploy.visualizer.base import start_all_visualizers, stop_all_visualizers
 from vlastudio.data_utils.data_saver import create_data_saver, generate_task_config
 from vlastudio.utils.extensions import resolve
-from vlastudio.webui.bridge import wait_for_robot, keyboard, phase
+from vlastudio.webui.bridge import wait_for_robot, keyboard, phase, episode_task
 
 
 def main():
@@ -264,7 +264,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
             # Wait for Enter to START
             logger.info("Press Enter to START episode {}...", episode_idx)
             phase("ready")
-            while read_input() is None:
+            while (start_command := read_input()) is None:
                 sync.read_and_buffer()
                 time.sleep(0.01)
             # Consume any extra input
@@ -272,6 +272,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                 pass
 
             # Start recording episode
+            data_saver.task = episode_task(start_command, args.task)
             actual_idx = data_saver.start_episode(
                 episode_idx=episode_idx,
                 device_names=device_names_list,

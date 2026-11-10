@@ -114,7 +114,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/start":
                 s.start(data["mode"], data)
             elif self.path == "/api/action":
-                s.action(data["mode"],data["id"],data["action"])
+                s.action(data["mode"], data["id"], data["action"], real_task=data.get("real_task"))
             elif self.path == "/api/keyboard":
                 s.runners["collect"].keyboard(data)
             elif self.path == "/api/preview":

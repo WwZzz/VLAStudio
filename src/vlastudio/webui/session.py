@@ -438,7 +438,7 @@ class Session:
                 except (FileNotFoundError, BlockingIOError, ConnectionRefusedError):
                     pass
 
-    def action(self, sid, action):
+    def action(self, sid, action, real_task=None):
         with self.lock:
             state = self.state()
             if sid != self.sid or action not in state["actions"]:
@@ -470,11 +470,22 @@ class Session:
                     return
                 if self.mode == "infer" and action == "pause":
                     self.box[0] = PAUSE  # ignore late policy output while inference returns
-                self._key(action, state["phase"])
+                command = None
+                if action == "record" and self.mode == "collect" and real_task is not None:
+                    if catalog()["robot_options"].get(self.robot, {}).get("tasks"):
+                        raise ValueError("Simulation task is bound to the environment")
+                    instruction = ""
+                    if real_task != "":
+                        task = get_task(real_task)
+                        instruction = task["instruction"] or task["name"]
+                    command = json.dumps({"task": instruction}, ensure_ascii=False)
+                self._key(action, state["phase"], command)
 
-    def _key(self, action, phase):
+    def _key(self, action, phase, command=None):
         self.pending = self.box[3]
-        self.proc.stdin.write((KEYS[phase][action]+"\n").encode())
+        if command is None:
+            command = KEYS[phase][action]
+        self.proc.stdin.write((command + "\n").encode())
         self.proc.stdin.flush()
 
     def shutdown(self):

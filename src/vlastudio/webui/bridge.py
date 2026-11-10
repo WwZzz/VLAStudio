@@ -1,4 +1,5 @@
 """Private, session-scoped mailbox inherited only by the launched Linux workers."""
+import json
 import mmap
 import os
 import select
@@ -31,6 +32,13 @@ def phase(name):
 
 def keyboard(native):
     return WebKeys() if os.environ.get("VLASTUDIO_WEB_FD") else native()
+
+
+def episode_task(start_command, default):
+    """A web recording can carry its task on the same line that starts it."""
+    if os.environ.get("VLASTUDIO_WEB_FD") and start_command:
+        return json.loads(start_command)["task"]
+    return default
 
 
 def wait_for_robot():

@@ -187,7 +187,7 @@ class Studio:
         if self.selected == runner.sid:
             self.selected = None
 
-    def action(self, mode, sid, action):
+    def action(self, mode, sid, action, real_task=None):
         with self.lock:
             runner = self.runners[mode]
             with runner.lock:
@@ -221,7 +221,7 @@ class Studio:
                     elif mode == "infer":
                         runner.mailbox_path.with_name("action-contract").write_text("{}")
                     self.selected = sid
-                runner.action(sid, action)
+                runner.action(sid, action, real_task=real_task)
 
     def disconnect(self, token, all_sources=False):
         with self.lock:

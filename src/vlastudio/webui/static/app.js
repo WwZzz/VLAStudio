@@ -136,7 +136,8 @@ function renderTaskPanel() {
   $("simulationFields").hidden = !benchmark;
   $("realTaskFields").hidden = benchmark;
   $("taskKind").textContent = tr(benchmark ? "Benchmark task" : "Robot task");
-  $("newTask").disabled = !!state?.session.active || connecting;
+  $("newTask").disabled = connecting || (!collecting && !!state?.session.active);
+  $("realTaskLabel").textContent = tr(collecting ? "Task for next recording" : "Robot task");
   const task = robotTasks.find((task) => task.id === $("real_task").value);
   $("realTaskInstruction").textContent = task
     ? task.instruction || tr("No instruction provided.")
@@ -144,7 +145,10 @@ function renderTaskPanel() {
         "Select or create a robot task. Its instruction will be saved with recordings.",
       );
 }
-$("real_task").onchange = renderTaskPanel;
+$("real_task").onchange = () => {
+  renderTaskPanel();
+  localStorage.setItem("vla-" + mode, JSON.stringify(options()));
+};
 $("newTask").onclick = () => {
   $("taskForm").reset();
   $("taskError").textContent = "";
@@ -324,7 +328,10 @@ async function act(action) {
     if (!(await confirmAction(tr(names[action]), msg[action]))) return;
   }
   if (action === "home" || action === "reset") heldKeys.clear();
-  await post("action", { mode, id: sid, action });
+  const payload = {mode, id: sid, action};
+  if (collecting && action === "record" && !$("realTaskFields").hidden)
+    payload.real_task = $("real_task").value;
+  await post("action", payload);
 }
 function transportIcon(key) {
   const shapes = {
@@ -390,7 +397,7 @@ function renderSession(s) {
       fill("task", tasks);
     $("sync").value = s.options.sync || "";
     for (const [key, value] of Object.entries(s.options || {}))
-      if ($(key)) $(key).value = value;
+      if ($(key) && !(collecting && key === "real_task")) $(key).value = value;
   }
   renderTaskPanel();
   $("phase").textContent =
@@ -400,6 +407,7 @@ function renderSession(s) {
       : "") + tr(phases[s.phase]);
   for (const field of $("form").elements)
     field.disabled = s.active || connecting;
+  if (collecting) $("real_task").disabled = connecting;
   for (const id of ["robot", "task", "on_success"]) $(id).disabled = !!selection || busy;
   $("robotConnection").disabled = busy || (!!c && !!s.loaded?.length);
   $("robotConnection").textContent = tr(c ? c.ready ? "Disconnect robot" : "Connecting robot" : "Connect robot");
