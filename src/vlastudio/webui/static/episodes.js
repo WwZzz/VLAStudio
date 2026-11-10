@@ -2,6 +2,8 @@
 
 (() => {
   const dataset = $("libraryDataset"), list = $("episodeList");
+  const dialog = $("library"), playerDataset = $("playerDataset"), playerEpisode = $("playerEpisode");
+  const episodeLabel = item => "Episode " + String(item.index).padStart(4, "0");
   const seek = $("frameSeek"), play = $("playEpisode"), remove = $("deleteEpisode");
   let rows = [], selected, meta, frame = 0, playing = false;
   let request, timer, revision = 0;
@@ -115,6 +117,7 @@
     seek.value = 0;
     highlight();
     $("episodePlayer").hidden = !selected;
+    $("emptyPlayer").hidden = !!selected;
     buttons();
     $("playerMessage").textContent = selected ? tr("Loading recording") : "";
     if (!selected) return;
@@ -129,19 +132,35 @@
       buttons();
     } catch (error) { failed(error, token); }
   }
+  function renderPlayer(item) {
+    playerDataset.replaceChildren(...Array.from(dataset.options, o => new Option(o.text, o.value)));
+    playerDataset.value = dataset.value;
+    const items = rows.filter(row => row.dataset === playerDataset.value);
+    playerEpisode.replaceChildren(...items.map(row => new Option(episodeLabel(row), row.index)));
+    playerEpisode.disabled = !items.length;
+    const next = items.find(row => row.version === item?.version) || items[0];
+    if (next) playerEpisode.value = String(next.index);
+    if (!next || selected?.version !== next.version) selectEpisode(next);
+  }
+  function openLibrary(item) {
+    heldKeys.clear();
+    dialog.showModal();
+    renderPlayer(item);
+    load();
+  }
   function renderList() {
     const items = rows.filter(r => r.dataset === dataset.value);
     list.replaceChildren(...items.map(item => {
-      const row = el("button", "", "Episode " + String(item.index).padStart(4, "0"));
+      const row = el("button", "", episodeLabel(item));
       row.type = "button";
       row.dataset.version = item.version;
-      row.onclick = () => selectEpisode(item);
+      row.setAttribute("aria-haspopup", "dialog");
+      row.onclick = () => openLibrary(item);
       return row;
     }));
     $("emptyEpisodes").hidden = items.length > 0;
-    if (selected && !items.some(item => item.version === selected.version))
-      selectEpisode(null);
-    else highlight();
+    if (dialog.open) renderPlayer(selected);
+    highlight();
   }
   async function load() {
     const token = ++catalogRequest;
@@ -186,6 +205,15 @@
     show(Number(seek.value), token).catch(e => failed(e, token));
   };
   dataset.onchange = renderList;
+  playerDataset.onchange = () => {
+    dataset.value = playerDataset.value;
+    renderList();
+  };
+  playerEpisode.onchange = () => selectEpisode(rows.find(row =>
+    row.dataset === playerDataset.value && String(row.index) === playerEpisode.value));
+  $("libraryOpen").onclick = () => openLibrary();
+  $("libraryClose").onclick = () => dialog.close();
+  dialog.addEventListener("close", () => selectEpisode(null));
   $("currentEpisode").onclick = event => {
     if (output && dataset.value !== output) {
       dataset.value = output;
@@ -221,7 +249,7 @@
     if (selected) buttons();
   }
   document.addEventListener("episode-session", syncLibrary);
-  $("library").addEventListener("focusin", () => heldKeys.clear());
+  $("episodePanel").addEventListener("focusin", () => heldKeys.clear());
   syncLibrary();
   new ResizeObserver(entries => {
     document.body.style.paddingBottom = entries[0].target.offsetHeight + 16 + "px";

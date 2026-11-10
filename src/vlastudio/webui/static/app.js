@@ -815,7 +815,7 @@ function keyboardEnabled() {
     state.session.keyboard_arms &&
     document.hasFocus() &&
     !document.hidden &&
-    !element?.closest("input,textarea,select,#library,[contenteditable=true]") &&
+    !element?.closest("input,textarea,select,#episodePanel,[contenteditable=true]") &&
     !document.querySelector("dialog[open]")
   );
 }

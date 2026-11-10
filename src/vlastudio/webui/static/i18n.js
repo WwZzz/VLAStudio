@@ -89,6 +89,7 @@ const chinese = {
   "Waiting for camera images": "等待相机画面",
   " · Data stale": " · 数据已停更",
   "Close library": "关闭片段库",
+  "Episode": "片段",
   "Episodes": "片段库",
   "Recorded episodes": "已录制片段",
   "Task for next recording": "下一段录制任务",

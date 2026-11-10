@@ -711,7 +711,7 @@ textarea {
 #teleSwitch:disabled .switch-track {background:#69796e}
 #transport button:enabled:hover {box-shadow:inset 0 0 0 2px currentColor}
 #transport button:focus-visible {outline:3px solid #f6d489;outline-offset:2px}
-#library {display:grid;gap:12px;min-width:0}
+#episodePanel {display:grid;gap:12px;min-width:0}
 #currentEpisode, #episodeList button {display:flex;align-items:center;justify-content:space-between;text-align:left;padding:8px 10px;gap:6px}
 #currentEpisode {flex-wrap:wrap}
 #currentEpisodeState {font-size:11px}
@@ -720,7 +720,10 @@ textarea {
 #episodeList:empty {display:none}
 #episodeList button {background:var(--paper);font-variant-numeric:tabular-nums}
 #episodePlayer {min-width:0;border-top:1px solid var(--border);padding-top:12px}
-#library select {max-width:100%;min-width:0}
+#library {width:min(900px,94vw);max-height:86vh;overflow:auto}
+.library-pickers {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+#libraryOpen {background:#edf3ed;color:#294936;border-color:#c6d6cb;white-space:nowrap}
+#episodePanel select, #library select {max-width:100%;min-width:0}
 #deleteEpisode {color:#a13535}
 #recordedImages {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px}
 #recordedImages figure {margin:0;background:var(--side);border-radius:8px;overflow:hidden}
@@ -743,8 +746,9 @@ textarea {
   #transport {
     display:grid;
     grid-template-columns:minmax(0, 1fr) auto;
-    grid-template-areas:"switch switch" "state actions";
+    grid-template-areas:"switch library" "state actions";
   }
+  #libraryOpen {grid-area:library}
   #teleSwitch {grid-area:switch;justify-self:start;padding-inline:8px}
   .transport-state {grid-area:state;min-width:0}
   #transport #buttons {grid-area:actions;justify-content:end;max-width:132px}

@@ -201,7 +201,7 @@
               <p id="realTaskInstruction"></p>
             </div>
           </article>
-          <section class="panel" id="library">
+          <section class="panel" id="episodePanel">
             <h2 data-i18n="Episodes">Episodes</h2>
             <button id="currentEpisode" type="button" aria-pressed="true">
               <strong data-i18n="Current Episode">Current Episode</strong>
@@ -210,13 +210,6 @@
             <label><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
             <div id="episodeList" role="group" aria-label="Recorded episodes"></div>
             <small id="emptyEpisodes" data-i18n="No recordings">No recordings</small>
-            <div id="episodePlayer" hidden>
-              <p id="playerMessage" role="status"></p><div id="recordedImages"></div>
-              <div class="player-strip"><button id="playEpisode" type="button"></button>
-              <input id="frameSeek" type="range" min="0" value="0" aria-label="Playback position"><output id="frameNumber"></output></div>
-              <div id="recordedValues"></div>
-              <button id="deleteEpisode" type="button" data-i18n="Delete episode">Delete episode</button>
-            </div>
           </section>
         </aside>
       </div>
@@ -227,7 +220,27 @@
       </button>
       <div class="transport-state"><strong id="episodeNumber"></strong><small id="status"></small></div>
       <div id="buttons" role="group" aria-label="Run controls"></div>
+      <button type="button" id="libraryOpen" aria-haspopup="dialog" aria-controls="library" data-i18n="Episodes">Episodes</button>
     </footer>
+
+    <dialog id="library" aria-labelledby="libraryTitle">
+      <div class="heading">
+        <h2 id="libraryTitle" data-i18n="Recorded episodes">Recorded episodes</h2>
+        <button id="libraryClose" type="button" data-i18n="Close library">Close library</button>
+      </div>
+      <div class="library-pickers">
+        <label><span data-i18n="Dataset">Dataset</span><select id="playerDataset"></select></label>
+        <label><span data-i18n="Episode">Episode</span><select id="playerEpisode"></select></label>
+      </div>
+      <p id="emptyPlayer" data-i18n="No recordings">No recordings</p>
+      <div id="episodePlayer" hidden>
+        <p id="playerMessage" role="status"></p><div id="recordedImages"></div>
+        <div class="player-strip"><button id="playEpisode" type="button"></button>
+        <input id="frameSeek" type="range" min="0" value="0" aria-label="Playback position"><output id="frameNumber"></output></div>
+        <div id="recordedValues"></div>
+        <button id="deleteEpisode" type="button" data-i18n="Delete episode">Delete episode</button>
+      </div>
+    </dialog>
 
     <dialog id="taskDialog">
       <form id="taskForm">
