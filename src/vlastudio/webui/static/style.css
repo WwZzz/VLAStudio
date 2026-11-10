@@ -656,24 +656,56 @@ textarea {
 #transport {
   position: fixed; inset: auto 0 0; z-index: 40;
   display: flex; align-items: center; justify-content: space-between; gap: 14px;
-  background: var(--paper); border-top: 1px solid var(--border);
-  box-shadow: 0 -3px 18px #26332c12; padding: 9px clamp(12px,4vw,68px) max(9px,env(safe-area-inset-bottom));
+  color: #f4f8f4;
+  background: #21392f;
+  border-top: 1px solid #486454;
+  box-shadow: 0 -3px 14px #192a2326;
+  padding: 9px clamp(12px,4vw,68px) max(9px,env(safe-area-inset-bottom));
 }
 .transport-state {display:grid;gap:2px;min-width:0;flex:1}
-#transport #status {margin:0; overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#transport #status {margin:0;color:#c9d7cd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #transport #buttons {display:flex;gap:6px;margin:0;justify-content:center}
 .transport-key,#playEpisode {width:40px;height:38px;padding:8px;display:inline-grid;place-items:center}
 .transport-key svg,#playEpisode svg {width:20px;height:20px}
-#teleSwitch {display:inline-flex;align-items:center;gap:8px;white-space:nowrap;background:transparent;border:0;padding:6px 2px}
-#teleSwitch[hidden] {display:none}
-.switch-track {box-sizing:border-box;display:inline-flex;align-items:center;width:34px;height:20px;border-radius:10px;background:#929a91;padding:3px;flex:none}
+
+#teleSwitch {
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  min-height:38px;
+  padding:6px 12px;
+  color:#203e30;
+  background:#fafcf9;
+  border:1px solid #c6d6cb;
+  white-space:nowrap;
+}
+.switch-track {
+  display:inline-flex;
+  align-items:center;
+  flex:none;
+  width:34px;
+  height:20px;
+  padding:3px;
+  border-radius:10px;
+  background:#58685e;
+}
 .switch-track::after {content:"";width:14px;height:14px;border-radius:50%;background:white}
-#teleSwitch[aria-checked=true] .switch-track {background:var(--green)}
+#teleSwitch[aria-checked=true] {background:#bdeccb;color:#143e28;border-color:#95d8ad}
+#teleSwitch[aria-checked=true] .switch-track {background:#226344}
 #teleSwitch[aria-checked=true] .switch-track::after {transform:translateX(14px)}
-#episodeNumber.recording-now::before {content:"";display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:50%;background:#bf3138}
-.transport-key.record,.transport-key.finish {color:#bf3138;background:#fff2f3;border-color:#edc5c5}
-.transport-key.record_resume,.transport-key.run {color:var(--green)}
-.transport-key:disabled {opacity:.4}
+#episodeNumber.recording-now::before {content:"";display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:50%;background:#ff8c93}
+.transport-key,.library-button {background:#edf3ed;color:#294936;border-color:#c6d6cb}
+.transport-key.record,.transport-key.finish {color:#ae2232;background:#fff1f2;border-color:#edb9bf}
+#transport button:disabled {
+  opacity:1;
+  background:#34493e;
+  color:#c3cfc6;
+  border-color:#768a7b;
+  cursor:not-allowed;
+}
+#teleSwitch:disabled .switch-track {background:#69796e}
+#transport button:enabled:hover {box-shadow:inset 0 0 0 2px currentColor}
+#transport button:focus-visible {outline:3px solid #f6d489;outline-offset:2px}
 .library-button {margin-left:auto;white-space:nowrap}
 #library {width:min(900px,calc(100vw - 28px));max-width:94vw;max-height:86vh;overflow:auto}
 .library-pickers {display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:16px 0}
@@ -692,7 +724,18 @@ textarea {
 @media(max-width:650px) {
   #transport {flex-wrap:wrap;gap:6px}
   .transport-state {flex:1;min-width:65px}
-  #teleSwitch {max-width:40%;white-space:normal;text-align:left}
+  #teleSwitch {white-space:normal;text-align:left}
   #transport #buttons {order:3;width:100%}
   .transport-key {height:34px}
+}
+@media(max-width:420px) {
+  #transport {
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    grid-template-areas:"switch library" "state actions";
+  }
+  #teleSwitch {grid-area:switch;justify-self:start;padding-inline:8px}
+  .library-button {grid-area:library}
+  .transport-state {grid-area:state;min-width:0}
+  #transport #buttons {grid-area:actions;justify-content:end;max-width:132px}
 }
