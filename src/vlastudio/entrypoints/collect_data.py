@@ -36,6 +36,7 @@ Usage:
 # CRITICAL: Import shm_utils FIRST to patch resource_tracker before multiprocessing
 import vlastudio.deploy.shm_utils; from vlastudio import deploy  # noqa: F401 - applies _fix_resource_tracker() on import
 
+import os
 import argparse
 from contextlib import ExitStack
 from pathlib import Path
@@ -51,40 +52,12 @@ from vlastudio.deploy.utils import (
     get_shm_name,
     load_device_configs,
     start_devices,
+    stop_device_processes,
 )
 from vlastudio.deploy.visualizer.base import start_all_visualizers, stop_all_visualizers
 from vlastudio.data_utils.data_saver import create_data_saver, generate_task_config
 from vlastudio.utils.extensions import resolve
-from vlastudio.webui.bridge import keyboard, phase
-
-
-def _stop_device_processes(workers):
-    with ExitStack() as signals:
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            previous = signal.signal(sig, signal.SIG_IGN)
-            signals.callback(signal.signal, sig, previous)
-        _join_devices(workers)
-
-
-def _join_devices(workers):
-    # A device may own a multi-stage shutdown and require an unbounded join.
-    failures = []
-    for _, process, _ in workers:
-        if process.is_alive():
-            process.terminate()
-    for name, process, timeout in workers:
-        if timeout is None:
-            logger.info("Waiting for {} to confirm shutdown...", name)
-        process.join(timeout=timeout)
-        if timeout is None:
-            if process.exitcode != 0:
-                failures.append(f"{name}: exit {process.exitcode}")
-        elif process.is_alive():
-            logger.warning("Device {} did not exit within {}s, killing...", name, timeout)
-            process.kill()
-            process.join(timeout=1.0)
-    if failures:
-        raise RuntimeError("Device shutdown unconfirmed: " + ", ".join(failures))
+from vlastudio.webui.bridge import wait_for_robot, keyboard, phase
 
 
 def main():
@@ -167,7 +140,9 @@ def main():
         optional_inputs = load_optional_inputs(sync_path, recorded, single_quest_name=preset_name)
 
     # Clean orphaned SHM
-    cleanup_all_shm(all_shm_names)
+    attached = bool(os.environ.get("VLASTUDIO_ATTACHED_ROBOT"))
+    owned = teleop_configs if attached else all_configs
+    cleanup_all_shm([get_shm_name(cfg) for cfg in owned])
     logger.info("Cleaned up orphaned SHM segments.")
 
     # Start all devices
@@ -178,11 +153,12 @@ def main():
             raise KeyboardInterrupt
         old_term = signal.signal(signal.SIGTERM, on_term)
         devices.callback(signal.signal, signal.SIGTERM, old_term)
-        devices.callback(_stop_device_processes, workers)
-        for cfg in all_configs:
+        devices.callback(stop_device_processes, workers)
+        for cfg in owned:
             timeout = getattr(resolve(cfg["type"]), "process_shutdown_timeout_s", 8.0)
             process, = start_devices([cfg])
             workers.append((get_shm_name(cfg), process, timeout))
+        wait_for_robot()
         _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices, optional_inputs)
 
 
@@ -215,8 +191,8 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
 
     # Create synchronizer
     valid_channels = [(n, ch) for n, ch in shm_channels if ch is not None]
-    if args.sync_config or optional_inputs or any(timeout is None for _, _, timeout in workers):
-        missing = [name for name, channel in shm_channels if channel is None]
+    if os.environ.get("VLASTUDIO_ATTACHED_ROBOT") or args.sync_config or optional_inputs or any(timeout is None for _, _, timeout in workers):
+        missing = [name for name, channel in shm_channels if channel is None or channel.shm is None]
         if missing:
             raise RuntimeError(f"Required device channels unavailable: {missing}")
     teleop_names = {get_shm_name(cfg) for cfg in teleop_configs}
@@ -457,7 +433,8 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         # Belt-and-suspenders: if teleop was killed mid-adb, restore Quest sleep from parent.
         try:
             from vlastudio.deploy.teleoperator.quest_keep_awake import restore_quest_proximity_best_effort
-            restore_quest_proximity_best_effort()
+            if not os.environ.get("VLASTUDIO_ATTACHED_ROBOT") or any("quest" in cfg["type"].lower() for cfg in teleop_configs):
+                restore_quest_proximity_best_effort()
         except Exception as e:
             logger.debug("Parent Quest proximity restore skipped: {}", e)
         
@@ -472,7 +449,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                     task_name=args.task if args.task else None,
                 )
         
-        cleanup_all_shm(all_shm_names)
+        cleanup_all_shm([name for name, _, _ in workers])
         if shutdown_error is not None:
             raise shutdown_error
         logger.info("Done.")

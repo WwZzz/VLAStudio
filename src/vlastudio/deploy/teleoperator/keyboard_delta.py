@@ -13,6 +13,10 @@ class KeyboardDelta(BaseTeleopDevice):
     browser_keyboard = True
 
     @staticmethod
+    def action_source_settings(config):
+        return dict(arms=int(config.get("arms", 1)), control_mode="delta_ee", absolute_gripper=False)
+
+    @staticmethod
     def bindings_for_arms(arms, key_bindings=None):
         bindings = key_bindings or [
             [['w', 's'], ['a', 'd'], ['r', 'f'], ['q', 'e'], ['t', 'g'], ['z', 'c'], ['v', 'b']],

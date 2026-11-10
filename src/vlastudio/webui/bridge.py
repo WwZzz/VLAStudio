@@ -4,7 +4,7 @@ import os
 import select
 import sys
 
-PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy", "record_paused")
+PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy", "record_paused", "waiting_robot")
 PAUSE, RUN, RESET_A, RESET_B, RESETTING, RESET_AND_RESUME = range(6)
 
 
@@ -31,6 +31,16 @@ def phase(name):
 
 def keyboard(native):
     return WebKeys() if os.environ.get("VLASTUDIO_WEB_FD") else native()
+
+
+def wait_for_robot():
+    """A preloaded source may own its inputs before the robot opens its sensors."""
+    path = os.environ.get("VLASTUDIO_ROBOT_READY_FILE")
+    if path and not os.path.exists(path):
+        import time
+        phase("waiting_robot")
+        while not os.path.exists(path):
+            time.sleep(.1)
 
 
 def request_home():
@@ -65,7 +75,13 @@ def configure_device(device):
     """Attach WebUI control only to robots launched by this session."""
     from vlastudio.deploy.robot.base import BaseRobot
     if isinstance(device, BaseRobot) and os.environ.get("VLASTUDIO_WEB_GATE"):
-        device.set_action_filter(InputGate())
+        directory = os.environ.get("VLASTUDIO_SOURCE_DIRECTORY")
+        if directory:
+            from .source import SourceGate
+            device.control_shm_name = None
+            device.set_action_filter(SourceGate(directory))
+        else:
+            device.set_action_filter(InputGate())
         from .markers import bind_marker_provider
         from .profiles import catalog
         settings = catalog()['robot_options'].get(os.environ.get('VLASTUDIO_WEB_PROFILE', ''), {})
@@ -74,9 +90,9 @@ def configure_device(device):
 
 class InputGate:
     """Runs inside the robot process. No HTTP, socket or file reads per action."""
-    def __init__(self):
-        self.box = mailbox()
-        self.policy = os.environ.get("VLASTUDIO_WEB_GATE") == "infer"
+    def __init__(self, box=None, policy=None):
+        self.box = mailbox() if box is None else box
+        self.policy = os.environ.get("VLASTUDIO_WEB_GATE") == "infer" if policy is None else policy
         self.previous = None
         self.reanchor = False
 

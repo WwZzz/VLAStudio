@@ -324,6 +324,37 @@ def _start_spawned_device(cfg, web_mailbox):
             os.close(fd)
 
 
+def stop_device_processes(workers):
+    import signal
+    from contextlib import ExitStack
+    with ExitStack() as signals:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            previous = signal.signal(sig, signal.SIG_IGN)
+            signals.callback(signal.signal, sig, previous)
+        _join_devices(workers)
+
+
+def _join_devices(workers):
+    # A device may own a multi-stage shutdown and require an unbounded join.
+    failures = []
+    for _, process, _ in workers:
+        if process.is_alive():
+            process.terminate()
+    for name, process, timeout in workers:
+        if timeout is None:
+            logger.info("Waiting for {} to confirm shutdown...", name)
+        process.join(timeout=timeout)
+        if timeout is None:
+            if process.exitcode != 0:
+                failures.append(f"{name}: exit {process.exitcode}")
+        elif process.is_alive():
+            logger.warning("Device {} did not exit within {}s, killing...", name, timeout)
+            process.kill()
+            process.join(timeout=1.0)
+    if failures:
+        raise RuntimeError("Device shutdown unconfirmed: " + ", ".join(failures))
+
+
 def start_devices(configs: List[dict], daemon: bool = True) -> List[mp.Process]:
     """Start each device config in a separate process.
     

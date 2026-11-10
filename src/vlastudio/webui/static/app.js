@@ -23,10 +23,11 @@ const names = {
   home: "Reset",
   tele_run: "Enable teleoperation",
   tele_pause: "Pause teleoperation",
-  stop: "Disconnect",
+  stop: collecting ? "Unload teleoperation" : "Unload policy",
 };
 const phases = {
   idle: "Not connected",
+  waiting_robot: "Waiting for robot",
   loading: "Loading devices",
   ready: "Ready to record",
   recording: "Recording",
@@ -232,6 +233,15 @@ $("robot").onchange = defaults;
 $("teleop").onchange = () => {
   if ($("teleop").value !== "quest3_rebot_b601rs_rel_ee") $("sync").value = "";
 };
+$("robotConnection").onclick = async () => {
+  const c = state?.session.connection;
+  const opts = options();
+  const title = c ? tr("Disconnect robot") : tr("Connect ") + opts.robot;
+  const message = c ? tr("Disconnect the robot using its normal shutdown procedure?") :
+    tr("This starts the selected devices. Real robots may enable or move during connection.");
+  if (await confirmAction(title, message))
+    await post(c ? "robot/disconnect" : "robot/connect", c ? {connection:c.id} : opts);
+};
 $("form").onsubmit = async (e) => {
   e.preventDefault();
   if (busy) return;
@@ -240,19 +250,10 @@ $("form").onsubmit = async (e) => {
     return;
   }
   const opts = options();
-  if (
-    !(await confirmAction(
-      tr("Connect ") + opts.robot,
-      tr(
-        "This starts the selected devices. Real robots may enable or move during connection.",
-      ),
-    ))
-  )
-    return;
   connecting = true;
   renderSession(state.session);
   try {
-    await post("start", opts);
+    await post("start", {...opts, connection: state.session.connection?.id});
     localStorage.setItem("vla-" + mode, JSON.stringify(opts));
   } finally {
     connecting = false;
@@ -294,13 +295,13 @@ async function act(action) {
           ),
       discard: tr("Discard this episode?"),
       stop: tr(
-        "Disconnect the devices after completing their shutdown procedure. Save any recordings you need first.",
+        "Unload this source and keep the robot connected?",
       ),
     };
     if (!(await confirmAction(tr(names[action]), msg[action]))) return;
   }
   if (action === "home") heldKeys.clear();
-  await post("action", { id: sid, action });
+  await post("action", { mode, id: sid, action });
 }
 function transportIcon(key) {
   const shapes = {
@@ -333,6 +334,16 @@ document.addEventListener("keydown", (event) => {
 });
 function renderSession(s) {
   const other = s.active && s.mode !== mode;
+  const c = s.connection;
+  const selection = c || s.prepared;
+  if (selection && $("robot").value !== selection.robot) {
+    if (![...$("robot").options].some(o => o.value === selection.robot))
+      $("robot").add(new Option(selection.robot,selection.robot));
+    $("robot").value = selection.robot;
+    defaults();
+  }
+  if (selection?.task) $("task").value = selection.task;
+  if (selection?.on_success) $("on_success").value = selection.on_success;
   if (s.active && !other) {
     const settings = profiles.robot_options?.[s.robot];
     $("simulationFields").hidden = !settings?.tasks;
@@ -344,7 +355,7 @@ function renderSession(s) {
       fill("task", tasks);
     $("sync").value = s.options.sync || "";
     for (const [key, value] of Object.entries(s.options || {}))
-      $(key).value = value;
+      if ($(key)) $(key).value = value;
   }
   renderTaskPanel();
   $("phase").textContent =
@@ -354,8 +365,12 @@ function renderSession(s) {
       : "") + tr(phases[s.phase]);
   for (const field of $("form").elements)
     field.disabled = s.active || connecting;
+  for (const id of ["robot", "task", "on_success"]) $(id).disabled = !!selection || busy;
+  $("robotConnection").disabled = busy || (!!c && !!s.loaded?.length);
+  $("robotConnection").textContent = tr(c ? c.ready ? "Disconnect robot" : "Connecting robot" : "Connect robot");
   const loading = connecting || (s.active && s.phase === "loading");
-  $("launch").disabled = busy || other || loading || s.phase === "stopping";
+  $("launch").disabled = busy || other || (profiles.robot_options?.[$("robot").value]?.modes || ["collect","infer"]).indexOf(mode) < 0 ||
+    ["recording","record_paused","save","stopping"].includes(s.phase) || connecting;
   $("launch").setAttribute(
     "aria-busy",
     String(loading || s.phase === "stopping"),
@@ -367,10 +382,10 @@ function renderSession(s) {
       : s.phase === "stopping"
         ? "Disconnecting"
         : s.active
-          ? "Disconnect"
-          : "Connect devices",
+          ? (collecting ? "Unload teleoperation" : "Unload policy")
+          : (collecting ? "Load teleoperation" : "Load policy"),
   );
-  $("observe").disabled = s.active;
+  $("observe").disabled = !!c || s.active;
   $("observe").textContent =
     state.preview.profile === $("robot").value
       ? tr("Close read-only preview")
@@ -700,7 +715,7 @@ async function refresh() {
   polling = true;
   try {
     const previousSession = state?.session.id;
-    state = await api("state");
+    state = await api("state?mode=" + mode);
     if (
       previousSession !== state.session.id ||
       state.session.tele !== "running"

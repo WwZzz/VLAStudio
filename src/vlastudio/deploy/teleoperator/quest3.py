@@ -61,6 +61,12 @@ class Quest3Teleop(BaseTeleopDevice):
     TELEOP_MODES = ("delta_ee", "rel_ee")
     GRIPPER_TRIGGER_MODES = frozenset({"delta_binary", "analog_travel", "a_open_trigger_close"})
     
+    @staticmethod
+    def action_source_settings(config):
+        return dict(arms=2 if config.get("arm_mode", "dual") == "dual" else 1,
+                    control_mode=config.get("mode", "delta_ee"),
+                    absolute_gripper=not config.get("gripper_delta_mode", False))
+
     def __init__(
         self,
         name: str = "quest3_teleop",

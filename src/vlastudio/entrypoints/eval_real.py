@@ -26,11 +26,13 @@ Usage:
 import vlastudio.deploy.shm_utils; from vlastudio import deploy  # noqa: F401 - applies _fix_resource_tracker() on import
 
 import os
+import json
+from pathlib import Path
 import traceback
 import time
 import numpy as np
 from vlastudio.utils.extensions import resolve
-from vlastudio.webui.bridge import keyboard, phase, request_home
+from vlastudio.webui.bridge import wait_for_robot, keyboard, phase, request_home
 from loguru import logger
 
 from vlastudio.data_utils.utils import set_seed
@@ -174,7 +176,6 @@ def parse_param():
 
 def _load_prestart_qpos(dataset_root: str, episode: int, frame: int) -> np.ndarray:
     """Load observation.qpos[frame] from a LeRobot v2.1 episode parquet."""
-    from pathlib import Path
     import pyarrow.parquet as pq
 
     root = Path(dataset_root)
@@ -255,7 +256,9 @@ def main():
     )
     
     # Clean orphaned SHM
-    shm_to_clean = all_shm_names + ['policy_control_shm']
+    attached = bool(os.environ.get("VLASTUDIO_ATTACHED_ROBOT"))
+    contract_path = os.environ.get("VLASTUDIO_ACTION_CONTRACT")
+    shm_to_clean = ['policy_control_shm'] if attached else all_shm_names + ['policy_control_shm']
     cleanup_all_shm(shm_to_clean)
     logger.info("Cleaned up orphaned SHM segments.")
     
@@ -278,7 +281,7 @@ def main():
     
     # Start all devices in subprocesses
     logger.info("Starting all devices...")
-    device_procs = start_devices(robot_configs)
+    device_procs = [] if attached else start_devices(robot_configs)
     rt.all_procs.extend(device_procs)
     rt.device_timeouts.update({p: getattr(resolve(row["type"]), "process_shutdown_timeout_s", 3.0)
                               for p, row in zip(device_procs, robot_configs)})
@@ -318,6 +321,7 @@ def main():
     action_manager.set_inference_context(inference_ctx)
     logger.info("ActionManager: {} (bound to InferenceContext)", action_manager.__class__.__name__)
 
+    wait_for_robot()
     rt.start_session_recorder(
         output_dir=output_dir,
         device_shm_names=list(all_shm_names),
@@ -370,6 +374,7 @@ def main():
             pass
         # Must wait for ack: a fire-and-forget post leaves a stale "resumed" ack that
         # desyncs later pause/save send_recorder_cmd calls (false "0 frames" saves).
+        contract = json.loads(Path(contract_path).read_text()) if contract_path else {}
         rt.send_recorder_cmd("resume_recording")
 
         # Main control loop
@@ -390,6 +395,8 @@ def main():
         while True:
             if not paused and try_enter_eval_real_pause_menu(kb, rt):
                 paused = True
+                if attached:
+                    action_manager.reset()
                 phase("paused")
 
             if paused:
@@ -426,6 +433,13 @@ def main():
 
             if action_arr is not None:
                 action_arr = np.asarray(action_arr)
+                if contract:
+                    if action_arr.ndim != 1 or not np.isfinite(action_arr).all() or (
+                            "size" in contract and action_arr.size != contract["size"]):
+                        raise ValueError(f"Policy action does not match robot contract {contract}")
+                    meta = step[0] if len(step) and isinstance(step[0], dict) else {}
+                    if "space" in contract and (meta.get("ctrl_space"), meta.get("ctrl_type")) != (contract["space"], contract["type"]):
+                        raise ValueError(f"Policy action metadata does not match robot contract {contract}")
                 if action_arr.size > 0:
                     control_shm.write({
                         'action': action_arr,

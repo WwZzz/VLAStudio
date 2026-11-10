@@ -113,6 +113,17 @@ class BenchmarkRobot(BaseRobot):
         self.reset()
         return True
 
+    def prepare_action_source(self, source):
+        if source and (source.get('arms', self.arms) != self.arms or
+                       source.get('control_mode', 'delta_ee') != 'delta_ee'):
+            raise ValueError("Input must match the simulation arm count and use Cartesian deltas")
+        self.pending = None
+        self.input_mode = 'native' if source and source['kind'] == 'infer' else 'ee_delta'
+        if hasattr(self.env, 'config'):
+            self.env.config.input_mode = self.input_mode
+        self.adapter.reset(self.env, self.raw)
+        return dict(space=self.space, type=self.native_type)
+
     def process_action(self, message):
         return self.adapter.teleop_action(message, self.raw)
 

@@ -37,6 +37,7 @@ class RebotB601RS(AliciaD):
         super().__init__(name=name,urdf_path=str(URDF),
                          control_mode='qpos' if control_mode=='ee' else control_mode,**kwargs)
         self.control_mode = control_mode
+        self.profile_control_mode = control_mode
         self.channel, self.read_only = channel, read_only
         self.velocity_limit = float(velocity_limit_rad_s)
         self.home_velocity = min(float(home_velocity_rad_s),self.velocity_limit)
@@ -169,6 +170,26 @@ class RebotB601RS(AliciaD):
         # Here success means a bounded, feasible tracking step, not convergence.
         # Holding at a boundary must not trigger Alicia's failed-solve re-anchoring.
         return True,q,1,status['residual']
+
+    def prepare_action_source(self, source):
+        if source:
+            if source.get('arms', 1) != 1:
+                raise ValueError("Rebot expects a single-arm input")
+            if source['kind'] == 'infer':
+                self.control_mode = 'ee' if self.profile_control_mode == 'ee' else 'qpos'
+            elif source['channel']:
+                mode = source.get('control_mode')
+                if mode not in ('delta_ee', 'rel_ee'):
+                    raise ValueError("Rebot teleoperation requires a declared Cartesian input mode")
+                self.control_mode = mode
+                self.gripper_absolute = source['absolute_gripper']
+        self._seed(self.get_observation())
+        self._rel_ee_vr_unsqueeze_active = False
+        self._rel_ee_anchor_pose = None
+        self._prev_ik_qpos = None
+        self._teleop_holding_still = False
+        self._still_count = 0
+        return dict(space='ee' if self.control_mode == 'ee' else 'joint', type='abs')
 
     def process_action(self, message):
         if message.get('action') is None:

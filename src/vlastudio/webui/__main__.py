@@ -12,7 +12,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import episodes
 from .profiles import catalog
-from .session import Session
+from .studio import Studio
 from .tasks import list_tasks, create_task
 
 ASSETS = Path(__file__).with_name("static")
@@ -54,7 +54,8 @@ class Handler(BaseHTTPRequestHandler):
         if url.path in ("/api/episodes", "/api/episode"):
             try:
                 with s.lock:
-                    active_video = s.output if s.proc and s.mode == "infer" else None
+                    infer = s.runners["infer"]
+                    active_video = infer.output if infer.proc else None
                 if url.path == "/api/episodes":
                     return self.reply(episodes.catalog(active_video))
                 query = {k:v[0] for k,v in parse_qs(url.query).items()}
@@ -68,7 +69,10 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/tasks":
             return self.reply(list_tasks())
         if url.path == "/api/state":
-            return self.reply(dict(session=s.state(), preview=s.preview.state()))
+            mode = parse_qs(url.query).get("mode", ["collect"])[0]
+            if mode not in s.runners:
+                return self.reply({"error": "Unknown mode"}, status=400)
+            return self.reply(dict(session=s.state(mode), preview=s.preview.state()))
         if url.path == "/api/image":
             query = parse_qs(url.query)
             after = query.get("after", [None])[0]
@@ -95,21 +99,25 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(size))
             if self.path == "/api/episode/delete":
                 with s.lock:
-                    if s.proc is not None and s.output == data["dataset"]:
+                    if any(r.proc and r.output == data["dataset"] for r in s.runners.values()):
                         raise ValueError("Disconnect before deleting from this dataset")
                     episodes.remove(data["dataset"], data["index"], data["version"])
                 return self.reply({"ok": True})
             if self.path == "/api/tasks":
                 return self.reply(create_task(data['name'], data.get('instruction', '')))
-            if self.path == "/api/start":
+            if self.path == "/api/robot/connect":
+                s.connect(data)
+            elif self.path == "/api/robot/disconnect":
+                s.disconnect(data["connection"])
+            elif self.path == "/api/start":
                 s.start(data["mode"], data)
             elif self.path == "/api/action":
-                s.action(data["id"],data["action"])
+                s.action(data["mode"],data["id"],data["action"])
             elif self.path == "/api/keyboard":
-                s.keyboard(data)
+                s.runners["collect"].keyboard(data)
             elif self.path == "/api/preview":
                 with s.lock:
-                    if s.proc is not None:
+                    if s.host is not None:
                         raise ValueError("运行期间使用当前会话的数据源")
                     if data["robot"]:
                         s.preview.start(data["robot"])
@@ -131,7 +139,7 @@ def main():
     if args.runtimes is not None:
         os.environ['VLASTUDIO_WEBUI_RUNTIMES'] = str(args.runtimes.expanduser().resolve())
     server = ThreadingHTTPServer((args.host,args.port), Handler)
-    server.session = Session()
+    server.session = Studio()
     print(f"VLAStudio WebUI http://{socket.gethostname()}:{args.port}", flush=True)
     def stop(*_):
         threading.Thread(target=server.shutdown, daemon=True).start()

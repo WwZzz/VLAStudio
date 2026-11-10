@@ -187,10 +187,39 @@ KEYS = {
 }
 
 
+def lock_devices(robot, locks, quest=False):
+    cache = Path.home()/".cache"
+    cache.mkdir(exist_ok=True)
+    names = ["vlastudio-webui-session.lock"]
+    if "rebot" in robot:
+        names.append("vlastudio-rebot-session.lock")
+    if "alicia" in robot or "head" in robot or quest:
+        names.append("vlastudio-bi-alicia-teleop.lock")
+    for name in sorted(names):
+        if any(Path(file.name).name == name for file in locks):
+            continue
+        f = (cache/name).open("a")
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            f.close()
+            raise ValueError("设备正在被其他会话使用") from None
+        locks.append(f)
+
+
+def check_channels(names):
+    for name in names:
+        shm = Path("/dev/shm")/name
+        if shm.exists() and subprocess.run(["fuser", str(shm)], capture_output=True).returncode == 0:
+            raise ValueError(f"共享内存 {name} 正在使用")
+
+
+
 class Session:
-    def __init__(self):
+    def __init__(self, preview, on_exit):
         self.lock = threading.RLock()
-        self.preview = Preview()
+        self.preview = preview
+        self.on_exit = on_exit
         self.proc = self.box = None
         self.mode = self.robot = self.sid = ""
         self.logs = collections.deque(maxlen=230)
@@ -199,36 +228,7 @@ class Session:
         self.stopping = False
         self.code = None
 
-    def _resources(self, robot, teleop):
-        cache = Path.home()/".cache"
-        cache.mkdir(exist_ok=True)
-        names = ["vlastudio-webui-session.lock"]
-        if "rebot" in robot:
-            names.append("vlastudio-rebot-session.lock")
-        if "alicia" in robot or "head" in robot or teleop.startswith("quest"):
-            names.append("vlastudio-bi-alicia-teleop.lock")
-        for name in sorted(names):
-            f = (cache/name).open("a")
-            self.locks.append(f)
-            try:
-                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                raise ValueError("设备正在被其他会话使用") from None
-        # Native CLI sessions may predate the session locks. Never unlink a live device channel.
-        names = [n for n, _, _ in channels(robot)]
-        if teleop:
-            names.extend(n for n, _, _ in channels(teleop, "teleop"))
-        if self.mode == "infer":
-            names.append("policy_control_shm")
-        for name in names:
-            shm = Path("/dev/shm")/name
-            if shm.exists() and subprocess.run(["fuser", str(shm)], capture_output=True).returncode == 0:
-                raise ValueError(f"共享内存 {name} 正在使用")
-
-    def start(self, mode, opts):
-        # Resolve the environment before acquiring devices or starting any worker.
-        runtime = resolve_runtime(opts['robot'])
-        info = runtime.probe(check_cuda=mode == 'infer')
+    def start(self, mode, opts, ready_file, runtime, info):
         opts = dict(opts)
         if mode == 'infer' and opts.get('device', 'auto') == 'auto':
             opts['device'] = info['device']
@@ -236,7 +236,6 @@ class Session:
         with self.lock:
             if self.proc is not None:
                 raise ValueError("已有会话运行中")
-            self.preview.stop()
             self.mode, self.robot = mode, opts["robot"]
             self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","task","on_success","real_task") if k in opts}
             rows = channels(self.robot)
@@ -246,7 +245,7 @@ class Session:
             self.reset_ok = any(t.rsplit(".",1)[-1] in ("AliciaD","BiAliciaD","RebotB601RS") and
                                 not a.get("read_only") for _,t,a in rows)
             from vlastudio.utils.extensions import resolve
-            self.reset_ok = self.reset_ok or any(getattr(resolve(t), 'supports_reset', False) for _, t, _ in rows)
+            self.reset_ok = self.reset_ok or bool(catalog()["robot_options"].get(self.robot, {}).get("tasks")) or any(getattr(resolve(t), 'supports_reset', False) for _, t, _ in rows)
             keyboard_rows = channels(self.teleop, 'teleop') if self.teleop else []
             self.keyboard_arms = next((int(a.get('arms', 1)) for _, t, a in keyboard_rows
                                        if getattr(resolve(t), 'browser_keyboard', False)), 0)
@@ -269,17 +268,24 @@ class Session:
             self.observation_controls = False
             self.gated = mode == "collect" and (self.teleop or self.reset_ok)
             try:
-                self._resources(self.robot, self.teleop)
-                with tempfile.TemporaryFile(dir="/dev/shm") as mailbox:
+                source_names = [n for n, _, _ in keyboard_rows] if mode == "collect" else ["policy_control_shm"]
+                if set(source_names).intersection(n for n, _, _ in rows):
+                    raise ValueError("Source and robot channel names must be distinct")
+                check_channels(source_names)
+                self.keyboard_dir = tempfile.TemporaryDirectory(prefix='vla-source-')
+                self.mailbox_path = Path(self.keyboard_dir.name) / 'mailbox'
+                with self.mailbox_path.open("w+b") as mailbox:
                     fd = mailbox.fileno()
                     os.ftruncate(fd, 5)
                     self.box = mmap.mmap(fd, 5)
-                    self.box[:] = bytes([PAUSE,255,0,0,255])
+                    self.box[:] = bytes([PAUSE,PAUSE,0,0,PAUSE])
                     env = dict(runtime.env, VLASTUDIO_WEB_FD=str(fd), PYTHONUNBUFFERED="1",
                                VLASTUDIO_WEB_PROFILE=self.robot,
                                PYTHONDONTWRITEBYTECODE="1",
                                VLASTUDIO_DEVICE_SETUP="vlastudio.webui.bridge.configure_device")
-                    self.keyboard_dir = tempfile.TemporaryDirectory(prefix='vla-keys-')
+                    env["VLASTUDIO_ATTACHED_ROBOT"] = "1"
+                    env["VLASTUDIO_ACTION_CONTRACT"] = str(self.mailbox_path.with_name("action-contract"))
+                    env["VLASTUDIO_ROBOT_READY_FILE"] = str(ready_file)
                     self.keyboard_path = str(Path(self.keyboard_dir.name) / 'input.sock')
                     env['VLASTUDIO_KEYBOARD_SOCKET'] = self.keyboard_path
                     if self.gated:
@@ -302,7 +308,6 @@ class Session:
             self.runtime = dict(name=runtime.name, python=info['python'])
             self.logs.append(f"Runtime: {runtime.name} ({info['python']})")
             threading.Thread(target=self._watch, args=(self.proc,), daemon=True).start()
-            self.preview.start(self.robot, runtime)
 
     def _release(self):
         directory = getattr(self, 'keyboard_dir', None)
@@ -330,9 +335,11 @@ class Session:
         with self.lock:
             self.code = code
             self.logs.append(f"进程已退出 · code {code}")
+            self.box[0] = PAUSE
             self._release()
             self.proc = None
-            self.preview.stop()
+            sid = self.sid
+        self.on_exit(sid)
 
     def state(self):
         with self.lock:
@@ -437,6 +444,7 @@ class Session:
             if sid != self.sid or action not in state["actions"]:
                 raise ValueError("会话状态已改变，请重试")
             if action == "stop":
+                self.box[0] = PAUSE
                 self.stopping = True
                 self.proc.terminate()
             elif action in ("tele_pause", "tele_run", "home"):
@@ -476,5 +484,4 @@ class Session:
                 self.stopping = True
                 proc.terminate()
         if proc is not None:
-            proc.wait()  # the device owns parking and verified disable
-        self.preview.stop()
+            proc.wait()
