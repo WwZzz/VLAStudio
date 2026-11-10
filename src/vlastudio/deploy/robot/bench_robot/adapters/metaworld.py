@@ -66,9 +66,7 @@ class MetaWorldAdapter(CartesianAdapter):
     MetaWorld has fixed orientation. Its fourth control is signed gripper
     effort (positive closes), not a normalized gripper position.
     """
-    @staticmethod
-    def create_environment(config):
-        return MetaWorldEnvironment(config)
+    environment_class = MetaWorldEnvironment
 
     def __init__(self, config):
         super().__init__(config)

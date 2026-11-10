@@ -1,7 +1,7 @@
 """Shared Cartesian and native-joint action conversion.
 
-Custom adapters may implement create_environment(config); an explicit environment.type
-in the robot configuration takes precedence.
+Adapters declare environment_class or provide a custom create_environment(config)
+factory. An explicit environment.type in the robot configuration takes precedence.
 """
 import numpy as np
 from scipy.spatial.transform import Rotation

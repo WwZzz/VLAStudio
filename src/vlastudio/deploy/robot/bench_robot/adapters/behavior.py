@@ -114,9 +114,7 @@ class BehaviorEnvironment(Behavior1kEnv):
 class BehaviorAdapter:
     arms, width, space, native_type = 2, 7, 'ee', 'delta'
 
-    @staticmethod
-    def create_environment(config):
-        return BehaviorEnvironment(config)
+    environment_class = BehaviorEnvironment
 
     def __init__(self, config):
         self.config = dict(config)

@@ -43,9 +43,7 @@ class LiberoEnvironment(LiberoEnv):
 
 class LiberoAdapter(CartesianAdapter):
     """Convert physical Cartesian increments using the active OSC controller scale."""
-    @staticmethod
-    def create_environment(config):
-        return LiberoEnvironment(config)
+    environment_class = LiberoEnvironment
 
     def reset(self, env, observation):
         super().reset(env, observation)

@@ -43,9 +43,7 @@ class AlohaEnvironment(AlohaSimEnv):
 
 class AlohaAdapter(CartesianAdapter):
     """Preserve the model's calibrated mocap-to-gripper weld transform."""
-    @staticmethod
-    def create_environment(config):
-        return AlohaEnvironment(config)
+    environment_class = AlohaEnvironment
 
     def reset(self, env, observation):
         super().reset(env, observation)
@@ -61,6 +59,4 @@ class AlohaAdapter(CartesianAdapter):
 
 class AlohaJointAdapter(NativeJointAdapter):
     """Native joint control using ALOHA's deployment lifecycle."""
-    @staticmethod
-    def create_environment(config):
-        return AlohaEnvironment(config)
+    environment_class = AlohaEnvironment

@@ -140,9 +140,7 @@ class RoboTwinEnvironment(RoboTwinEnv):
 
 
 class RoboTwinAdapter(CartesianAdapter):
-    @staticmethod
-    def create_environment(config):
-        return RoboTwinEnvironment(config)
+    environment_class = RoboTwinEnvironment
 
     def reset(self, env, observation):
         super().reset(env, observation)

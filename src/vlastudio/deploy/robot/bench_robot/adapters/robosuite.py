@@ -74,9 +74,7 @@ class RobosuiteEnvironment(RobomimicEnv):
 
 
 class RobosuiteAdapter(CartesianAdapter):
-    @staticmethod
-    def create_environment(config):
-        return RobosuiteEnvironment(config)
+    environment_class = RobosuiteEnvironment
 
     def reset(self, env, observation):
         super().reset(env, observation)

@@ -69,9 +69,7 @@ class RLBenchEnvironment(RLBenchEnv):
 
 class RLBenchAdapter(CartesianAdapter):
     """Anchor incremental IK targets to measured pose instead of accumulating error."""
-    @staticmethod
-    def create_environment(config):
-        return RLBenchEnvironment(config)
+    environment_class = RLBenchEnvironment
 
     def teleop_action(self, message, observation):
         self.target[:7] = np.asarray(observation['state_ee'])[:7]

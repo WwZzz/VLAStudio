@@ -52,7 +52,9 @@ class BenchmarkRobot(BaseRobot):
             reference = self.environment_config.get("type")
             factory = resolve(reference) if reference else getattr(self.adapter, "create_environment", None)
             if factory is None:
-                raise ValueError("Provide environment.type or an adapter with create_environment(config)")
+                factory = getattr(self.adapter, "environment_class", None)
+            if factory is None:
+                raise ValueError("Provide environment.type or an adapter with environment_class or create_environment(config)")
             self.env = factory(SimpleNamespace(**config))
             self.reset()
         return True
