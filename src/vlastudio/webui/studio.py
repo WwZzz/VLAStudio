@@ -2,6 +2,7 @@
 from collections import deque
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -104,7 +105,7 @@ class Studio:
 
     def _watch(self, host):
         for line in host.stdout:
-            self.logs.append(line.decode(errors="replace").rstrip()[-2000:])
+            self.logs.append(re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", line.decode(errors="replace").rstrip())[-2000:])
         code = host.wait()
         with self.lock:
             if self.host is host:

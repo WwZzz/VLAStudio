@@ -44,6 +44,7 @@ class RebotBus:
         self.report_modes = np.full(7, -1)
         self.reports = None
         self._started_reports = []
+        self._report_intervals = []
         self.target = self.command = None
         self.fault, self.armed = None, False
         self.output_started = False
@@ -71,6 +72,14 @@ class RebotBus:
             self._receive_reports()
             for i,m in enumerate(self.motors):
                 if self.times[i] == 0:
+                    # Some firmware accepts active-report enable with period 0
+                    # but never streams. Use a volatile nonzero period and restore it.
+                    interval = m.robstride_get_param_u16(0x7026, 300)
+                    if interval == 0:
+                        self._report_intervals.append((m, interval))
+                        m.robstride_write_param_u16(0x7026, 1)
+                        if m.robstride_get_param_u16(0x7026, 300) != 1:
+                            raise RuntimeError(f'Motor {i+1} report interval was not applied')
                     self._started_reports.append(m)
                     m.robstride_set_active_report(True)
             self._verify_positions()
@@ -316,6 +325,12 @@ class RebotBus:
             except Exception as exc:
                 errors.append(str(exc))
         self._started_reports.clear()
+        for m, interval in self._report_intervals:
+            try:
+                m.robstride_write_param_u16(0x7026, interval)
+            except Exception as exc:
+                errors.append(str(exc))
+        self._report_intervals.clear()
         if self.reports is not None:
             self.reports.close()
             self.reports = None

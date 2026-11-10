@@ -158,7 +158,11 @@ def main():
             timeout = getattr(resolve(cfg["type"]), "process_shutdown_timeout_s", 8.0)
             process, = start_devices([cfg])
             workers.append((get_shm_name(cfg), process, timeout))
-        wait_for_robot()
+        try:
+            wait_for_robot()
+        except KeyboardInterrupt:
+            logger.info("Collection cancelled while waiting for robot readiness")
+            return
         _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices, optional_inputs)
 
 
