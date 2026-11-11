@@ -1,5 +1,39 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
+const systemTheme = matchMedia("(prefers-color-scheme: dark)");
+let savedTheme;
+try { savedTheme = localStorage.getItem("vla-theme"); } catch {}
+function themeColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function renderThemeToggle() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  const button = $("themeToggle");
+  button.title = button.ariaLabel = tr(dark ? "Light mode" : "Dark mode");
+  button.setAttribute("aria-pressed", String(dark));
+  button.innerHTML = dark
+    ? '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>'
+    : '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z"/></svg>';
+}
+document.documentElement.dataset.theme = savedTheme === "dark" || savedTheme === "light"
+  ? savedTheme : systemTheme.matches ? "dark" : "light";
+$("themeToggle").onclick = () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  savedTheme = document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("vla-theme", theme); } catch {}
+  renderThemeToggle();
+  if (state) axes(state.preview);
+  drawModel();
+  document.dispatchEvent(new Event("themechange"));
+};
+systemTheme.addEventListener("change", () => {
+  if (savedTheme === "light" || savedTheme === "dark") return;
+  document.documentElement.dataset.theme = systemTheme.matches ? "dark" : "light";
+  renderThemeToggle();
+  if (state) axes(state.preview);
+  drawModel();
+  document.dispatchEvent(new Event("themechange"));
+});
 const mode = location.pathname === "/infer" ? "infer" : "collect";
 const collecting = mode === "collect";
 try {
@@ -710,12 +744,12 @@ function chart(canvas, rows, idx) {
   }
   const span = Math.max(0.02, hi - lo),
     mid = (lo + hi) / 2;
-  c.strokeStyle = "#d9e1d9";
+  c.strokeStyle = themeColor("--chart-grid");
   c.beginPath();
   c.moveTo(0, h / 2);
   c.lineTo(w, h / 2);
   c.stroke();
-  c.strokeStyle = "#368564";
+  c.strokeStyle = themeColor("--chart-line");
   c.lineWidth = 2.5;
   c.beginPath();
   let last = -Infinity;
@@ -795,7 +829,7 @@ function drawModel() {
   c.lineCap = "round";
   for (const pair of lines) {
     const [a, b] = pair.map(xy);
-    c.strokeStyle = "#36504b";
+    c.strokeStyle = themeColor("--model-line");
     c.lineWidth = 10;
     c.beginPath();
     c.moveTo(...a);
@@ -1042,6 +1076,7 @@ function renderKeyboard() {
   }
 }
 function applyLanguage() {
+  renderThemeToggle();
   document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
   document.title =
     "VLAStudio · " + tr(collecting ? "Data collection" : "Policy inference");

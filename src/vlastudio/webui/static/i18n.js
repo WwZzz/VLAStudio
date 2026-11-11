@@ -13,6 +13,8 @@ const chinese = {
   "Session configuration": "会话配置",
   "No matching configuration": "\u65e0\u5339\u914d\u914d\u7f6e",
   "Space": "\u7a7a\u683c",
+  "Dark mode": "\u591c\u95f4\u6a21\u5f0f",
+  "Light mode": "\u65e5\u95f4\u6a21\u5f0f",
   "Robot configuration": "机器人配置",
   "Simulation task": "仿真任务",
   "After task success": "任务成功后",

@@ -1,4 +1,8 @@
 :root {
+  color-scheme: light;
+  --chart-grid: #d9e1d9;
+  --chart-line: #368564;
+  --model-line: #36504b;
   /* Palette shared with VLAStudio-agent. */
   --bg: #f8f9f6;
   --paper: #fff;
@@ -792,3 +796,54 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 
 #loadAll.disconnect-all {background:#b52b3a;border-color:#b52b3a;color:white}
 #loadAll.disconnect-all:hover:enabled {background:#92202d;border-color:#92202d}
+
+
+/* Palette from VLAStudio-agent's dark theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151b19;
+  --paper: #1b2420;
+  --side: #19211d;
+  --border: #344139;
+  --ink: #e1e9e3;
+  --muted: #9caea1;
+  --green: #96c9ad;
+  --green-soft: #293f32;
+  --surface: #202b24;
+  --soft: #28372d;
+  --text-soft: #b7c7b9;
+  --chart-grid: #344139;
+  --chart-line: #96c9ad;
+  --model-line: #96c9ad;
+}
+#themeToggle {padding: 6px; width: 32px; height: 32px; flex-shrink: 0}
+#themeToggle svg {display: block; width: 18px; height: 18px}
+:root[data-theme="dark"] header {background: var(--paper)}
+:root[data-theme="dark"] :is(label,p,#status,.axisname,.title small,.title small span,small,.unit span,.chip,.terminal label) {color: var(--muted)}
+:root[data-theme="dark"] :is(input,select,textarea) {background: #151f19; color: var(--ink); border-color: var(--border)}
+:root[data-theme="dark"] :is(input,textarea)::placeholder {color: #8da091}
+:root[data-theme="dark"] :is(button,.terminal,.chart,dialog) {background: var(--surface); color: var(--ink); border-color: var(--border)}
+:root[data-theme="dark"] button:hover:enabled {background: var(--soft); border-color: #719c7c}
+:root[data-theme="dark"] .primary {background: #608b6c; border-color: #719c7c; color: #f8fff6}
+:root[data-theme="dark"] .primary:hover:enabled {background: #709d7c}
+:root[data-theme="dark"] .controls {border-color: var(--border)}
+:root[data-theme="dark"] :is(.feed,.empty.camera) {background: #0e1711; color: #91a88b}
+:root[data-theme="dark"] .terminal {background: #131e16; border-color: #354738}
+:root[data-theme="dark"] pre {color: #b9cbb0}
+:root[data-theme="dark"] #transport {background: #111914; border-color: var(--border)}
+:root[data-theme="dark"] #teleSwitch,
+:root[data-theme="dark"] #libraryOpen,
+:root[data-theme="dark"] .transport-key {background: #28382d; border-color: #435e49; color: #c3d9b9}
+:root[data-theme="dark"] #teleSwitch[aria-checked=true] {background: #284933; border-color: #719c7c; color: #a9e4ad}
+:root[data-theme="dark"] :is(.transport-key.record,.transport-key.finish) {background: #3e242b; border-color: #a85e6a; color: #ffacb8}
+:root[data-theme="dark"] #deleteEpisode {color: #ffacb8}
+:root[data-theme="dark"] .axis-x {--axis-color: #f28b82; --axis-bg: #382526}
+:root[data-theme="dark"] .axis-y {--axis-color: #81c995; --axis-bg: #21372b}
+:root[data-theme="dark"] .axis-z {--axis-color: #8ab4f8; --axis-bg: #233046}
+:root[data-theme="dark"] .axis-keys .key-positive {color: #151b19}
+:root[data-theme="dark"] .transport-key:is(.record,.finish):enabled:hover {background: #512d35; border-color: #d1808e; color: #ffacb8}
+:root[data-theme="dark"] #transport button:disabled {background: #28372d; border-color: #435e49; color: #9caea1}
+@media (max-width: 780px) {
+  header {height: auto; min-height: 66px; flex-wrap: wrap; padding-block: 10px; gap: 10px}
+  nav {height: 40px}
+}

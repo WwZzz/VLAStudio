@@ -3,6 +3,9 @@
 (() => {
   const dataset = $("libraryDataset"), list = $("episodeList");
   const jointHistory = new Map();
+  document.addEventListener("themechange", () => {
+    if (selected && jointHistory.size) axes({axes:Object.fromEntries(jointHistory), now:timeAt(frame)}, $("recordedAxes"));
+  });
   const episodeLabel = item => "Episode " + String(item.index).padStart(4, "0");
   const seek = $("frameSeek"), play = $("playEpisode"), remove = $("deleteEpisode");
   let rows = [], selected, meta, frame = 0, playing = false;
