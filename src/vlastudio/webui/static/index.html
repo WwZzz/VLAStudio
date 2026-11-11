@@ -44,17 +44,22 @@
           <section class="panel">
             <h2 data-i18n="Session configuration">Session configuration</h2>
             <form id="form">
-              <label
-                ><span data-i18n="Robot configuration">Robot configuration</span
-                ><select id="robot"></select
-              ></label>
+              <div class="profile-picker">
+                <label id="robotLabel" for="robotSearch" data-i18n="Robot configuration">Robot configuration</label>
+                <input id="robotSearch" type="text" role="combobox" autocomplete="off" spellcheck="false"
+                       aria-autocomplete="list" aria-expanded="false" aria-controls="robotOptions">
+                <div id="robotOptions" class="profile-options" role="listbox" aria-labelledby="robotLabel" hidden></div>
+                <select id="robot" hidden></select>
+              </div>
               <button type="button" class="primary" id="robotConnection">Connect robot</button>
               <div id="collectFields">
-                <label
-                  ><span data-i18n="Teleoperation device"
-                    >Teleoperation device</span
-                  ><select id="teleop"></select
-                ></label>
+                <div class="profile-picker">
+                  <label id="teleopLabel" for="teleopSearch" data-i18n="Teleoperation device">Teleoperation device</label>
+                  <input id="teleopSearch" type="text" role="combobox" autocomplete="off" spellcheck="false"
+                         aria-autocomplete="list" aria-expanded="false" aria-controls="teleopOptions">
+                  <div id="teleopOptions" class="profile-options" role="listbox" aria-labelledby="teleopLabel" hidden></div>
+                  <select id="teleop" hidden></select>
+                </div>
                 <label
                   ><span data-i18n="Recording synchronization"
                     >Recording synchronization</span

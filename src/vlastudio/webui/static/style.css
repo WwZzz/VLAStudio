@@ -168,6 +168,24 @@ select {
   color: var(--ink);
   width: 100%;
 }
+.profile-picker {position: relative; min-width: 0}
+.profile-picker label {margin-bottom: 6px}
+.profile-options {
+  position: absolute;
+  inset: 100% 0 auto;
+  z-index: 10;
+  max-height: min(15rem, 36vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px #26332c24;
+}
+.profile-option, .profile-empty {padding: 8px 10px; overflow-wrap: anywhere}
+.profile-option {cursor: pointer}
+.profile-option:hover, .profile-option[aria-selected=true] {background: var(--green-soft); color: var(--green)}
+.profile-empty {color: var(--muted)}
 .unit {
   position: relative;
 }

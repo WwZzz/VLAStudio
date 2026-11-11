@@ -100,6 +100,84 @@ function fill(id, opts, empty) {
   if (empty) s.add(new Option(empty, ""));
   for (const v of opts) s.add(new Option(v, v));
 }
+function profilePicker(id) {
+  const select = $(id), input = $(id + "Search"), list = $(id + "Options");
+  let matches = [], active = -1;
+  function sync() {
+    input.disabled = select.disabled;
+    if (input.disabled || list.hidden) close();
+  }
+  function close() {
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    input.value = select.selectedOptions[0]?.text || "";
+  }
+  function highlight(index) {
+    if (!matches.length) return;
+    active = Math.max(0, Math.min(matches.length - 1, index));
+    Array.from(list.children).forEach((row, i) =>
+      row.setAttribute("aria-selected", String(i === active)));
+    const row = list.children[active];
+    input.setAttribute("aria-activedescendant", row.id);
+    if (row.offsetTop < list.scrollTop) list.scrollTop = row.offsetTop;
+    else if (row.offsetTop + row.offsetHeight > list.scrollTop + list.clientHeight)
+      list.scrollTop = row.offsetTop + row.offsetHeight - list.clientHeight;
+  }
+  function open(prefix) {
+    const query = prefix.trim().toLowerCase();
+    matches = Array.from(select.options).filter(o => o.text.toLowerCase().startsWith(query));
+    list.replaceChildren(...matches.map((option, i) => {
+      const row = el("div", "profile-option", option.text);
+      row.id = id + "-option-" + i;
+      row.setAttribute("role", "option");
+      row.dataset.index = i;
+      return row;
+    }));
+    list.hidden = false;
+    list.scrollTop = 0;
+    input.setAttribute("aria-expanded", "true");
+    active = -1;
+    input.removeAttribute("aria-activedescendant");
+    if (matches.length) highlight(query ? 0 : matches.indexOf(select.selectedOptions[0]));
+    else list.append(el("div", "profile-empty", tr("No matching configuration")));
+  }
+  function choose(index) {
+    if (!matches[index]) return;
+    select.value = matches[index].value;
+    close();
+    select.dispatchEvent(new Event("change", {bubbles:true}));
+    syncProfilePickers();
+  }
+  input.onfocus = () => { open(""); input.select(); };
+  input.onclick = () => { if (list.hidden) { open(""); input.select(); } };
+  input.oninput = () => open(input.value);
+  input.onblur = close;
+  list.onmousedown = e => e.preventDefault();
+  list.onclick = e => {
+    const row = e.target.closest("[role=option]");
+    if (row) choose(Number(row.dataset.index));
+  };
+  input.onkeydown = e => {
+    if (e.isComposing) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (list.hidden) open("");
+      else highlight(active + (e.key === "ArrowDown" ? 1 : -1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!list.hidden) choose(active);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+      input.select();
+    }
+  };
+  return sync;
+}
+const profilePickers = ["robot", "teleop"].map(profilePicker);
+function syncProfilePickers() { profilePickers.forEach(sync => sync()); }
+
 function preferences() {
   try {
     return JSON.parse(localStorage.getItem("vla-" + mode)) || {};
@@ -232,6 +310,7 @@ async function init() {
     $("task").value = saved.task;
   $("on_success").value = saved.on_success || "continue";
   renderTaskPanel();
+  syncProfilePickers();
   await refresh();
 }
 $("robot").onchange = defaults;
@@ -409,6 +488,7 @@ function renderSession(s) {
     field.disabled = s.active || connecting;
   if (collecting) $("real_task").disabled = connecting;
   for (const id of ["robot", "task", "on_success"]) $(id).disabled = !!selection || busy;
+  syncProfilePickers();
   $("robotConnection").disabled = busy || (!!c && !!s.loaded?.length);
   $("robotConnection").textContent = tr(c ? c.ready ? "Disconnect robot" : "Connecting robot" : "Connect robot");
   const loading = connecting || (s.active && s.phase === "loading");
@@ -980,6 +1060,7 @@ function applyLanguage() {
     $("teleop").options[0].textContent = tr("None · Observations only");
   if ($("sync").options[0]?.value === "")
     $("sync").options[0].textContent = tr("Native synchronization");
+  syncProfilePickers();
   fillRobotTasks();
   renderTaskPanel();
   lastButtons = "";
