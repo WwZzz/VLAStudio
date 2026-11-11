@@ -716,7 +716,20 @@ textarea {
 #currentEpisode {flex-wrap:wrap}
 #currentEpisodeState {font-size:11px}
 #currentEpisode[aria-pressed=true], #episodeList button[aria-pressed=true] {background:var(--green-soft);border-color:var(--green);color:var(--green)}
-#episodeList {display:grid;gap:4px;max-height:33vh;overflow-y:auto}
+#episodeList {
+  display: grid;
+  grid-auto-rows: max-content;
+  gap: 4px;
+  min-height: 0;
+  max-height: min(33vh, 18rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--green) var(--side);
+}
+#episodeList::-webkit-scrollbar {width: 10px}
+#episodeList::-webkit-scrollbar-track {background: var(--side)}
+#episodeList::-webkit-scrollbar-thumb {background: var(--green); border: 2px solid var(--side); border-radius: 6px}
 #episodeList:empty {display:none}
 #episodeList button {background:var(--paper);font-variant-numeric:tabular-nums}
 #episodePlayer {display:grid;gap:16px;min-width:0}
