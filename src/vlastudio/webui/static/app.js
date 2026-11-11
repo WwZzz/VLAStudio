@@ -534,7 +534,7 @@ function renderSession(s) {
   document.dispatchEvent(new Event("episode-session"));
   const recordButton = inEpisode ? "finish" : "record";
   const pauseButton = s.phase === "recording" ? "record_pause" : "record_resume";
-  const enterAction = s.phase === "save" ? "save" : inEpisode ? pauseButton : "record";
+  const enterAction = {ready: "record", recording: "finish", record_paused: "finish", save: "save"}[s.phase];
   const displayed = collecting
     ? [recordButton, pauseButton, "home"]
     : [allowed.includes("pause") ? "pause" : "run", "stop", "reset"];
@@ -542,7 +542,7 @@ function renderSession(s) {
   $("episodeNumber").textContent = s.active && !other && Number.isInteger(s.episode)
     ? (s.phase === "ready" && collecting ? tr("Next episode") : "Episode") + " " + String(s.episode).padStart(4, "0")
     : "Episode —";
-  const sig = JSON.stringify([s.id, allowed, displayed, language, busy]);
+  const sig = JSON.stringify([s.id, allowed, displayed, enterAction, language, busy]);
   if (sig !== lastButtons) {
     lastButtons = sig;
     $("buttons").replaceChildren();
