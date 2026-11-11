@@ -12,6 +12,7 @@ const chinese = {
   Connecting: "连接中",
   "Session configuration": "会话配置",
   "No matching configuration": "\u65e0\u5339\u914d\u914d\u7f6e",
+  "Space": "\u7a7a\u683c",
   "Robot configuration": "机器人配置",
   "Simulation task": "仿真任务",
   "After task success": "任务成功后",

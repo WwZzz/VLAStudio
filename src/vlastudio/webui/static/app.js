@@ -432,13 +432,15 @@ $("teleSwitch").onclick = (event) => {
   act(enabled ? "tele_pause" : "tele_run");
 };
 document.addEventListener("keydown", (event) => {
-  if (reviewingEpisode() || !collecting || event.key !== "Enter" || event.isComposing || event.defaultPrevented ||
+  const shortcut = event.key === " " ? "Space" : event.key;
+  if (!["Enter", "Space"].includes(shortcut) || reviewingEpisode() || !collecting || event.isComposing || event.defaultPrevented ||
       event.ctrlKey || event.altKey || event.metaKey || event.shiftKey ||
       document.querySelector("dialog[open]") ||
       event.target.closest("input,textarea,select,button,a,summary,[contenteditable=true]")) return;
-  const action = $("buttons").querySelector("[data-enter]:enabled");
+  const action = $("buttons").querySelector(`[aria-keyshortcuts="${shortcut}"]:enabled`);
   if (!action) return;
   event.preventDefault();
+  event.stopPropagation();
   if (!event.repeat) action.click();
 });
 document.addEventListener("keydown", (event) => {
@@ -547,8 +549,10 @@ function renderSession(s) {
     lastButtons = sig;
     $("buttons").replaceChildren();
     for (const key of displayed) {
-      const enter = collecting && key === enterAction;
-      const label = tr(names[key]) + (enter ? " (Enter)" : "");
+      let shortcut = "";
+      if (collecting && key === enterAction) shortcut = "Enter";
+      if (collecting && inEpisode && key === pauseButton) shortcut = "Space";
+      const label = tr(names[key]) + (shortcut ? " (" + tr(shortcut) + ")" : "");
       const button = el("button", "transport-key " + key);
       const isReset = key === "home" || key === "reset";
       button.innerHTML = transportIcon(key);
@@ -557,9 +561,8 @@ function renderSession(s) {
       }
       button.title = label + (isReset ? " (Ctrl + Alt + R)" : "");
       button.setAttribute("aria-label", button.title);
-      if (enter) button.setAttribute("aria-keyshortcuts", "Enter");
+      if (shortcut) button.setAttribute("aria-keyshortcuts", shortcut);
       button.disabled = busy || !allowed.includes(key);
-      if (enter) button.dataset.enter = "true";
       button.onclick = (event) => {
         if (event.detail) button.blur();
         act(key);
