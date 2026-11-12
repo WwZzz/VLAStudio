@@ -14,7 +14,7 @@
     const query = $("deviceLibrarySearch").value.trim().toLowerCase();
     const tree = $("deviceLibraryTree"); tree.replaceChildren();
     const filtered = library.filter(row =>
-      [row.category,row.type,row.name,...row.sources.map(s=>s.config)].join(" ").toLowerCase().includes(query));
+      [row.category,row.type,row.name,...row.sources.map(s=>(s.root || "")+"/"+s.config)].join(" ").toLowerCase().includes(query));
     $("deviceLibraryStatus").textContent = filtered.length ? "" : tr("No matching devices");
     for (const category of ["Bench","Robots","Cameras","Teleoperation","Action managers","Other devices"]) {
       const rows = filtered.filter(row=>row.category===category);
@@ -28,7 +28,7 @@
           const entry = el("div","device-library-entry"), info=el("div","");
           const preview=el("details",""), previewTitle=el("summary","",String(row.name));
           preview.append(previewTitle,el("pre","",JSON.stringify(row.device,null,2)));
-          info.append(preview,el("small","",row.sources.map(s=>s.kind+"/"+s.config).join(", ")));
+          info.append(preview,el("small","",row.sources.map(s=>(s.root ? s.root+"/" : "")+s.kind+"/"+s.config).join(", ")));
           const add=el("button","",tr("Add"));add.type="button";
           add.onclick=()=>{
             const copy=JSON.parse(JSON.stringify(row.device));
@@ -105,6 +105,7 @@
       const data = await api("config?" + new URLSearchParams({kind, name:original}));
       if (revision !== token || !dialog.open) return;
       item = data;
+      $("configLocation").textContent = item.path;
       name.value = item.name; content.value = item.content;
       const structured = kind !== "recording";
       $("configDevices").hidden = $("configDeviceActions").hidden = !structured;

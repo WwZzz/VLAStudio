@@ -12,6 +12,7 @@
     <script src="/quest.js" defer></script>
     <script src="/config-devices.js" defer></script>
     <script src="/config-editor.js" defer></script>
+    <script src="/settings.js" defer></script>
   </head>
   <body>
     <header>
@@ -29,6 +30,9 @@
         >
       </nav>
       <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+      <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
       <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
       <select id="language" aria-label="Language">
         <option value="en">English</option>
@@ -287,6 +291,36 @@
             Create task
           </button>
         </div>
+      </form>
+    </dialog>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+      <form id="settingsForm">
+        <div class="heading">
+          <h2 id="settingsTitle" data-i18n="Settings">Settings</h2>
+          <button type="button" id="settingsClose" data-i18n="Close">Close</button>
+        </div>
+        <p data-i18n="Paths refer to the machine running WebUI.">Paths refer to the machine running WebUI.</p>
+        <label><span data-i18n="Local data directory">Local data directory</span>
+          <input id="settingsData" required spellcheck="false" autocomplete="off">
+        </label>
+        <small data-i18n="Used for new recordings and the episode library.">Used for new recordings and the episode library.</small>
+        <label><span data-i18n="Extra configuration root">Extra configuration root</span>
+          <input id="settingsConfigs" spellcheck="false" autocomplete="off">
+        </label>
+        <small data-i18n="Contains robot/, teleop/, recording/ and action_manager/. Extra profiles take priority when names match.">Contains robot/, teleop/, recording/ and action_manager/. Extra profiles take priority when names match.</small>
+        <label><span data-i18n="Hugging Face username">Hugging Face username</span>
+          <input id="settingsUsername" autocomplete="off" spellcheck="false">
+        </label>
+        <label><span>Hugging Face Token</span>
+          <input id="settingsToken" type="password" autocomplete="new-password" spellcheck="false">
+        </label>
+        <small id="settingsTokenState"></small>
+        <label class="settings-checkbox"><input id="settingsClearToken" type="checkbox">
+          <span data-i18n="Clear saved token">Clear saved token</span>
+        </label>
+        <p id="settingsError" role="alert" hidden></p>
+        <p id="settingsPathNote" data-i18n="Directory changes require disconnected devices. Account changes apply to newly started sessions.">Directory changes require disconnected devices. Account changes apply to newly started sessions.</p>
+        <button type="submit" id="settingsSave" class="primary" data-i18n="Save settings">Save settings</button>
       </form>
     </dialog>
     <dialog id="configDialog" aria-labelledby="configTitle">

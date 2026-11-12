@@ -12,7 +12,8 @@ import threading
 
 import yaml
 
-from .profiles import CONFIGS
+from .profiles import CONFIGS, config_roots, profile_paths
+from .settings import extra_configs
 
 KINDS = ("robot", "teleop", "recording", "action_manager")
 
@@ -20,7 +21,8 @@ KINDS = ("robot", "teleop", "recording", "action_manager")
 def profile_path(kind, name):
     if kind not in KINDS or not isinstance(name, str) or not re.fullmatch(r"[\w][\w.-]{0,79}", name):
         raise ValueError("Invalid configuration name")
-    folder = (CONFIGS / kind).resolve()
+    known = profile_paths(kind).get(name)
+    folder = known.parent.resolve() if known else ((extra_configs() or CONFIGS)/kind).resolve()
     path = folder / (name + ".yaml")
     if path.resolve().parent != folder or path.is_symlink():
         raise ValueError("Invalid configuration path")
@@ -32,7 +34,7 @@ def read(kind, name):
     raw = path.read_bytes()
     content = raw.decode("utf-8")
     doc = yaml.safe_load(content)
-    return dict(kind=kind, name=name, content=content, document=doc,
+    return dict(kind=kind, name=name, content=content, document=doc, path=str(path),
                 version=hashlib.sha256(raw).hexdigest())
 
 
@@ -108,6 +110,7 @@ def save(studio, kind, name, content, version, target):
                 raise ValueError("Disconnect this configuration before overwriting it, or save a copy.")
         elif dest.exists():
             raise ValueError("A configuration with this name already exists")
+        dest.parent.mkdir(parents=True, exist_ok=True)
         fd, temporary = tempfile.mkstemp(prefix="."+target+"-", suffix=".tmp", dir=dest.parent)
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as file:
@@ -186,15 +189,16 @@ def device_library():
     """Reparse only when a saved profile is added, changed or deleted."""
     global _library_key, _library_rows
     files = []
-    for kind in ("robot", "teleop", "action_manager"):
-        folder = (CONFIGS / kind).resolve()
-        for path in sorted(folder.rglob("*.yaml")):
-            try:
-                if not path.is_symlink() and path.resolve().is_relative_to(folder):
-                    stat = path.stat()
-                    files.append((kind, folder, path, stat.st_mtime_ns, stat.st_size, stat.st_ino))
-            except OSError:
-                continue
+    for root in config_roots():
+        for kind in ("robot", "teleop", "action_manager"):
+            folder = (root / kind).resolve()
+            for path in sorted(folder.rglob("*.yaml")):
+                try:
+                    if not path.is_symlink() and path.resolve().is_relative_to(folder):
+                        stat = path.stat()
+                        files.append((kind, folder, path, stat.st_mtime_ns, stat.st_size, stat.st_ino))
+                except OSError:
+                    continue
     key = tuple((str(path), mtime, size, inode) for _, _, path, mtime, size, inode in files)
     with _library_lock:
         if key != _library_key:
@@ -233,7 +237,8 @@ def _scan_devices(files):
                         name=args.get("name") or row.get("name") or reference.rsplit(".",1)[-1],
                         device=row, sources=[])
                 groups[signature]["sources"].append(dict(kind=kind,
-                    config=path.relative_to(folder).with_suffix("").as_posix(), index=index))
+                    config=path.relative_to(folder).with_suffix("").as_posix(), index=index,
+                    root=str(folder.parent)))
         except (OSError, yaml.YAMLError, TypeError, ValueError, RecursionError):
             continue
     return sorted(groups.values(), key=lambda row:(row["category"], row["type"], str(row["name"])))

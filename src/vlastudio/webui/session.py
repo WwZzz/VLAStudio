@@ -17,6 +17,7 @@ import time
 from .bridge import PHASES, PAUSE, RUN, RESET_A, RESET_B, RESETTING, RESET_AND_RESUME
 from .profiles import ROOT, channels, config, catalog
 from .tasks import get_task
+from .settings import data_directory
 from .runtimes import resolve_runtime
 
 
@@ -79,8 +80,8 @@ def command_line(mode, options, runtime=None):
     else:
         raise ValueError("Unknown mode")
     if output:
-        dest = (ROOT / "data/webui" / output).resolve()
-        if dest.parent != (ROOT / "data/webui").resolve():
+        dest = (data_directory() / output).resolve()
+        if dest.parent != data_directory():
             raise ValueError("Invalid dataset path")
         cmd += ["-o", str(dest)]
     return cmd

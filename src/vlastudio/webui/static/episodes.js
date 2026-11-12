@@ -295,6 +295,11 @@
     }
     if (selected) buttons();
   }
+  document.addEventListener("settingschanged", () => {
+    selectEpisode(null);
+    rows = []; dataset.replaceChildren(); sessionKey = undefined;
+    load();
+  });
   document.addEventListener("episode-session", syncLibrary);
   $("episodePanel").addEventListener("focusin", () => heldKeys.clear());
   syncLibrary();

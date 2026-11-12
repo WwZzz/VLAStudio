@@ -10,7 +10,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import config_editor, episodes
+from . import config_editor, episodes, settings
 from .profiles import catalog
 from .studio import Studio
 from .tasks import list_tasks, create_task
@@ -43,6 +43,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/infer":("index.html","text/html"), "/app.js":("app.js","text/javascript"),
                  "/style.css":("style.css","text/css"),
                  "/vlastudio-mark.svg":("vlastudio-mark.svg","image/svg+xml")}
+        files["/settings.js"] = ("settings.js", "text/javascript")
         files["/config-devices.js"] = ("config-devices.js", "text/javascript")
         files["/config-editor.js"] = ("config-editor.js", "text/javascript")
         files["/quest.js"] = ("quest.js", "text/javascript")
@@ -52,6 +53,8 @@ class Handler(BaseHTTPRequestHandler):
             file, mime = files[url.path]
             return self.reply((ASSETS/file).read_bytes(), mime + "; charset=utf-8")
         s = self.server.session
+        if url.path == "/api/settings":
+            return self.reply(settings.public())
         if url.path == "/api/device-types":
             return self.reply(config_editor.device_types())
         if url.path == "/api/device-library":
@@ -153,6 +156,8 @@ class Handler(BaseHTTPRequestHandler):
             if not 1 <= size <= limit:
                 raise ValueError("Invalid request size")
             data = json.loads(self.rfile.read(size))
+            if self.path == "/api/settings":
+                return self.reply(settings.save(s, data))
             if self.path == "/api/config":
                 return self.reply(config_editor.save(s, data["kind"], data["name"], data["content"],
                                                     data["version"], data["target"]))

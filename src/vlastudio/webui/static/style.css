@@ -911,3 +911,14 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 .device-library-entry button {padding:5px 9px;font-size:12px}
 
 #configLoading {width:100%;height:4px;accent-color:var(--green)}
+
+#settingsOpen {padding:6px;width:32px;height:32px;flex-shrink:0}
+#settingsOpen svg {display:block;width:18px;height:18px}
+#settingsDialog {width:min(620px,96vw);max-height:92dvh;overflow:auto}
+#settingsForm {padding:0;margin:0;gap:10px}
+#settingsForm p {margin:0}
+#settingsForm small {color:var(--muted);line-height:1.5}
+#settingsForm .settings-checkbox {display:flex;align-items:center;gap:8px}
+#settingsClearToken {width:auto}
+#settingsError {color:#b52b3a}
+:root[data-theme=dark] #settingsError {color:#ffacb8}

@@ -5,9 +5,10 @@ from pathlib import Path
 import re
 import uuid
 
-from .profiles import ROOT
+from .settings import data_directory
 
-ROOT_DIR = ROOT / "data/webui"
+def root_directory():
+    return data_directory()
 
 
 def files(dataset, index):
@@ -15,8 +16,8 @@ def files(dataset, index):
         raise ValueError("Invalid dataset")
     if type(index) is not int or not 0 <= index < 10**12:
         raise ValueError("Invalid episode")
-    directory = ROOT_DIR / dataset
-    if directory.is_symlink() or directory.resolve().parent != ROOT_DIR.resolve():
+    directory = root_directory() / dataset
+    if directory.is_symlink() or directory.resolve().parent != root_directory().resolve():
         raise ValueError("Invalid dataset directory")
     paths = [directory / f"episode_{index:04d}.hdf5",
              directory / "video" / f"real_eval_episode_{index:04d}.mp4"]
@@ -30,9 +31,9 @@ def revision(paths):
 
 def catalog(active_video=None):
     rows = []
-    if not ROOT_DIR.exists():
+    if not root_directory().exists():
         return rows
-    for directory in sorted(ROOT_DIR.iterdir()):
+    for directory in sorted(root_directory().iterdir()):
         if not directory.is_dir() or directory.is_symlink() or not re.fullmatch(r"[\w-][\w.-]{0,79}", directory.name):
             continue
         indices = set()
@@ -70,7 +71,7 @@ def replacement_task(dataset, index, version):
 def remove(dataset, index, version):
     paths = checked(dataset, index, version)
     # Keep deletion reversible. Roll back a partial move of a video/dataset pair.
-    trash = ROOT_DIR / ".trash"
+    trash = root_directory() / ".trash"
     if trash.is_symlink():
         raise ValueError("Invalid trash directory")
     target = trash / uuid.uuid4().hex / dataset

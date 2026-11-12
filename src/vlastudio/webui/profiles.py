@@ -2,28 +2,49 @@ from pathlib import Path
 
 import yaml
 
+from .settings import extra_configs
+
 PACKAGE = Path(__file__).resolve().parents[1]
 CONFIGS = PACKAGE / "configs"
 ROOT = PACKAGE.parents[1]
 
 
+KINDS = ("robot", "teleop", "recording", "action_manager")
+
+
+def config_roots():
+    extra = extra_configs()
+    return [CONFIGS, extra] if extra and extra != CONFIGS.resolve() else [CONFIGS]
+
+
+def profile_paths(kind):
+    if kind not in KINDS:
+        raise ValueError("Unknown configuration category")
+    paths = {}
+    for root in config_roots():
+        for path in sorted((root/kind).glob("*.yaml")):
+            if not path.is_symlink() and path.resolve().parent == (root/kind).resolve():
+                paths[path.stem] = path
+    return paths
+
+
 def catalog():
-    result = {kind: sorted(p.stem for p in (CONFIGS / kind).glob("*.yaml"))
-              for kind in ("robot", "teleop", "recording", "action_manager")}
-    result['robot_options'] = {}
-    for path in (CONFIGS / 'robot').glob('*.yaml'):
+    paths = {kind:profile_paths(kind) for kind in KINDS}
+    result = {kind:sorted(items) for kind,items in paths.items()}
+    result["robot_options"] = {}
+    for name, path in paths["robot"].items():
         rows = yaml.safe_load(path.read_text())
-        rows = rows if isinstance(rows, list) else [rows]
-        for row in rows:
-            if row.get('webui'):
-                result['robot_options'][path.stem] = row['webui']
+        for row in rows if isinstance(rows, list) else [rows]:
+            if isinstance(row, dict) and row.get("webui"):
+                result["robot_options"][name] = row["webui"]
     return result
 
 
 def config(kind, name):
-    if name not in catalog()[kind]:
+    path = profile_paths(kind).get(name)
+    if path is None:
         raise ValueError(f"Unknown {kind} profile: {name}")
-    return CONFIGS / kind / (name + ".yaml")
+    return path
 
 
 def channels(profile, kind="robot"):

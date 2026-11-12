@@ -1,5 +1,21 @@
 "use strict";
 const chinese = {
+  "Settings": "\u8bbe\u7f6e",
+  "Paths refer to the machine running WebUI.": "\u76ee\u5f55\u6307\u8fd0\u884c WebUI \u7684\u673a\u5668\u4e0a\u7684\u8def\u5f84\u3002",
+  "Local data directory": "\u672c\u5730\u6570\u636e\u5b58\u50a8\u76ee\u5f55",
+  "Used for new recordings and the episode library.": "\u7528\u4e8e\u65b0\u5f55\u5236\u548c\u7247\u6bb5\u5e93\u3002",
+  "Extra configuration root": "\u989d\u5916\u914d\u7f6e\u6839\u76ee\u5f55",
+  "Contains robot/, teleop/, recording/ and action_manager/. Extra profiles take priority when names match.": "\u5305\u542b robot/\u3001teleop/\u3001recording/ \u548c action_manager/\u3002\u540c\u540d\u65f6\u4f18\u5148\u4f7f\u7528\u989d\u5916\u914d\u7f6e\u3002",
+  "Hugging Face username": "Hugging Face \u7528\u6237\u540d",
+  "Clear saved token": "\u6e05\u9664\u5df2\u4fdd\u5b58\u7684 Token",
+  "Directory changes require disconnected devices. Account changes apply to newly started sessions.": "\u4fee\u6539\u76ee\u5f55\u524d\u9700\u5148\u65ad\u5f00\u8bbe\u5907\uff0c\u8d26\u6237\u8bbe\u7f6e\u5bf9\u65b0\u542f\u52a8\u7684\u4f1a\u8bdd\u751f\u6548\u3002",
+  "Save settings": "\u4fdd\u5b58\u8bbe\u7f6e",
+  "Token configured. Leave blank to keep it.": "Token \u5df2\u914d\u7f6e\uff0c\u7559\u7a7a\u53ef\u4fdd\u7559\u3002",
+  "Enter a token to configure Hugging Face access.": "\u586b\u5165 Token \u914d\u7f6e Hugging Face \u8bbf\u95ee\u3002",
+  "Loading settings": "\u6b63\u5728\u52a0\u8f7d\u8bbe\u7f6e",
+  "Disconnect devices before changing storage or configuration directories": "\u4fee\u6539\u6570\u636e\u6216\u914d\u7f6e\u76ee\u5f55\u524d\u8bf7\u5148\u65ad\u5f00\u8bbe\u5907",
+  "Settings changed. Reopen settings before saving.": "\u8bbe\u7f6e\u5df2\u66f4\u65b0\uff0c\u8bf7\u91cd\u65b0\u6253\u5f00\u540e\u4fdd\u5b58",
+
   "Loading configuration": "\u6b63\u5728\u52a0\u8f7d\u914d\u7f6e",
   "New device": "\u65b0\u5efa\u8bbe\u5907",
   "Add existing device": "\u4ece\u5df2\u6709\u8bbe\u5907\u6dfb\u52a0",
