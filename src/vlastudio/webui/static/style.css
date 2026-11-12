@@ -909,3 +909,5 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 .device-library-entry small {overflow-wrap:anywhere;color:var(--muted)}
 .device-library-entry pre {height:auto;max-height:180px;font-size:11px;background:var(--side);color:var(--ink);padding:8px}
 .device-library-entry button {padding:5px 9px;font-size:12px}
+
+#configLoading {width:100%;height:4px;accent-color:var(--green)}

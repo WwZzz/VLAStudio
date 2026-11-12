@@ -1057,7 +1057,7 @@ function renderKeyboard() {
     gripper.append(el("span", "key-group-label", tr("Gripper")));
     pairs.slice(6).forEach((pair) => pair.forEach((key, direction) => {
       const item = el("span", "key-gripper-item");
-      item.append(el("span", "", tr(direction ? "Close" : "Open")), el("kbd", "", keyName(key)));
+      item.append(el("span", "", tr(direction ? "Close gripper" : "Open")), el("kbd", "", keyName(key)));
       gripper.append(item);
     }));
     block.append(gripper);

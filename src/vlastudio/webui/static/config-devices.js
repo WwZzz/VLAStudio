@@ -7,6 +7,11 @@ class DeviceConfigEditor {
     this.types = types;
     for (const row of this.asList ? document : [document]) this.add(row);
   }
+  updateTypes(types) {
+    this.types = types;
+    for (const list of this.root.querySelectorAll("datalist"))
+      list.replaceChildren(...types.map(type=>new Option(type,type)));
+  }
   field(key, value) {
     const row = el("div", "device-parameter"), name = el("input", "");
     name.value = key; name.ariaLabel = "parameter name"; name.spellcheck = false;

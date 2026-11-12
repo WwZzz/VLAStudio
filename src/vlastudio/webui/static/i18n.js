@@ -1,5 +1,6 @@
 "use strict";
 const chinese = {
+  "Loading configuration": "\u6b63\u5728\u52a0\u8f7d\u914d\u7f6e",
   "New device": "\u65b0\u5efa\u8bbe\u5907",
   "Add existing device": "\u4ece\u5df2\u6709\u8bbe\u5907\u6dfb\u52a0",
   "Saved devices": "\u5df2\u4fdd\u5b58\u7684\u8bbe\u5907",
@@ -238,7 +239,7 @@ Object.assign(chinese, {
   "Move along axis": "沿轴平移",
   "Rotate about axis": "绕轴旋转",
   Open: "张开",
-  Close: "闭合",
+  "Close gripper": "闭合",
   "Preview only · X red · Y green · Z blue · World control frame":
     "仅预览提示 · X 红 · Y 绿 · Z 蓝 · 世界控制坐标系",
 });

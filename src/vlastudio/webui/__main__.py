@@ -52,6 +52,8 @@ class Handler(BaseHTTPRequestHandler):
             file, mime = files[url.path]
             return self.reply((ASSETS/file).read_bytes(), mime + "; charset=utf-8")
         s = self.server.session
+        if url.path == "/api/device-types":
+            return self.reply(config_editor.device_types())
         if url.path == "/api/device-library":
             return self.reply(config_editor.device_library())
         if url.path == "/api/device-parameters":
@@ -64,10 +66,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 query = parse_qs(url.query)
                 kind, name = query["kind"][0], query["name"][0]
-                with s.lock:
-                    item = config_editor.read(kind, name)
-                    item["device_types"] = config_editor.device_types()
-                    item["in_use"] = bool(config_editor.in_use(s, kind, name))
+                item = config_editor.read(kind, name)
+                item["in_use"] = bool(config_editor.in_use(s, kind, name))
                 return self.reply(item)
             except (ValueError, KeyError, OSError) as exc:
                 return self.reply({"error":str(exc)}, status=409)

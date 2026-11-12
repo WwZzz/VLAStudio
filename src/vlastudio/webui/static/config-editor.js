@@ -52,7 +52,7 @@
   };
   $("deviceLibrarySearch").oninput=renderLibrary;
   $("deviceLibraryClose").onclick=()=>{$("deviceLibrary").hidden=true;};
-  let item, field, original, saving = false;
+  let item, field, original, saving = false, loading = false, revision = 0;
   const buttons = new Map();
   function update() {
     for (const [id, button] of buttons) {
@@ -92,30 +92,52 @@
     field = id; original = $(id).value;
     if (!original) return;
     heldKeys.clear();
+    const token = ++revision;
+    item = null; loading = true; saving = false;
+    name.value = original; content.value = "";
+    $("configLocation").textContent = "configs/" + kind + "/" + original + ".yaml";
+    $("configUsage").textContent = tr("Loading configuration");
+    $("configDevices").hidden = $("configDeviceActions").hidden = $("configYaml").hidden = true;
+    $("deviceLibrary").hidden = true;
+    $("configLoading").hidden = false;
+    error(""); controls(); dialog.showModal();
     try {
       const data = await api("config?" + new URLSearchParams({kind, name:original}));
+      if (revision !== token || !dialog.open) return;
       item = data;
       name.value = item.name; content.value = item.content;
       const structured = kind !== "recording";
       $("configDevices").hidden = $("configDeviceActions").hidden = !structured;
-      $("deviceLibrary").hidden = true;
       $("deviceLibrarySearch").value = "";
       $("configYaml").hidden = structured;
       content.required = !structured;
-      if (structured) devices.load(item.document, item.device_types);
-      $("configLocation").textContent = "configs/" + kind + "/" + item.name + ".yaml";
+      if (structured) {
+        const rows = Array.isArray(item.document) ? item.document : [item.document];
+        devices.load(item.document, [...new Set(rows.map(row=>row.type))]);
+        // Type suggestions are optional and load independently of the selected profile.
+        api("device-types").then(types=>{
+          if (revision === token && dialog.open) devices.updateTypes(types);
+        }).catch(()=>{});
+      }
       $("configUsage").textContent = tr(item.in_use ?
         "This configuration is connected. Save a copy now, or disconnect before overwriting. Changes apply on the next connection." :
         "Edit the parameters below. Changes apply on the next connection.");
-      error(""); saving = false; controls(); dialog.showModal();
-    } catch (e) { notice(e.message); }
+    } catch (e) {
+      if (revision === token && dialog.open) error(e.message);
+    } finally {
+      if (revision === token) {
+        loading = false;
+        $("configLoading").hidden = true;
+        controls();
+      }
+    }
   }
   function controls() {
     const target = name.value.trim();
-    $("configSave").disabled = saving || !target || (item?.in_use && target === item.name);
-    $("configCopy").disabled = saving;
+    $("configSave").disabled = loading || !item || saving || !target || (item?.in_use && target === item.name);
+    $("configCopy").disabled = loading || !item || saving;
     $("configClose").disabled = saving;
-    name.disabled = content.disabled = saving;
+    name.disabled = content.disabled = loading || saving;
     $("configAddDevice").disabled = $("configImportDevice").disabled = saving;
     $("deviceLibrary").inert = saving;
     $("configDevices").inert = saving;
@@ -156,6 +178,7 @@
     save();
   };
   $("configClose").onclick = () => dialog.close();
+  dialog.addEventListener("close", () => {revision++; loading = false;});
   dialog.addEventListener("cancel", event => {if (saving) event.preventDefault();});
   document.addEventListener("episode-session", update);
   $("language").addEventListener("change", update);
