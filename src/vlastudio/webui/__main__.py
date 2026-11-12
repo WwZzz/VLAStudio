@@ -10,7 +10,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import episodes
+from . import config_editor, episodes
 from .profiles import catalog
 from .studio import Studio
 from .tasks import list_tasks, create_task
@@ -43,6 +43,8 @@ class Handler(BaseHTTPRequestHandler):
                  "/infer":("index.html","text/html"), "/app.js":("app.js","text/javascript"),
                  "/style.css":("style.css","text/css"),
                  "/vlastudio-mark.svg":("vlastudio-mark.svg","image/svg+xml")}
+        files["/config-devices.js"] = ("config-devices.js", "text/javascript")
+        files["/config-editor.js"] = ("config-editor.js", "text/javascript")
         files["/quest.js"] = ("quest.js", "text/javascript")
         files["/episodes.js"] = ("episodes.js", "text/javascript")
         files["/i18n.js"] = ("i18n.js", "text/javascript")
@@ -50,6 +52,23 @@ class Handler(BaseHTTPRequestHandler):
             file, mime = files[url.path]
             return self.reply((ASSETS/file).read_bytes(), mime + "; charset=utf-8")
         s = self.server.session
+        if url.path == "/api/device-parameters":
+            try:
+                reference = parse_qs(url.query)["type"][0]
+                return self.reply(config_editor.parameters(reference))
+            except (ValueError, KeyError) as exc:
+                return self.reply({"error":str(exc)}, status=409)
+        if url.path == "/api/config":
+            try:
+                query = parse_qs(url.query)
+                kind, name = query["kind"][0], query["name"][0]
+                with s.lock:
+                    item = config_editor.read(kind, name)
+                    item["device_types"] = config_editor.device_types()
+                    item["in_use"] = bool(config_editor.in_use(s, kind, name))
+                return self.reply(item)
+            except (ValueError, KeyError, OSError) as exc:
+                return self.reply({"error":str(exc)}, status=409)
         if url.path == "/api/catalog":
             return self.reply(catalog())
         if url.path in ("/api/episodes", "/api/episode"):
@@ -101,9 +120,13 @@ class Handler(BaseHTTPRequestHandler):
         s = self.server.session
         try:
             size = int(self.headers.get("Content-Length","0"))
-            if not 1 <= size <= 8192:
+            limit = 262144 if self.path == "/api/config" else 8192
+            if not 1 <= size <= limit:
                 raise ValueError("Invalid request size")
             data = json.loads(self.rfile.read(size))
+            if self.path == "/api/config":
+                return self.reply(config_editor.save(s, data["kind"], data["name"], data["content"],
+                                                    data["version"], data["target"]))
             if self.path == "/api/episode/rerecord":
                 s.rerecord(data)
                 return self.reply({"ok": True})

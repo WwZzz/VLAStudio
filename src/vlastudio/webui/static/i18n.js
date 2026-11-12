@@ -1,5 +1,28 @@
 "use strict";
 const chinese = {
+  "Add device": "\u6dfb\u52a0\u8bbe\u5907",
+  "Remove device": "\u5220\u9664\u8bbe\u5907",
+  "Add parameter": "\u6dfb\u52a0\u53c2\u6570",
+  "Remove parameter": "\u5220\u9664\u53c2\u6570",
+  "Fill defaults": "\u586b\u5165\u9ed8\u8ba4\u503c",
+  "Additional configuration fields": "\u5176\u4ed6\u914d\u7f6e\u5b57\u6bb5",
+  "Parameter name is required": "\u8bf7\u586b\u5199\u53c2\u6570\u540d",
+  "Enter a valid value for the selected type": "\u8bf7\u586b\u5199\u8be5\u7c7b\u578b\u7684\u6709\u6548\u503c",
+  "Value does not match its type": "\u53c2\u6570\u503c\u4e0e\u7c7b\u578b\u4e0d\u7b26",
+  "Duplicate parameter": "\u53c2\u6570\u540d\u91cd\u590d",
+
+  "Edit configuration": "\u7f16\u8f91\u914d\u7f6e",
+  "Edit": "\u7f16\u8f91",
+  "Close": "\u5173\u95ed",
+  "View and edit selected configuration": "\u67e5\u770b\u5e76\u7f16\u8f91\u5df2\u9009\u914d\u7f6e",
+  "Configuration name": "\u914d\u7f6e\u540d\u79f0",
+  "Parameters (YAML)": "\u53c2\u6570\uff08YAML\uff09",
+  "Save as copy": "\u53e6\u5b58\u4e3a\u526f\u672c",
+  "Save configuration": "\u4fdd\u5b58\u914d\u7f6e",
+  "Saving": "\u6b63\u5728\u4fdd\u5b58",
+  "Edit the parameters below. Changes apply on the next connection.": "\u4fee\u6539\u4e0b\u65b9\u53c2\u6570\uff0c\u4e0b\u6b21\u8fde\u63a5\u65f6\u751f\u6548\u3002",
+  "This configuration is connected. Save a copy now, or disconnect before overwriting. Changes apply on the next connection.": "\u8be5\u914d\u7f6e\u6b63\u5728\u4f7f\u7528\u3002\u53ef\u53e6\u5b58\u526f\u672c\uff0c\u6216\u65ad\u5f00\u540e\u8986\u76d6\u539f\u914d\u7f6e\uff0c\u4e0b\u6b21\u8fde\u63a5\u65f6\u751f\u6548\u3002",
+
   "Quest 3 controls": "Quest 3 \u64cd\u4f5c\u63d0\u793a",
   "Enable teleoperation, then hold the side grip to move. Release it to hold the robot.": "\u542f\u7528\u9065\u64cd\u4f5c\u540e\uff0c\u6309\u4f4f\u4fa7\u952e\u79fb\u52a8\uff0c\u677e\u5f00\u4fa7\u952e\u4fdd\u6301\u673a\u5668\u4eba\u59ff\u6001\u3002",
   "Controller space \u00b7 Recent 4 seconds \u00b7 Preview only": "\u624b\u67c4\u5750\u6807\u7cfb \u00b7 \u6700\u8fd1 4 \u79d2 \u00b7 \u4ec5\u9884\u89c8",

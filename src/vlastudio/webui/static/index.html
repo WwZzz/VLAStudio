@@ -10,6 +10,8 @@
     <script src="/app.js" defer></script>
     <script src="/episodes.js" defer></script>
     <script src="/quest.js" defer></script>
+    <script src="/config-devices.js" defer></script>
+    <script src="/config-editor.js" defer></script>
   </head>
   <body>
     <header>
@@ -284,6 +286,29 @@
           >
             Create task
           </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="configDialog" aria-labelledby="configTitle">
+      <form id="configForm">
+        <div class="heading">
+          <h2 id="configTitle" data-i18n="Edit configuration">Edit configuration</h2>
+          <button type="button" id="configClose" data-i18n="Close">Close</button>
+        </div>
+        <small id="configLocation"></small>
+        <p id="configUsage"></p>
+        <label><span data-i18n="Configuration name">Configuration name</span>
+          <input id="configName" required maxlength="80" autocomplete="off" spellcheck="false">
+        </label>
+        <section id="configDevices" hidden></section>
+        <button id="configAddDevice" type="button" data-i18n="Add device" hidden>Add device</button>
+        <label id="configYaml"><span data-i18n="Parameters (YAML)">Parameters (YAML)</span>
+          <textarea id="configContent" spellcheck="false" wrap="off" required></textarea>
+        </label>
+        <p id="configError" role="alert" hidden></p>
+        <div class="row config-actions">
+          <button type="button" id="configCopy" data-i18n="Save as copy">Save as copy</button>
+          <button type="submit" id="configSave" class="primary" data-i18n="Save configuration">Save configuration</button>
         </div>
       </form>
     </dialog>
