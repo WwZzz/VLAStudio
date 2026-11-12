@@ -82,6 +82,8 @@ class WebKeys:
 def configure_device(device):
     """Attach WebUI control only to robots launched by this session."""
     from vlastudio.deploy.robot.base import BaseRobot
+    if type(device).__module__ == "vlastudio.deploy.teleoperator.quest3":
+        device.preview_channel_name = device.name + "_preview"
     if isinstance(device, BaseRobot) and os.environ.get("VLASTUDIO_WEB_GATE"):
         directory = os.environ.get("VLASTUDIO_SOURCE_DIRECTORY")
         if directory:

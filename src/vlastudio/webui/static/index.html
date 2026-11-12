@@ -9,6 +9,7 @@
     <script src="/i18n.js" defer></script>
     <script src="/app.js" defer></script>
     <script src="/episodes.js" defer></script>
+    <script src="/quest.js" defer></script>
   </head>
   <body>
     <header>
@@ -125,6 +126,12 @@
               <div id="recordedValues"></div>
             </details>
           </section>
+          <details class="panel" id="questPanel" hidden open>
+            <summary><h2 data-i18n="Quest 3 controls">Quest 3 controls</h2></summary>
+            <p data-i18n="Enable teleoperation, then hold the side grip to move. Release it to hold the robot.">Enable teleoperation, then hold the side grip to move. Release it to hold the robot.</p>
+            <div id="questHands"></div>
+            <small data-i18n="Controller space · Recent 4 seconds · Preview only">Controller space · Recent 4 seconds · Preview only</small>
+          </details>
           <details class="panel" id="keyboardPanel" hidden open>
             <summary>
               <h2 data-i18n="Keyboard end-effector control">

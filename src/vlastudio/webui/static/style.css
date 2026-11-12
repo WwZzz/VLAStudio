@@ -847,3 +847,15 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
   header {height: auto; min-height: 66px; flex-wrap: wrap; padding-block: 10px; gap: 10px}
   nav {height: 40px}
 }
+
+#questPanel > summary {display:flex;align-items:center;cursor:pointer}
+#questHands {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin:12px 0}
+.quest-hand {min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));column-gap:14px}
+.quest-hand > .heading {grid-column:1 / -1}
+.quest-hand h3 {font-size:13px;margin:0}
+.quest-trail {display:block;width:100%;height:190px;background:var(--side);border:1px solid var(--border);border-radius:7px}
+.quest-controls {display:grid;grid-template-columns:auto 1fr;gap:7px 12px;font-size:12px;margin:0}
+.quest-controls :is(dt,dd) {margin:0;align-self:center}
+.quest-controls dd {color:var(--muted)}
+.quest-controls kbd {display:inline-block;min-width:42px;padding:3px 6px;text-align:center;border:1px solid var(--border);border-radius:4px;background:var(--side);color:var(--ink)}
+.quest-controls kbd.pressed {background:var(--green-soft);color:var(--green);border-color:var(--green)}

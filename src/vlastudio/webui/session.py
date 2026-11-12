@@ -227,6 +227,10 @@ class Session:
         self.pending = None
         self.stopping = False
         self.code = None
+        self.quest_proc = None
+        self.quest_hands = {}
+        self.quest_samples = collections.deque(maxlen=64)
+        self.quest_config = None
 
     def start(self, mode, opts, ready_file, runtime, info):
         opts = dict(opts)
@@ -247,6 +251,11 @@ class Session:
             from vlastudio.utils.extensions import resolve
             self.reset_ok = self.reset_ok or bool(catalog()["robot_options"].get(self.robot, {}).get("tasks")) or any(getattr(resolve(t), 'supports_reset', False) for _, t, _ in rows)
             keyboard_rows = channels(self.teleop, 'teleop') if self.teleop else []
+            quest_rows = [(n, a) for n, t, a in keyboard_rows
+                          if t == "vlastudio.deploy.teleoperator.quest3.Quest3Teleop"]
+            self.quest_config = dict(quest_rows[0][1]) if quest_rows else None
+            self.quest_hands = {}
+            self.quest_samples.clear()
             self.keyboard_arms = next((int(a.get('arms', 1)) for _, t, a in keyboard_rows
                                        if getattr(resolve(t), 'browser_keyboard', False)), 0)
             self.keyboard_bindings = next((resolve(t).bindings_for_arms(int(a.get('arms', 1)), a.get('key_bindings'))
@@ -308,9 +317,43 @@ class Session:
             self.logs.clear()
             self.runtime = dict(name=runtime.name, python=info['python'])
             self.logs.append(f"Runtime: {runtime.name} ({info['python']})")
+            if quest_rows:
+                try:
+                    self.quest_proc = subprocess.Popen(runtime.module("vlastudio.webui.quest_preview") +
+                        [quest_rows[0][0] + "_preview"], cwd=ROOT, env=runtime.env,
+                        stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                        start_new_session=True)
+                    threading.Thread(target=self._read_quest, args=(self.quest_proc,), daemon=True).start()
+                except OSError as error:
+                    self.logs.append(f"Quest preview unavailable: {error}")
             threading.Thread(target=self._watch, args=(self.proc,), daemon=True).start()
 
+    def _read_quest(self, proc):
+        for line in proc.stdout:
+            try:
+                packet = json.loads(line)
+                with self.lock:
+                    if proc is not self.quest_proc:
+                        return
+                    for hand, sample in packet["hands"].items():
+                        if hand in ("left", "right"):
+                            sample = dict(sample, stamp=packet["stamp"], hand=hand)
+                            self.quest_hands[hand] = sample
+                            self.quest_samples.append(sample)
+            except (KeyError, TypeError, ValueError):
+                continue
+
     def _release(self):
+        proc, self.quest_proc = self.quest_proc, None
+        if proc is not None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+        self.quest_hands = {}
+        self.quest_samples.clear()
         directory = getattr(self, 'keyboard_dir', None)
         if directory is not None:
             directory.cleanup()
@@ -410,11 +453,18 @@ class Session:
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
                         simulation=simulation,
                         options=self.options if live else {}, episode=self.episode if live else None,
+                        quest=dict(config=self.quest_config) if live and self.quest_config else None,
                         keyboard_arms=self.keyboard_arms if live else 0,
                         keyboard_bindings=self.keyboard_bindings if live else [],
                         keyboard_base_bindings=self.keyboard_base_bindings if live else [],
                         keyboard_axes=self.keyboard_axes if live else [],
                         tele=tele, controls_enabled=controls_enabled, actions=allowed, logs=list(self.logs), exit=self.code)
+
+    def quest_preview(self, sid):
+        with self.lock:
+            if not self.proc or sid != self.sid or not self.quest_config:
+                raise ValueError("Quest session changed")
+            return dict(now=time.monotonic(), samples=list(self.quest_samples))
 
     def keyboard(self, data):
         with self.lock:

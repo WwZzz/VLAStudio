@@ -1017,6 +1017,9 @@ class Quest3Teleop(BaseTeleopDevice):
                 data = self.get_data()
                 
                 if data is not None:
+                    if hasattr(self, "preview_channel_name"):
+                        from vlastudio.webui.quest_preview import publish
+                        publish(self, data)
                     action_dict, should_write = self.convert_data_to_action(data)
                     # Only write to shm when unsqueeze button is pressed AND there's new VR data
                     if should_write:
@@ -1034,6 +1037,10 @@ class Quest3Teleop(BaseTeleopDevice):
             return
         self._closed = True
         self.is_running = False
+        preview = getattr(self, "_preview_shm", None)
+        if preview is not None:
+            preview.destroy()
+            self._preview_shm = None
 
         # Stop keep-awake / restore proximity first (must finish before parent kill).
         if getattr(self, "_keep_awake", None) is not None:

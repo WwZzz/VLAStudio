@@ -43,6 +43,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/infer":("index.html","text/html"), "/app.js":("app.js","text/javascript"),
                  "/style.css":("style.css","text/css"),
                  "/vlastudio-mark.svg":("vlastudio-mark.svg","image/svg+xml")}
+        files["/quest.js"] = ("quest.js", "text/javascript")
         files["/episodes.js"] = ("episodes.js", "text/javascript")
         files["/i18n.js"] = ("i18n.js", "text/javascript")
         if url.path in files:
@@ -68,6 +69,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.reply({"error": str(exc)}, status=409)
         if url.path == "/api/tasks":
             return self.reply(list_tasks())
+        if url.path == "/api/quest-preview":
+            try:
+                sid = parse_qs(url.query).get("id", [""])[0]
+                return self.reply(s.runners["collect"].quest_preview(sid))
+            except ValueError as exc:
+                return self.reply({"error":str(exc)}, status=409)
         if url.path == "/api/state":
             mode = parse_qs(url.query).get("mode", ["collect"])[0]
             if mode not in s.runners:
