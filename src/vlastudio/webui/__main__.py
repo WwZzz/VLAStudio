@@ -52,6 +52,8 @@ class Handler(BaseHTTPRequestHandler):
             file, mime = files[url.path]
             return self.reply((ASSETS/file).read_bytes(), mime + "; charset=utf-8")
         s = self.server.session
+        if url.path == "/api/device-library":
+            return self.reply(config_editor.device_library())
         if url.path == "/api/device-parameters":
             try:
                 reference = parse_qs(url.query)["type"][0]

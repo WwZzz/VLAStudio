@@ -3,7 +3,55 @@
   const fields = {robot:"robot", teleop:"teleop", sync:"recording", manager:"action_manager"};
   const dialog = $("configDialog"), name = $("configName"), content = $("configContent");
   const devices = new DeviceConfigEditor($("configDevices"));
-  $("configAddDevice").onclick = () => devices.add();
+  $("configAddDevice").onclick = () => {
+    const card = devices.addCopy({type:"", name:"device", args:{}});
+    card.querySelector('input[aria-label="type"]').focus();
+  };
+  let library = [];
+  function renderLibrary() {
+    $("deviceLibrarySearch").placeholder = tr("Search devices");
+    $("deviceLibrarySearch").setAttribute("aria-label", tr("Search devices"));
+    const query = $("deviceLibrarySearch").value.trim().toLowerCase();
+    const tree = $("deviceLibraryTree"); tree.replaceChildren();
+    const filtered = library.filter(row =>
+      [row.category,row.type,row.name,...row.sources.map(s=>s.config)].join(" ").toLowerCase().includes(query));
+    $("deviceLibraryStatus").textContent = filtered.length ? "" : tr("No matching devices");
+    for (const category of ["Bench","Robots","Cameras","Teleoperation","Action managers","Other devices"]) {
+      const rows = filtered.filter(row=>row.category===category);
+      if (!rows.length) continue;
+      const group = el("details","device-library-group"), title = el("summary","",tr(category) + " · " + rows.length);
+      group.open = !!query; group.append(title);
+      for (const type of [...new Set(rows.map(row=>row.type))]) {
+        const branch = el("details","device-library-type");
+        const typeTitle = el("summary","",type.split(".").at(-1));typeTitle.title=type;branch.open=!!query;branch.append(typeTitle);
+        for (const row of rows.filter(r=>r.type===type)) {
+          const entry = el("div","device-library-entry"), info=el("div","");
+          const preview=el("details",""), previewTitle=el("summary","",String(row.name));
+          preview.append(previewTitle,el("pre","",JSON.stringify(row.device,null,2)));
+          info.append(preview,el("small","",row.sources.map(s=>s.kind+"/"+s.config).join(", ")));
+          const add=el("button","",tr("Add"));add.type="button";
+          add.onclick=()=>{
+            const copy=JSON.parse(JSON.stringify(row.device));
+            const card=devices.addCopy(copy);
+            $("deviceLibrary").hidden=true;
+            card.scrollIntoView({block:"nearest"});
+          };
+          entry.append(info,add);branch.append(entry);
+        }
+        group.append(branch);
+      }
+      tree.append(group);
+    }
+  }
+  $("configImportDevice").onclick=async()=>{
+    $("deviceLibrary").hidden=false;
+    $("deviceLibraryStatus").textContent=tr("Loading devices");
+    $("deviceLibraryTree").replaceChildren();
+    try {library=await api("device-library");renderLibrary();$("deviceLibrarySearch").focus();}
+    catch(e) {$("deviceLibraryStatus").textContent=e.message;}
+  };
+  $("deviceLibrarySearch").oninput=renderLibrary;
+  $("deviceLibraryClose").onclick=()=>{$("deviceLibrary").hidden=true;};
   let item, field, original, saving = false;
   const buttons = new Map();
   function update() {
@@ -49,7 +97,9 @@
       item = data;
       name.value = item.name; content.value = item.content;
       const structured = kind !== "recording";
-      $("configDevices").hidden = $("configAddDevice").hidden = !structured;
+      $("configDevices").hidden = $("configDeviceActions").hidden = !structured;
+      $("deviceLibrary").hidden = true;
+      $("deviceLibrarySearch").value = "";
       $("configYaml").hidden = structured;
       content.required = !structured;
       if (structured) devices.load(item.document, item.device_types);
@@ -66,7 +116,8 @@
     $("configCopy").disabled = saving;
     $("configClose").disabled = saving;
     name.disabled = content.disabled = saving;
-    $("configAddDevice").disabled = saving;
+    $("configAddDevice").disabled = $("configImportDevice").disabled = saving;
+    $("deviceLibrary").inert = saving;
     $("configDevices").inert = saving;
     $("configSave").textContent = tr(saving ? "Saving" : "Save configuration");
   }

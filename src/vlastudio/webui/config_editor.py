@@ -121,15 +121,7 @@ def save(studio, kind, name, content, version, target):
 
 
 def device_types():
-    from .profiles import catalog
-    types = set()
-    for kind in ("robot", "teleop", "action_manager"):
-        for name in catalog()[kind]:
-            doc = yaml.safe_load(profile_path(kind, name).read_text())
-            for row in doc if isinstance(doc, list) else [doc]:
-                if isinstance(row, dict) and isinstance(row.get("type"), str):
-                    types.add(row["type"])
-    return sorted(types)
+    return sorted({row["type"] for row in device_library()})
 
 
 def parameters(reference):
@@ -182,3 +174,44 @@ def device_content(devices, as_list):
         raise ValueError("Configuration needs between 1 and 64 devices")
     return yaml.safe_dump(devices if as_list or len(devices)>1 else devices[0],
                           sort_keys=False, allow_unicode=True)
+
+
+def device_library():
+    """Scan current saved profiles, keeping distinct device parameter sets."""
+    groups = {}
+    for kind in ("robot", "teleop", "action_manager"):
+        folder = (CONFIGS / kind).resolve()
+        for path in sorted(folder.rglob("*.yaml")):
+            if path.is_symlink() or not path.resolve().is_relative_to(folder):
+                continue
+            try:
+                doc = yaml.safe_load(path.read_text())
+                for index, row in enumerate(doc if isinstance(doc, list) else [doc]):
+                    if not isinstance(row, dict) or not isinstance(row.get("type"), str):
+                        continue
+                    signature = json.dumps(row, sort_keys=True, allow_nan=False)
+                    reference = row["type"]
+                    if ".bench_robot." in reference:
+                        category = "Bench"
+                    elif ".sensor.camera." in reference:
+                        category = "Cameras"
+                    elif ".teleoperator." in reference:
+                        category = "Teleoperation"
+                    elif ".robot." in reference:
+                        category = "Robots"
+                    elif ".action_manager." in reference:
+                        category = "Action managers"
+                    else:
+                        category = "Other devices"
+                    if signature not in groups:
+                        args = row.get("args") or {}
+                        if not isinstance(args, dict):
+                            continue
+                        groups[signature] = dict(category=category, type=reference,
+                            name=args.get("name") or row.get("name") or reference.rsplit(".",1)[-1],
+                            device=row, sources=[])
+                    groups[signature]["sources"].append(dict(kind=kind,
+                        config=path.relative_to(folder).with_suffix("").as_posix(), index=index))
+            except (OSError, yaml.YAMLError, TypeError, ValueError, RecursionError):
+                continue
+    return sorted(groups.values(), key=lambda row:(row["category"], row["type"], str(row["name"])))

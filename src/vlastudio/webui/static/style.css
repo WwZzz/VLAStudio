@@ -897,3 +897,15 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 .device-card > summary::before {content:">";font:14px monospace;color:var(--muted);transition:transform .12s}
 .device-card[open] > summary::before {transform:rotate(90deg)}
 .device-card > summary strong {flex:1}
+#deviceLibrary {padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--side)}
+#deviceLibrary h3 {margin:0;font-size:13px}
+#deviceLibraryTree {max-height:42vh;overflow-y:auto;overscroll-behavior:contain}
+#deviceLibraryStatus:empty {display:none}
+.device-library-group,.device-library-type {padding:7px 0}
+.device-library-group > summary,.device-library-type > summary {cursor:pointer;overflow-wrap:anywhere}
+.device-library-type {margin-left:14px}
+.device-library-entry {display:flex;gap:10px;align-items:start;margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--paper)}
+.device-library-entry > div {min-width:0;flex:1}
+.device-library-entry small {overflow-wrap:anywhere;color:var(--muted)}
+.device-library-entry pre {height:auto;max-height:180px;font-size:11px;background:var(--side);color:var(--ink);padding:8px}
+.device-library-entry button {padding:5px 9px;font-size:12px}

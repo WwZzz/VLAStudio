@@ -301,7 +301,19 @@
           <input id="configName" required maxlength="80" autocomplete="off" spellcheck="false">
         </label>
         <section id="configDevices" hidden></section>
-        <button id="configAddDevice" type="button" data-i18n="Add device" hidden>Add device</button>
+        <div id="configDeviceActions" class="device-actions" hidden>
+          <button id="configAddDevice" type="button" data-i18n="New device">New device</button>
+          <button id="configImportDevice" type="button" data-i18n="Add existing device">Add existing device</button>
+        </div>
+        <section id="deviceLibrary" hidden>
+          <div class="heading">
+            <h3 data-i18n="Saved devices">Saved devices</h3>
+            <button id="deviceLibraryClose" type="button" data-i18n="Close">Close</button>
+          </div>
+          <input id="deviceLibrarySearch" type="search" aria-label="Search devices" data-i18n-placeholder="Search devices">
+          <p id="deviceLibraryStatus"></p>
+          <div id="deviceLibraryTree"></div>
+        </section>
         <label id="configYaml"><span data-i18n="Parameters (YAML)">Parameters (YAML)</span>
           <textarea id="configContent" spellcheck="false" wrap="off" required></textarea>
         </label>

@@ -101,6 +101,26 @@ class DeviceConfigEditor {
       return result;
     };
     this.root.append(card); this.devices.push(card);
+    return card;
+  }
+  addCopy(row) {
+    const names=new Set();
+    for (const card of this.devices.filter(d=>d.isConnected)) {
+      const name=card.querySelector('input[aria-label="name"]').value;
+      if (name) names.add(name);
+      for (const field of card.querySelector(".device-parameters").children) {
+        if (field.firstElementChild.value==="name" || field.firstElementChild.value==="robot_id") names.add(field.querySelector("textarea").value);
+      }
+    }
+    const base=row.args?.name || row.args?.robot_id || row.name || "device";
+    let name=base, suffix=2;
+    while (names.has(name)) name=base+"_"+suffix++;
+    if (name!==base) {
+      row.name=name;
+      if (row.args?.name) row.args.name=name;
+      else if (row.args?.robot_id) row.args.robot_id=name;
+    }
+    return this.add(row);
   }
   value() {
     return {devices:this.devices.filter(card=>card.isConnected).map(card=>card.value()), as_list:this.asList};

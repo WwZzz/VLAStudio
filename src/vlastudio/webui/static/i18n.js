@@ -1,5 +1,19 @@
 "use strict";
 const chinese = {
+  "New device": "\u65b0\u5efa\u8bbe\u5907",
+  "Add existing device": "\u4ece\u5df2\u6709\u8bbe\u5907\u6dfb\u52a0",
+  "Saved devices": "\u5df2\u4fdd\u5b58\u7684\u8bbe\u5907",
+  "Search devices": "\u641c\u7d22\u8bbe\u5907",
+  "No matching devices": "\u65e0\u5339\u914d\u8bbe\u5907",
+  "Loading devices": "\u6b63\u5728\u52a0\u8f7d\u8bbe\u5907",
+  "Bench": "\u4eff\u771f\uff08Bench\uff09",
+  "Robots": "\u673a\u5668\u4eba",
+  "Cameras": "\u76f8\u673a",
+  "Teleoperation": "\u9065\u64cd\u4f5c",
+  "Action managers": "\u52a8\u4f5c\u7ba1\u7406\u5668",
+  "Other devices": "\u5176\u4ed6\u8bbe\u5907",
+  "Add": "\u6dfb\u52a0",
+
   "Add device": "\u6dfb\u52a0\u8bbe\u5907",
   "Remove device": "\u5220\u9664\u8bbe\u5907",
   "Add parameter": "\u6dfb\u52a0\u53c2\u6570",
