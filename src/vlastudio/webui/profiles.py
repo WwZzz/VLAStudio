@@ -13,8 +13,8 @@ KINDS = ("robot", "teleop", "recording", "action_manager")
 
 
 def config_roots():
-    extra = extra_configs()
-    return [CONFIGS, extra] if extra and extra != CONFIGS.resolve() else [CONFIGS]
+    """Highest priority first, with the bundled profiles as fallback."""
+    return [root for root in extra_configs() if root != CONFIGS] + [CONFIGS]
 
 
 def profile_paths(kind):
@@ -24,11 +24,11 @@ def profile_paths(kind):
     for root in config_roots():
         for path in sorted((root/kind).glob("*.yaml")):
             if not path.is_symlink() and path.resolve().parent == (root/kind).resolve():
-                paths[path.stem] = path
+                paths.setdefault(path.stem, path)
     return paths
 
 
-def catalog():
+def catalog(*, quest_setup=False):
     paths = {kind:profile_paths(kind) for kind in KINDS}
     result = {kind:sorted(items) for kind,items in paths.items()}
     result["robot_options"] = {}
@@ -37,7 +37,29 @@ def catalog():
         for row in rows if isinstance(rows, list) else [rows]:
             if isinstance(row, dict) and row.get("webui"):
                 result["robot_options"][name] = row["webui"]
+    if quest_setup:
+        names = []
+        for name, path in paths["teleop"].items():
+            rows = yaml.safe_load(path.read_text())
+            if any(isinstance(row, dict) and row.get("type") == "vlastudio.deploy.teleoperator.quest3.Quest3Teleop"
+                   for row in (rows if isinstance(rows, list) else [rows])):
+                names.append(name)
+        result["quest_profiles"] = names
+        result["quest_url"] = quest_browser_url() if names else None
     return result
+
+
+def quest_browser_url():
+    from ..deploy.teleoperator.utils.XLeVR.vr_monitor import get_local_ip
+    path = PACKAGE / "deploy/teleoperator/utils/XLeVR/config.yaml"
+    config = yaml.safe_load(path.read_text()) if path.is_file() else {}
+    network = (config or {}).get("network", {})
+    host = network.get("host_ip", "0.0.0.0")
+    if host == "0.0.0.0":
+        host = get_local_ip()
+    if host in ("localhost", "127.0.0.1"):
+        return None
+    return f"https://{host}:{network.get('https_port', 8443)}"
 
 
 def config(kind, name):

@@ -12,8 +12,7 @@ import threading
 
 import yaml
 
-from .profiles import CONFIGS, config_roots, profile_paths
-from .settings import extra_configs
+from .profiles import config_roots, profile_paths
 
 KINDS = ("robot", "teleop", "recording", "action_manager")
 
@@ -22,7 +21,7 @@ def profile_path(kind, name):
     if kind not in KINDS or not isinstance(name, str) or not re.fullmatch(r"[\w][\w.-]{0,79}", name):
         raise ValueError("Invalid configuration name")
     known = profile_paths(kind).get(name)
-    folder = known.parent.resolve() if known else ((extra_configs() or CONFIGS)/kind).resolve()
+    folder = known.parent.resolve() if known else (config_roots()[0]/kind).resolve()
     path = folder / (name + ".yaml")
     if path.resolve().parent != folder or path.is_symlink():
         raise ValueError("Invalid configuration path")

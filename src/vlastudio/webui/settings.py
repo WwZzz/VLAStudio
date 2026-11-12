@@ -23,10 +23,17 @@ def stored():
         raise ValueError("Cannot read WebUI settings") from None
 
 
+def configured_roots(data):
+    if "config_roots" in data:
+        return data["config_roots"]
+    legacy = data.get("config_root")
+    return [legacy] if legacy else []
+
+
 def public():
     data, version = stored()
     return dict(data_dir=str(Path(data.get("data_dir", DEFAULT_DATA)).expanduser()),
-                config_root=data.get("config_root", ""), hf_username=data.get("hf_username", ""),
+                config_roots=configured_roots(data), hf_username=data.get("hf_username", ""),
                 token_set=bool(data.get("hf_token", os.environ.get("HF_TOKEN", ""))), version=version)
 
 
@@ -35,8 +42,8 @@ def data_directory():
 
 
 def extra_configs():
-    value = public()["config_root"]
-    return Path(value).expanduser().resolve() if value else None
+    data, _ = stored()
+    return [Path(root).expanduser().resolve() for root in configured_roots(data)]
 
 
 def runtime_environment(environ):
@@ -69,9 +76,19 @@ def save(studio, payload):
         if payload.get("version") != version:
             raise ValueError("Settings changed. Reopen settings before saving.")
         data_dir = absolute_directory(payload.get("data_dir", ""), required=True)
-        config_root = absolute_directory(payload.get("config_root", ""))
-        old = public()
-        changed = data_dir != str(data_directory()) or config_root != old["config_root"]
+        previous = configured_roots(data)
+        if "config_roots" in payload:
+            requested = payload["config_roots"]
+        elif "config_root" in payload:
+            if len(previous) > 1:
+                raise ValueError("Refresh the page to edit multiple configuration directories")
+            requested = configured_roots(payload)
+        else:
+            requested = previous
+        if not isinstance(requested, list):
+            raise ValueError("Configuration directories must be a list")
+        roots = list(dict.fromkeys(absolute_directory(root, required=True) for root in requested))
+        changed = data_dir != str(data_directory()) or roots != previous
         if changed and (studio.host or any(r.proc for r in studio.runners.values())):
             raise ValueError("Disconnect devices before changing storage or configuration directories")
         username = payload.get("hf_username", "")
@@ -83,14 +100,16 @@ def save(studio, payload):
         token = payload.get("hf_token")
         if token is not None and (not isinstance(token, str) or len(token)>4096 or any(c.isspace() for c in token)):
             raise ValueError("Invalid Hugging Face token")
-        if config_root and not Path(config_root).is_dir():
-            raise ValueError("Extra configuration root must be an existing directory")
+        for root in roots:
+            if not Path(root).is_dir():
+                raise ValueError(f"Configuration directory does not exist: {root}")
         target = Path(data_dir)
         target.mkdir(parents=True, exist_ok=True)
         # Check actual write access, including on network-mounted storage.
         with tempfile.TemporaryFile(dir=target):
             pass
-        data.update(data_dir=data_dir, config_root=config_root, hf_username=username)
+        data.pop("config_root", None)
+        data.update(data_dir=data_dir, config_roots=roots, hf_username=username)
         if payload.get("clear_token"):
             data["hf_token"] = ""
         elif token:

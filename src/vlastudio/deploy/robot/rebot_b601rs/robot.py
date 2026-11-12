@@ -123,14 +123,17 @@ class RebotB601RS(AliciaD):
 
     def _seed(self, obs):
         self._current_joint_angles = np.asarray(obs['joint_angles'],dtype=float).copy()
-        self._target_qpos = self._current_joint_angles.copy()
-        self._smooth_qpos = self._current_joint_angles.copy()
+        # Measured overshoot is valid feedback for FK and diagnostics. Seed
+        # the command filter and IK iterate inside their command-space bounds.
+        solver = self.ik_solver
+        reference = np.clip(self._current_joint_angles, solver.lower, solver.upper)
+        self._target_qpos = reference.copy()
+        self._smooth_qpos = reference.copy()
         self._current_gripper = self._target_gripper = float(obs['qpos'][6]*1000)
         self._ik_initialized = False
         self._delta_direction.fill(0)
         self._tracking_time = None
-        if self._ik_solver is not None:
-            self._ik_solver.reset(self._current_joint_angles)
+        solver.reset(reference)
 
     def enable(self):
         if not self._connected:
@@ -156,7 +159,6 @@ class RebotB601RS(AliciaD):
             obs = self.get_observation()
             self._seed(obs)
             self._rel_ee_anchor_pose = self.ik_solver.compute_fk(obs['joint_angles'])
-            self.ik_solver.reset(obs['joint_angles'])
             self._rel_ee_anchor_initialized = True
             self._tracking_time=None
             return True

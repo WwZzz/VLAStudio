@@ -31,7 +31,7 @@ header {
   align-items: center;
   height: 66px;
   padding: 0 clamp(18px, 5vw, 90px);
-  gap: 6vw;
+  gap: clamp(16px, 3vw, 48px);
 }
 .brand {
   color: var(--ink);
@@ -64,8 +64,14 @@ nav a.active {
   color: var(--green);
   border-color: var(--green);
 }
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: auto;
+}
 .chip {
-  margin-left: auto;
+  white-space: nowrap;
   font: 12px monospace;
   color: #72896c;
 }
@@ -848,6 +854,9 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
   nav {height: 40px}
 }
 
+.quest-steps {padding-inline-start:24px;line-height:1.55}
+.quest-steps li + li {margin-top:5px}
+#questUrl {display:inline-block;color:var(--green);font-weight:600;overflow-wrap:anywhere;user-select:all}
 #questPanel > summary {display:flex;align-items:center;cursor:pointer}
 #questHands {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px;margin:12px 0}
 .quest-hand {min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));column-gap:14px}
@@ -919,6 +928,13 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 #settingsForm p {margin:0}
 #settingsForm small {color:var(--muted);line-height:1.5}
 #settingsForm .settings-checkbox {display:flex;align-items:center;gap:8px}
+#settingsConfigs {display:grid;gap:8px;min-width:0;margin:0;padding:0;border:0}
+#settingsConfigs legend {padding:0 0 6px;font-size:12px;font-weight:560}
+#settingsRootList {display:grid;gap:6px}
+#settingsRootList:empty {display:none}
+#settingsRootList > div {display:grid;grid-template-columns:minmax(0,1fr) repeat(3,32px);align-items:center;gap:4px}
+#settingsRootList button {height:32px;padding:0}
+#settingsAddRoot {justify-self:start}
 #settingsClearToken {width:auto}
 #settingsError {color:#b52b3a}
 :root[data-theme=dark] #settingsError {color:#ffacb8}

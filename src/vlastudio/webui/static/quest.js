@@ -32,9 +32,11 @@
   function render() {
     const s = state?.session;
     const config = s?.quest?.config;
-    const show = collecting && s.active && !!config;
+    const show = collecting && (config || profiles?.quest_profiles?.includes($("teleop").value));
     panel.hidden = !show;
-    if (!show) {
+    if (show) $("questUrl").textContent = profiles?.quest_url || tr("See the HTTPS address in the Quest service log.");
+    $("questTrailHint").hidden = !config;
+    if (!show || !s?.active || !config) {
       stop(); session = ""; signature = ""; trails.clear(); views.clear(); root.replaceChildren(); return;
     }
     const key = JSON.stringify([s.id, config, language]);
@@ -145,5 +147,6 @@
     animation = requestAnimationFrame(draw);
   }
   document.addEventListener("episode-session", render);
+  $("teleop").addEventListener("change", render);
   panel.addEventListener("toggle", () => {if (!panel.open) return; render();});
 })();

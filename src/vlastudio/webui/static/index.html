@@ -29,15 +29,17 @@
           >Policy inference</a
         >
       </nav>
-      <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
-      <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
-        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></svg>
-      </button>
-      <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
-      <select id="language" aria-label="Language">
-        <option value="en">English</option>
-        <option value="zh">中文</option>
-      </select>
+      <div class="header-tools">
+        <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+        <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
     </header>
     <main>
       <div class="title">
@@ -134,9 +136,14 @@
           </section>
           <details class="panel" id="questPanel" hidden open>
             <summary><h2 data-i18n="Quest 3 controls">Quest 3 controls</h2></summary>
-            <p data-i18n="Enable teleoperation, then hold the side grip to move. Release it to hold the robot.">Enable teleoperation, then hold the side grip to move. Release it to hold the robot.</p>
+            <ol class="quest-steps">
+              <li><span data-i18n="Connect the Quest to the same LAN as the robot computer. In WebUI, select your Quest profile and click Connect all.">Connect the Quest to the same LAN as the robot computer. In WebUI, select your Quest profile and click Connect all.</span></li>
+              <li><span data-i18n="On the headset, open Meta Quest Browser and enter this address:">On the headset, open Meta Quest Browser and enter this address:</span> <code id="questUrl"></code></li>
+              <li><span data-i18n="Select “Enter VR / Start Tracking” on the headset and allow tracking if prompted. Move the controller and look for its trail below.">Select “Enter VR / Start Tracking” on the headset and allow tracking if prompted. Move the controller and look for its trail below.</span></li>
+              <li><span data-i18n="In the WebUI bottom bar, enable teleoperation. Hold the side grip and move the controller to follow; release the grip to hold position.">In the WebUI bottom bar, enable teleoperation. Hold the side grip and move the controller to follow; release the grip to hold position.</span></li>
+            </ol>
             <div id="questHands"></div>
-            <small data-i18n="Controller space · Recent 4 seconds · Preview only">Controller space · Recent 4 seconds · Preview only</small>
+            <small id="questTrailHint" data-i18n="Controller space · Recent 4 seconds · Preview only">Controller space · Recent 4 seconds · Preview only</small>
           </details>
           <details class="panel" id="keyboardPanel" hidden open>
             <summary>
@@ -304,10 +311,12 @@
           <input id="settingsData" required spellcheck="false" autocomplete="off">
         </label>
         <small data-i18n="Used for new recordings and the episode library.">Used for new recordings and the episode library.</small>
-        <label><span data-i18n="Extra configuration root">Extra configuration root</span>
-          <input id="settingsConfigs" spellcheck="false" autocomplete="off">
-        </label>
-        <small data-i18n="Contains robot/, teleop/, recording/ and action_manager/. Extra profiles take priority when names match.">Contains robot/, teleop/, recording/ and action_manager/. Extra profiles take priority when names match.</small>
+        <fieldset id="settingsConfigs">
+          <legend data-i18n="Extra configuration directories">Extra configuration directories</legend>
+          <div id="settingsRootList"></div>
+          <button type="button" id="settingsAddRoot" data-i18n="Add directory">Add directory</button>
+          <small data-i18n="First match wins, then built-in profiles. New profiles go in the first directory.">First match wins, then built-in profiles. New profiles go in the first directory.</small>
+        </fieldset>
         <label><span data-i18n="Hugging Face username">Hugging Face username</span>
           <input id="settingsUsername" autocomplete="off" spellcheck="false">
         </label>

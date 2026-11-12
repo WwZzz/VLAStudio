@@ -604,8 +604,15 @@ function renderSession(s) {
       $("buttons").append(button);
     }
   }
+  const faultExit = s.robot_exit && s.logs.find(line =>
+    line.includes("SAFE EXIT FAILED during cancel pending target: Motor ") && line.includes("status fault bits"));
+  const motorFault = faultExit && faultExit.match(/Motor (\d+) status fault bits (0x[0-9a-f]+)/i);
+  const shutdownMessage = motorFault
+    ? tr("Motor {id} fault {bits}. Homing did not start. Motor disable is unconfirmed.")
+        .replace("{id}", motorFault[1]).replace("{bits}", motorFault[2])
+    : tr("Robot shutdown unconfirmed. Check device logs.");
   $("status").textContent = s.robot_exit
-    ? tr("Robot shutdown unconfirmed. Check device logs.")
+    ? shutdownMessage
     : other
     ? tr("A session is running on the other page.")
     : s.active && s.simulation?.paused

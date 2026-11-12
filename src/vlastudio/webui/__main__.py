@@ -75,7 +75,7 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, KeyError, OSError) as exc:
                 return self.reply({"error":str(exc)}, status=409)
         if url.path == "/api/catalog":
-            return self.reply(catalog())
+            return self.reply(catalog(quest_setup=True))
         if url.path in ("/api/episodes", "/api/episode"):
             try:
                 with s.lock:
