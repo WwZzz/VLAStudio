@@ -129,6 +129,8 @@ class RebotB601RS(AliciaD):
         self._ik_initialized = False
         self._delta_direction.fill(0)
         self._tracking_time = None
+        if self._ik_solver is not None:
+            self._ik_solver.reset(self._current_joint_angles)
 
     def enable(self):
         if not self._connected:
@@ -164,7 +166,10 @@ class RebotB601RS(AliciaD):
         dt=1/60 if self._tracking_time is None else np.clip(now-self._tracking_time,.001,1/30)
         self._tracking_time=now
         measured=self.get_observation()['joint_angles']
-        reference=self._smooth_qpos if self._smooth_qpos is not None else measured
+        # Advance the unsmoothed IK reference independently of the output EMA.
+        # Feeding the EMA back here multiplies every velocity-limited step by
+        # joint_smooth_alpha and prevents the command from reaching its set speed.
+        reference=self.ik_solver.init_data.copy()
         q,status=self.ik_solver.track(target_pose,reference,self.velocity_limit*dt,measured=measured)
         self._ik_tracking_status=dict(status,dt_s=float(dt))
         # Here success means a bounded, feasible tracking step, not convergence.
