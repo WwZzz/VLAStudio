@@ -642,11 +642,90 @@ function cameraFrameRate(item, now) {
 function reviewingEpisode() {
   return !$("episodePlayer").hidden;
 }
+async function drawCameraFrame(item, blob, stamp, signal) {
+  if (item.context) {
+    const frame = await createImageBitmap(blob);
+    try {
+      if (signal.aborted || document.hidden || reviewingEpisode()) return;
+      const canvas = item.context.canvas;
+      if (canvas.width !== frame.width) canvas.width = frame.width;
+      if (canvas.height !== frame.height) canvas.height = frame.height;
+      item.context.drawImage(frame, 0, 0);
+    } finally {
+      frame.close();
+    }
+  } else {
+    const previous = item.url;
+    item.url = URL.createObjectURL(blob);
+    item.img.src = item.url;
+    try {
+      await item.img.decode();
+    } finally {
+      if (previous) URL.revokeObjectURL(previous);
+    }
+  }
+  if (stamp && stamp !== item.stamp) {
+    const now = performance.now();
+    cameraFrameRate(item, now);
+    item.drawTimes.push(now);
+    item.timestamped = true;
+  }
+  item.stamp = stamp;
+}
+
+async function streamCamera(name, item, signal) {
+  const response = await fetch("/api/camera-stream?" + new URLSearchParams({name}), {signal, cache:"no-store"});
+  if (!response.ok || !response.body) return false;
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = new Uint8Array(0), pending, drawing = false, drawError, drawTask;
+  async function paint() {
+    drawing = true;
+    try {
+      while (pending && !signal.aborted && !document.hidden && !reviewingEpisode()) {
+        const frame = pending; pending = null;
+        await drawCameraFrame(item, frame.blob, frame.stamp, signal);
+      }
+    } catch (error) {drawError = error;}
+    finally {drawing = false;}
+  }
+  try {
+    while (!signal.aborted && !document.hidden && !reviewingEpisode()) {
+      if (drawError) throw drawError;
+      const {value, done} = await reader.read();
+      if (done) break;
+      const combined = new Uint8Array(buffer.length + value.length);
+      combined.set(buffer); combined.set(value, buffer.length); buffer = combined;
+      if (buffer.length > 2*1024*1024) throw Error("Camera preview frame exceeds limit");
+      while (buffer.length) {
+        let end = -1;
+        for (let i=0;i+3<buffer.length;i++)
+          if (buffer[i]===13 && buffer[i+1]===10 && buffer[i+2]===13 && buffer[i+3]===10) {end=i;break;}
+        if (end<0) break;
+        const header=decoder.decode(buffer.subarray(0,end));
+        const length=Number(header.match(/Content-Length: (\d+)/i)?.[1]);
+        const stamp=header.match(/X-Frame-Stamp: ([^\r\n]+)/i)?.[1];
+        if (!length || length>1024*1024 || !stamp) throw Error("Invalid camera preview frame");
+        const start=end+4;
+        if (buffer.length<start+length+2) break;
+        // Keep one pending image. Old frames are replaced while decoding is busy.
+        pending={blob:new Blob([buffer.subarray(start,start+length)],{type:"image/jpeg"}),stamp};
+        buffer=buffer.slice(start+length+2);
+      }
+      if (pending && !drawing) drawTask=paint();
+    }
+  } finally {
+    pending=null;
+    await reader.cancel().catch(()=>{});
+    await drawTask;
+  }
+  return true;
+}
 async function updateCamera(name, item) {
   if (item.loading) return;
   item.loading = true;
   const signal = item.controller.signal;
   try {
+    if (await streamCamera(name, item, signal)) return;
     while (!signal.aborted && !document.hidden && !reviewingEpisode()) {
       const query = new URLSearchParams({name});
       if (item.stamp) query.set("after", item.stamp);
@@ -655,35 +734,7 @@ async function updateCamera(name, item) {
       if (!response.ok) break;
       const blob = await response.blob();
       if (signal.aborted || document.hidden || reviewingEpisode()) break;
-      if (item.context) {
-        const frame = await createImageBitmap(blob);
-        try {
-          if (signal.aborted || document.hidden || reviewingEpisode()) break;
-          const canvas = item.context.canvas;
-          if (canvas.width !== frame.width) canvas.width = frame.width;
-          if (canvas.height !== frame.height) canvas.height = frame.height;
-          item.context.drawImage(frame, 0, 0);
-        } finally {
-          frame.close();
-        }
-      } else {
-        const previous = item.url;
-        item.url = URL.createObjectURL(blob);
-        item.img.src = item.url;
-        try {
-          await item.img.decode();
-        } finally {
-          if (previous) URL.revokeObjectURL(previous);
-        }
-      }
-      const stamp = response.headers.get("X-Frame-Stamp");
-      if (stamp && stamp !== item.stamp) {
-        const now = performance.now();
-        cameraFrameRate(item, now);
-        item.drawTimes.push(now);
-        item.timestamped = true;
-      }
-      item.stamp = stamp;
+      await drawCameraFrame(item, blob, response.headers.get("X-Frame-Stamp"), signal);
       // Older servers return snapshots immediately. Bound their polling rate.
       if (!item.stamp) await new Promise(resolve => setTimeout(resolve, 80));
     }

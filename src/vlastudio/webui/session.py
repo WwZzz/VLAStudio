@@ -143,6 +143,7 @@ class Preview:
 
     def latest_image(self, name, after):
         with self.changed:
+            self._touch()
             if name not in self.images:
                 return None
             if after is not None:
@@ -152,15 +153,19 @@ class Preview:
                 )
             return self.images.get(name)
 
+    def _touch(self):
+        now = time.monotonic()
+        if self.proc is not None and now - self.last_view >= 1.:
+            try:
+                os.write(self.proc.stdin.fileno(), b".")
+            except (BlockingIOError, BrokenPipeError):
+                pass
+            self.last_view = now
+
     def state(self):
         with self.lock:
             now = time.monotonic()
-            if self.proc is not None and now - self.last_view >= 1.:
-                try:
-                    os.write(self.proc.stdin.fileno(), b".")
-                except (BlockingIOError, BrokenPipeError):
-                    pass
-                self.last_view = now
+            self._touch()
             return dict(profile=self.profile, now=now, images=list(self.images), models=self.models.copy(),
                         devices={k:dict(v) for k,v in self.devices.items()},
                         axes={k:list(v) for k,v in self.axes.items()}, error=self.error,

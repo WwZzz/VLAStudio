@@ -101,6 +101,33 @@ class Handler(BaseHTTPRequestHandler):
             if mode not in s.runners:
                 return self.reply({"error": "Unknown mode"}, status=400)
             return self.reply(dict(session=s.state(mode), preview=s.preview.state()))
+        if url.path == "/api/camera-stream":
+            name = parse_qs(url.query).get("name", [""])[0]
+            if s.preview.latest_image(name, None) is None:
+                return self.reply({"error":"Camera unavailable"}, status=404)
+            self.connection.settimeout(2)
+            self.connection.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 32768)
+            self.send_response(200)
+            self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            stamp = None
+            try:
+                while True:
+                    frame = s.preview.latest_image(name, stamp)
+                    if frame is None:
+                        return
+                    next_stamp, image = frame
+                    if next_stamp == stamp:
+                        continue
+                    header = (f"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {len(image)}"
+                              f"\r\nX-Frame-Stamp: {next_stamp}\r\n\r\n").encode("ascii")
+                    self.wfile.write(header + image + b"\r\n")
+                    self.wfile.flush()
+                    stamp = next_stamp
+            except (BrokenPipeError, ConnectionResetError, TimeoutError):
+                return
         if url.path == "/api/image":
             query = parse_qs(url.query)
             after = query.get("after", [None])[0]
