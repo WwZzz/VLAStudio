@@ -409,6 +409,10 @@ def eval_real_session_recorder_main(
             video_only_reuse_same_episode_after_discard = (not save) and n > 0
             if save and n > 0:
                 saved_awaiting_next = True
+                if os.environ.get("VLASTUDIO_WEB_FD"):
+                    from pathlib import Path
+                    from vlastudio.webui.datasets import modified
+                    modified(Path(video_dir).parent, ep)
             if ep is not None:
                 action = "saved" if save else "discarded"
                 logger.info("[SessionRecorder] {} episode {} ({} video frames)", action, ep, n)
@@ -425,6 +429,9 @@ def eval_real_session_recorder_main(
         episode_open = False
         if save and n > 0:
             saved_awaiting_next = True
+            if os.environ.get("VLASTUDIO_WEB_FD"):
+                from vlastudio.webui.datasets import modified
+                modified(data_saver.output_dir, actual_episode_idx)
         action = "saved" if save else "discarded"
         logger.info("[SessionRecorder] {} episode {} ({} frames)", action, actual_episode_idx, n)
         return n
@@ -709,6 +716,7 @@ class EvalRealRuntime:
 
     def __init__(self) -> None:
         self.all_procs: List[Any] = []
+        self.device_timeouts = {}
         self.all_shm: List[Any] = []
         self._cleanup_done = False
         self.recorder_state: Dict[str, Any] = {
@@ -878,13 +886,18 @@ class EvalRealRuntime:
         logger.info("Running cleanup...")
         self.stop_session_recorder()
 
+        failed_devices = []
         for p in self.all_procs:
             if p.is_alive():
                 p.terminate()
 
         for p in self.all_procs:
-            p.join(timeout=3.0)
-            if p.is_alive():
+            timeout = self.device_timeouts.get(p, 3.0)
+            p.join(timeout=timeout)
+            if timeout is None and p.exitcode:
+                logger.critical("Device {} failed to confirm shutdown (exit {})", p.pid, p.exitcode)
+                failed_devices.append(p.pid)
+            if timeout is not None and p.is_alive():
                 logger.warning("Process {} did not exit gracefully, killing...", p.pid)
                 p.kill()
                 p.join(timeout=1.0)
@@ -895,12 +908,16 @@ class EvalRealRuntime:
             except Exception:
                 pass
 
+        if failed_devices:
+            raise RuntimeError(f"Device shutdown unconfirmed: {failed_devices}")
         logger.info("Cleanup complete.")
 
     def register_exit_hooks(self) -> None:
         """Register SIGINT/SIGTERM and atexit to run :meth:`cleanup_all`."""
 
         def _on_signal(signum, frame):
+            if self._cleanup_done:
+                return
             logger.info("Received signal {}, cleaning up...", signum)
             self.cleanup_all()
             raise SystemExit(0)

@@ -1,0 +1,20 @@
+type: vlastudio.deploy.teleoperator.so101_plus_leader.active.ActivePlusLeader
+name: so101_leader_plus
+args:
+  name: so101_leader_plus
+  robot_id: so101_leader_plus
+  # Serial port is read from this leader's calibration reference.
+  fps: 50
+  connect_timeout: 25
+  # Input coordinates are calibrated travel percentages (-100..100).
+  # Rebot output is degrees except gripper (0 closed, 1 open).
+  # Reverse target landmarks for an inverted axis. clip:false holds the last
+  # accepted axis value outside the configured leader interval.
+  joints:
+    shoulder_pan:  {leader: [-100, 0, 100], target: [-145, 0, 145]}
+    shoulder_lift: {leader: [home, 0, far], target: [0, 85, 170], clip: true}
+    elbow_flex:    {leader: [home, 0, far], target: [0, 89.5, 179], clip: true}
+    wrist_flex:    {leader: [-100, 0, 100], target: [-80, 0, 89]}
+    wrist_yaw:     {leader: [-100, 0, 100], target: [-89, 0, 89]}
+    wrist_roll:    {leader: [-100, 0, 100], target: [-130, 0, 130]}
+    gripper:       {target: [0, 1]}

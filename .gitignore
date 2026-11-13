@@ -51,3 +51,13 @@ configs/task/local/
 dist/
 /final-results/
 results/*
+
+# Machine-local experiments, profiles and runtime artifacts
+/local/
+*.py[cod]
+/src/vlastudio/configs/training/act_test.yaml
+/src/vlastudio/configs/robot/rebot_b601rs_head_wrist_rel_ee.yaml
+/.env
+/.env.*
+!/.env.example
+.pytest_cache/

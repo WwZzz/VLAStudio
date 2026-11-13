@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VLAStudio · Control</title>
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="icon" type="image/svg+xml" href="/vlastudio-mark.svg" />
+    <script src="/i18n.js" defer></script>
+    <script src="/app.js" defer></script>
+    <script src="/episodes.js" defer></script>
+    <script src="/quest.js" defer></script>
+    <script src="/config-devices.js" defer></script>
+    <script src="/config-editor.js" defer></script>
+    <script src="/settings.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/collect"
+        ><img src="/vlastudio-mark.svg" width="32" height="32" alt="" />VLA<span
+          >Studio</span
+        ></a
+      >
+      <nav>
+        <a href="/collect" id="navCollect" data-i18n="Data collection"
+          >Data collection</a
+        >
+        <a href="/infer" id="navInfer" data-i18n="Policy inference"
+          >Policy inference</a
+        >
+        <a href="/data" data-i18n="Data management">Data management</a>
+      <a href="/train" data-i18n="Policy training">Policy training</a></nav>
+      <div class="header-tools">
+        <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+        <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.97 2.15A9.9 9.9 0 0 1 13.03 2.15L13.49 4.34A7.8 7.8 0 0 1 16.36 5.53L18.23 4.31A9.9 9.9 0 0 1 19.69 5.77L18.47 7.64A7.8 7.8 0 0 1 19.66 10.51L21.85 10.97A9.9 9.9 0 0 1 21.85 13.03L19.66 13.49A7.8 7.8 0 0 1 18.47 16.36L19.69 18.23A9.9 9.9 0 0 1 18.23 19.69L16.36 18.47A7.8 7.8 0 0 1 13.49 19.66L13.03 21.85A9.9 9.9 0 0 1 10.97 21.85L10.51 19.66A7.8 7.8 0 0 1 7.64 18.47L5.77 19.69A9.9 9.9 0 0 1 4.31 18.23L5.53 16.36A7.8 7.8 0 0 1 4.34 13.49L2.15 13.03A9.9 9.9 0 0 1 2.15 10.97L4.34 10.51A7.8 7.8 0 0 1 5.53 7.64L4.31 5.77A9.9 9.9 0 0 1 5.77 4.31L7.64 5.53A7.8 7.8 0 0 1 10.51 4.34L10.97 2.15Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
+    </header>
+    <main>
+      <div class="title">
+        <div>
+          <small id="section"></small>
+          <h1 id="title"></h1>
+        </div>
+        <span id="phase" class="badge"></span>
+      </div>
+      <div class="layout">
+        <aside class="sidebar">
+          <section class="panel">
+            <h2 data-i18n="Session configuration">Session configuration</h2>
+            <form id="form">
+              <div class="profile-picker">
+                <label id="robotLabel" for="robotSearch" data-i18n="Robot configuration">Robot configuration</label>
+                <input id="robotSearch" type="text" role="combobox" autocomplete="off" spellcheck="false"
+                       aria-autocomplete="list" aria-expanded="false" aria-controls="robotOptions">
+                <div id="robotOptions" class="profile-options" role="listbox" aria-labelledby="robotLabel" hidden></div>
+                <select id="robot" hidden></select>
+              </div>
+              <button type="button" class="primary" id="robotConnection">Connect robot</button>
+              <div id="collectFields">
+                <div class="profile-picker">
+                  <label id="teleopLabel" for="teleopSearch" data-i18n="Teleoperation device">Teleoperation device</label>
+                  <input id="teleopSearch" type="text" role="combobox" autocomplete="off" spellcheck="false"
+                         aria-autocomplete="list" aria-expanded="false" aria-controls="teleopOptions">
+                  <div id="teleopOptions" class="profile-options" role="listbox" aria-labelledby="teleopLabel" hidden></div>
+                  <select id="teleop" hidden></select>
+                </div>
+                <label
+                  ><span data-i18n="Recording synchronization"
+                    >Recording synchronization</span
+                  ><select id="sync"></select
+                ></label>
+              </div>
+              <div id="inferFields">
+                <label
+                  ><span data-i18n="Policy server or model path"
+                    >Policy server or model path</span
+                  ><input id="policy" placeholder="localhost:5000"
+                /></label>
+                <label
+                  ><span data-i18n="Action manager">Action manager</span
+                  ><select id="manager"></select
+                ></label>
+              </div>
+              <label id="outLabel"
+                ><span id="outputLabel"></span><input id="output"
+              /></label>
+              <label
+                ><span id="rateLabel"></span>
+                <div class="unit">
+                  <input
+                    id="rate"
+                    type="number"
+                    min="1"
+                    max="120"
+                    value="30"
+                  /><span>Hz</span>
+                </div></label
+              >
+              <button class="primary" id="launch" type="submit">
+                <span id="connectionLabel">Connect devices</span
+                ><progress id="connectionProgress" hidden></progress>
+              </button>
+            </form>
+            <button id="loadAll" type="button" class="plain">
+              <span id="loadAllLabel" data-i18n="Connect all">Connect all</span>
+              <progress id="loadAllProgress" hidden></progress>
+            </button>
+          </section>
+
+
+        </aside>
+        <section class="workspace">
+          <section id="episodePlayer" hidden aria-labelledby="playbackTitle">
+            <article class="panel">
+              <div class="heading">
+                <h2 id="playbackTitle"></h2>
+                <small data-i18n="Playback">Playback</small>
+              </div>
+              <p id="playerMessage" role="status"></p>
+              <div id="recordedImages"></div>
+            </article>
+            <article class="panel" id="recordedJoints" hidden>
+              <h2 data-i18n="Joint feedback">Joint feedback</h2>
+              <div id="recordedAxes"></div>
+            </article>
+            <details class="panel" id="recordedSignals" hidden>
+              <summary data-i18n="Recorded values">Recorded values</summary>
+              <div id="recordedValues"></div>
+            </details>
+          </section>
+          <details class="panel" id="questPanel" hidden open>
+            <summary><h2 data-i18n="Quest 3 controls">Quest 3 controls</h2></summary>
+            <ol class="quest-steps">
+              <li><span data-i18n="Connect the Quest to the same LAN as the robot computer. In WebUI, select your Quest profile and click Connect all.">Connect the Quest to the same LAN as the robot computer. In WebUI, select your Quest profile and click Connect all.</span></li>
+              <li><span data-i18n="On the headset, open Meta Quest Browser and enter this address:">On the headset, open Meta Quest Browser and enter this address:</span> <code id="questUrl"></code></li>
+              <li><span data-i18n="Select “Enter VR / Start Tracking” on the headset and allow tracking if prompted. Move the controller and look for its trail below.">Select “Enter VR / Start Tracking” on the headset and allow tracking if prompted. Move the controller and look for its trail below.</span></li>
+              <li><span data-i18n="In the WebUI bottom bar, enable teleoperation. Hold the side grip and move the controller to follow; release the grip to hold position.">In the WebUI bottom bar, enable teleoperation. Hold the side grip and move the controller to follow; release the grip to hold position.</span></li>
+            </ol>
+            <div id="questHands"></div>
+            <small id="questTrailHint" data-i18n="Controller space · Recent 4 seconds · Preview only">Controller space · Recent 4 seconds · Preview only</small>
+          </details>
+          <details class="panel" id="keyboardPanel" hidden open>
+            <summary>
+              <h2 data-i18n="Keyboard end-effector control">
+                Keyboard end-effector control
+              </h2>
+            </summary>
+            <div class="keyboard-content">
+              <p
+                class="axis-legend"
+                data-i18n="Preview only · X red · Y green · Z blue · World control frame"
+              >
+                Preview only · X red · Y green · Z blue · World control frame
+              </p>
+              <div id="keyboardBindings"></div>
+              <small
+                data-i18n="Enable teleoperation, then hold the keys. Input pauses while editing fields or when the window loses focus."
+                >Enable teleoperation, then hold the keys. Input pauses while
+                editing fields or when the window loses focus.</small
+              >
+            </div>
+          </details>
+          <article class="panel">
+            <div class="heading">
+              <h2 data-i18n="Cameras">Cameras</h2>
+              <small data-i18n="Shared memory · Read only"
+                >Shared memory · Read only</small
+              >
+            </div>
+            <div class="feeds" id="feeds"></div>
+          </article>
+          <article class="panel">
+            <div class="heading">
+              <h2 data-i18n="Joint feedback">Joint feedback</h2>
+              <small data-i18n="Last 30 seconds · Raw observations"
+                >Last 30 seconds · Raw observations</small
+              >
+            </div>
+            <div id="axes"></div>
+          </article>
+          <article class="panel" id="modelPanel" hidden>
+            <div class="heading">
+              <h2 data-i18n="URDF kinematic skeleton">
+                URDF kinematic skeleton
+              </h2>
+              <select id="arm"></select>
+            </div>
+            <canvas
+              id="model"
+              height="220"
+              aria-label="URDF joint model"
+            ></canvas
+            ><small id="modelName"></small>
+          </article>
+          <article class="terminal">
+            <div class="heading">
+              <h2 data-i18n="Terminal output">Terminal output</h2>
+              <label
+                ><input type="checkbox" checked id="follow" />
+                <span data-i18n="Follow logs">Follow logs</span></label
+              >
+            </div>
+            <pre id="log"></pre>
+          </article>
+        </section>
+        <aside class="sidebar episode-rail">
+          <article class="panel" id="taskPanel">
+            <div class="heading">
+              <h2 data-i18n="Task">Task</h2>
+              <small id="taskKind"></small>
+            </div>
+            <div id="simulationFields" hidden>
+              <label
+                ><span data-i18n="Simulation task">Simulation task</span
+                ><select id="task" form="form"></select
+              ></label>
+              <label
+                ><span data-i18n="After task success">After task success</span
+                ><select id="on_success" form="form">
+                  <option value="continue" data-i18n="Continue operating">
+                    Continue operating
+                  </option>
+                  <option value="pause" data-i18n="Pause until reset">
+                    Pause until reset
+                  </option>
+                </select></label
+              >
+            </div>
+            <div id="realTaskFields">
+              <div class="task-picker">
+                <label
+                  ><span id="realTaskLabel">Robot task</span
+                  ><select id="real_task" form="form"></select
+                ></label>
+                <button id="newTask" type="button" data-i18n="New task">
+                  New task
+                </button>
+              </div>
+              <p id="realTaskInstruction"></p>
+            </div>
+            <div id="suffixFields" hidden>
+              <div class="task-picker">
+                <label><span data-i18n="Dataset version suffix">Dataset version suffix</span><select id="suffix"></select></label>
+                <button type="button" id="newSuffix" data-i18n="New suffix">New suffix</button>
+              </div>
+              <small id="datasetDates"></small>
+            </div>
+          </article>
+          <section class="panel" id="episodePanel">
+            <h2 data-i18n="Episodes">Episodes</h2>
+            <button id="currentEpisode" type="button" aria-pressed="true">
+              <strong data-i18n="Current Episode">Current Episode</strong>
+              <span id="currentEpisodeState"></span>
+            </button>
+            <label id="libraryDatasetField"><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
+            <div id="episodeList" role="group" aria-label="Recorded episodes"></div>
+            <button id="deleteEpisode" type="button" hidden data-i18n="Delete episode">Delete episode</button>
+            <small id="emptyEpisodes" data-i18n="No recordings">No recordings</small>
+          </section>
+        </aside>
+      </div>
+    </main>
+    <footer id="transport" aria-label="Run controls">
+      <button id="teleSwitch" hidden type="button" role="switch" aria-checked="false" aria-label="Enable teleoperation" disabled>
+        <span class="switch-track" aria-hidden="true"></span><span id="teleSwitchLabel" data-i18n="Enable teleoperation">Enable teleoperation</span>
+      </button>
+      <div class="transport-state"><strong id="episodeNumber"></strong><small id="status"></small></div>
+      <div id="buttons" role="group" aria-label="Run controls"></div>
+      <div id="playbackTransport" hidden>
+        <button id="retakeEpisode" type="button" class="transport-key record" hidden></button>
+        <button id="playEpisode" type="button"></button>
+        <input id="frameSeek" type="range" min="0" value="0" aria-label="Playback position">
+        <output id="frameNumber"></output>
+      </div>
+      <button type="button" id="libraryOpen" aria-controls="episodePanel" data-i18n="Episodes">Episodes</button>
+    </footer>
+
+    <dialog id="taskDialog">
+      <form id="taskForm">
+        <h2 data-i18n="New robot task">New robot task</h2>
+        <label
+          ><span data-i18n="Task name">Task name</span
+          ><input id="taskName" required maxlength="120"
+        /></label>
+        <label
+          ><span data-i18n="Task instruction">Task instruction</span
+          ><textarea id="taskInstruction" maxlength="2000" rows="4"></textarea>
+        </label>
+        <p id="taskError" role="alert"></p>
+        <div class="row">
+          <button id="cancelTask" type="button" data-i18n="Cancel">
+            Cancel</button
+          ><button
+            class="primary"
+            id="saveTask"
+            type="submit"
+            data-i18n="Create task"
+          >
+            Create task
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="folderDialog" aria-labelledby="folderTitle">
+      <div class="heading"><h2 id="folderTitle" data-i18n="Choose a directory">Choose a directory</h2></div>
+      <div class="folder-nav">
+        <button type="button" id="folderUp" title="Go to parent directory" aria-label="Go to parent directory">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4m-7 7 7-7 7 7"/></svg>
+        </button>
+        <button type="button" id="folderHome" data-i18n="Home directory">Home directory</button>
+        <button type="button" id="folderNew" data-i18n="New folder">New folder</button>
+      </div>
+      <p id="folderPath" dir="auto"></p>
+      <form id="folderCreateForm" hidden>
+        <label><span data-i18n="Folder name">Folder name</span><input id="folderName" required autocomplete="off" spellcheck="false" maxlength="255"></label>
+        <div class="folder-create-actions"><button type="submit" id="folderCreate" class="primary" data-i18n="Create folder">Create folder</button><button type="button" id="folderCreateCancel" data-i18n="Cancel">Cancel</button></div>
+      </form>
+      <div id="folderList" aria-labelledby="folderPath"></div>
+      <p id="folderStatus" role="status"></p>
+      <div class="folder-actions">
+        <button type="button" id="folderCancel" data-i18n="Cancel">Cancel</button>
+        <button type="button" id="folderChoose" class="primary" data-i18n="Use this directory">Use this directory</button>
+      </div>
+    </dialog>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+      <form id="settingsForm">
+        <div class="heading">
+          <h2 id="settingsTitle" data-i18n="Settings">Settings</h2>
+          <button type="button" id="settingsClose" data-i18n="Close">Close</button>
+        </div>
+        <p data-i18n="Paths refer to the machine running WebUI.">Paths refer to the machine running WebUI.</p>
+        <div>
+          <label for="settingsData" data-i18n="Local data directory">Local data directory</label>
+          <div class="settings-data-path">
+            <input id="settingsData" required spellcheck="false" autocomplete="off">
+            <button id="settingsBrowse" type="button" data-i18n="Browse…">Browse…</button>
+          </div>
+        </div>
+        <small data-i18n="Used for recordings and training downloads. Training datasets are stored in datasets/.">Used for recordings and training downloads. Training datasets are stored in datasets/.</small>
+        <div>
+          <label for="settingsCheckpoint" data-i18n="Model Checkpoint Directory">Model Checkpoint Directory</label>
+          <div class="settings-data-path"><input id="settingsCheckpoint" required spellcheck="false" autocomplete="off"><button id="settingsCheckpointBrowse" type="button" data-i18n="Browse…">Browse…</button></div>
+        </div>
+        <fieldset id="settingsConfigs">
+          <legend data-i18n="Extra configuration directories">Extra configuration directories</legend>
+          <div id="settingsRootList"></div>
+          <button type="button" id="settingsAddRoot" data-i18n="Add directory">Add directory</button>
+          <small data-i18n="First match wins, then built-in profiles. New profiles go in the first directory.">First match wins, then built-in profiles. New profiles go in the first directory.</small>
+        </fieldset>
+        <label><span data-i18n="Hugging Face username">Hugging Face username</span>
+          <input id="settingsUsername" autocomplete="off" spellcheck="false">
+        </label>
+        <label><span>Hugging Face Token</span>
+          <input id="settingsToken" type="password" autocomplete="new-password" spellcheck="false">
+        </label>
+        <small id="settingsTokenState"></small>
+        <label class="settings-checkbox"><input id="settingsClearToken" type="checkbox">
+          <span data-i18n="Clear saved token">Clear saved token</span>
+        </label>
+        <p id="settingsError" role="alert" hidden></p>
+        <p id="settingsPathNote" data-i18n="Directory changes require disconnected devices. Account changes apply to newly started sessions.">Directory changes require disconnected devices. Account changes apply to newly started sessions.</p>
+        <button type="submit" id="settingsSave" class="primary" data-i18n="Save settings">Save settings</button>
+      </form>
+    </dialog>
+    <dialog id="configDialog" aria-labelledby="configTitle">
+      <form id="configForm">
+        <div class="heading">
+          <h2 id="configTitle" data-i18n="Edit configuration">Edit configuration</h2>
+          <button type="button" id="configClose" data-i18n="Close">Close</button>
+        </div>
+        <small id="configLocation"></small>
+        <progress id="configLoading" aria-label="Loading configuration" hidden></progress>
+        <p id="configUsage"></p>
+        <label><span data-i18n="Configuration name">Configuration name</span>
+          <input id="configName" required maxlength="80" autocomplete="off" spellcheck="false">
+        </label>
+        <section id="configDevices" hidden></section>
+        <div id="configDeviceActions" class="device-actions" hidden>
+          <button id="configAddDevice" type="button" data-i18n="New device">New device</button>
+          <button id="configImportDevice" type="button" data-i18n="Add existing device">Add existing device</button>
+        </div>
+        <section id="deviceLibrary" hidden>
+          <div class="heading">
+            <h3 data-i18n="Saved devices">Saved devices</h3>
+            <button id="deviceLibraryClose" type="button" data-i18n="Close">Close</button>
+          </div>
+          <input id="deviceLibrarySearch" type="search" aria-label="Search devices" data-i18n-placeholder="Search devices">
+          <p id="deviceLibraryStatus"></p>
+          <div id="deviceLibraryTree"></div>
+        </section>
+        <label id="configYaml"><span data-i18n="Parameters (YAML)">Parameters (YAML)</span>
+          <textarea id="configContent" spellcheck="false" wrap="off" required></textarea>
+        </label>
+        <p id="configError" role="alert" hidden></p>
+        <div class="row config-actions">
+          <button type="button" id="configCopy" data-i18n="Save as copy">Save as copy</button>
+          <button type="submit" id="configSave" class="primary" data-i18n="Save configuration">Save configuration</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="confirm">
+      <h2 id="confirmTitle"></h2>
+      <p id="confirmText"></p>
+      <div class="row">
+        <button id="cancel" data-i18n="Cancel">Cancel</button
+        ><button id="accept" class="primary" data-i18n="Confirm">
+          Confirm
+        </button>
+      </div>
+    </dialog>
+    <div id="error" role="alert" hidden></div>
+  </body>
+</html>

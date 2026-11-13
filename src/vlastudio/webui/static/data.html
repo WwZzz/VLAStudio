@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VLAStudio · Data management</title>
+<script src="/theme.js"></script>
+    <link rel="icon" href="/vlastudio-mark.svg"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/data.css">
+<script src="/i18n.js" defer></script><script src="/data.js" defer></script><script src="/settings.js" defer></script>
+</head>
+<body>
+<header>
+<a class="brand" href="/collect"><img src="/vlastudio-mark.svg" width="32" height="32" alt="">VLA<span>Studio</span></a>
+<nav><a href="/collect" data-i18n="Data collection">Data collection</a><a href="/infer" data-i18n="Policy inference">Policy inference</a><a href="/data" class="active" data-i18n="Data management">Data management</a><a href="/train" data-i18n="Policy training">Policy training</a></nav>
+      <div class="header-tools">
+        <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+        <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.97 2.15A9.9 9.9 0 0 1 13.03 2.15L13.49 4.34A7.8 7.8 0 0 1 16.36 5.53L18.23 4.31A9.9 9.9 0 0 1 19.69 5.77L18.47 7.64A7.8 7.8 0 0 1 19.66 10.51L21.85 10.97A9.9 9.9 0 0 1 21.85 13.03L19.66 13.49A7.8 7.8 0 0 1 18.47 16.36L19.69 18.23A9.9 9.9 0 0 1 18.23 19.69L16.36 18.47A7.8 7.8 0 0 1 13.49 19.66L13.03 21.85A9.9 9.9 0 0 1 10.97 21.85L10.51 19.66A7.8 7.8 0 0 1 7.64 18.47L5.77 19.69A9.9 9.9 0 0 1 4.31 18.23L5.53 16.36A7.8 7.8 0 0 1 4.34 13.49L2.15 13.03A9.9 9.9 0 0 1 2.15 10.97L4.34 10.51A7.8 7.8 0 0 1 5.53 7.64L4.31 5.77A9.9 9.9 0 0 1 5.77 4.31L7.64 5.53A7.8 7.8 0 0 1 10.51 4.34L10.97 2.15Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
+</header>
+<main>
+<div class="heading"><h1 data-i18n="Data management">Data management</h1><button id="refresh" data-i18n="Refresh">Refresh</button></div>
+<p id="message" role="status"></p>
+<form id="datasetFilters" class="panel filters" role="search">
+<label><span data-i18n="Robot configuration">Robot configuration</span><div class="data-combobox"><input id="filterRobot" role="combobox" aria-expanded="false" aria-controls="robots" aria-autocomplete="list" autocomplete="off"><button type="button" class="filter-toggle" data-filter="filterRobot" aria-label="Show options" aria-controls="robots">⌄</button><div id="robots" class="filter-options" role="listbox" hidden></div></div></label>
+<label><span data-i18n="Task">Task</span><div class="data-combobox"><input id="filterTask" role="combobox" aria-expanded="false" aria-controls="tasks" aria-autocomplete="list" autocomplete="off"><button type="button" class="filter-toggle" data-filter="filterTask" aria-label="Show options" aria-controls="tasks">⌄</button><div id="tasks" class="filter-options" role="listbox" hidden></div></div></label>
+<label><span data-i18n="Dataset version suffix">Dataset version suffix</span><div class="data-combobox"><input id="filterSuffix" role="combobox" aria-expanded="false" aria-controls="suffixes" aria-autocomplete="list" autocomplete="off"><button type="button" class="filter-toggle" data-filter="filterSuffix" aria-label="Show options" aria-controls="suffixes">⌄</button><div id="suffixes" class="filter-options" role="listbox" hidden></div></div></label>
+<div class="filter-actions">
+<button type="submit" class="primary" data-i18n="Apply">Apply</button>
+<button type="button" id="clearFilters" data-i18n="Clear filters">Clear filters</button>
+</div>
+</form>
+<div class="data-layout">
+<aside class="panel data-browser"><h2 data-i18n="Datasets">Datasets</h2><div id="datasetList"></div><h2 data-i18n="Episodes">Episodes</h2><div id="episodeList"></div></aside>
+<section class="data-workspace">
+<article class="panel">
+<div class="heading"><div><h2 id="datasetTitle"></h2><small id="datasetInfo"></small></div><button id="deleteDataset" class="danger" hidden data-i18n="Delete dataset">Delete dataset</button></div>
+<p id="empty" data-i18n="Choose a dataset and an episode.">Choose a dataset and an episode.</p>
+<div id="editor" hidden>
+<div class="heading"><h2 id="episodeTitle"></h2><button id="deleteEpisode" class="danger" data-i18n="Delete episode">Delete episode</button></div>
+<div id="images" class="data-images"></div>
+<div class="data-transport"><button id="back" title="Previous frame">−1</button><button id="play" aria-label="Playback">▶</button><button id="forward" title="Next frame">+1</button><input id="frameInput" type="number" min="0" value="0" aria-label="Frame number"><output id="frameLabel"></output></div>
+<div class="data-actions cut-toolbar"><output id="playRange"></output><button id="split" data-i18n="Add separator">Add separator</button><button id="merge" data-i18n="Delete separator">Delete separator</button><button id="wholePlayback" data-i18n="Clear selection">Clear selection</button></div>
+<div id="timeline" aria-label="Annotation intervals">
+  <div id="timelineRuler" aria-label="Frame ruler"></div>
+  <div id="timelineTrack"></div>
+  <div id="timelineMarkers"></div>
+  <div id="playhead" role="slider" tabindex="0" aria-label="Current frame"><span id="playheadLabel"></span></div>
+  <button type="button" id="addCut" hidden aria-label="Add separator here">＋<span></span></button>
+</div>
+<p class="annotation-hint" data-i18n="Drag the red arrow to preview. Click a separator to select it, or drag it to change its frame. Click a segment to loop it.">Drag the red arrow to preview. Click a separator to select it, or drag it to change its frame. Click a segment to loop it.</p>
+<details><summary data-i18n="Recorded signals">Recorded signals</summary><pre id="signals"></pre></details>
+</div>
+</article>
+<article id="annotationPanel" class="panel" hidden>
+<div class="heading"><h2 data-i18n="Annotations">Annotations</h2><div class="data-actions"><button id="export" data-i18n="Export annotations">Export annotations</button><button id="save" class="primary" data-i18n="Save annotations">Save annotations</button></div></div>
+<div class="data-actions"><label><span data-i18n="Annotation versions">Annotation versions</span><select id="versions"></select></label><small id="saveState"></small></div>
+<div id="records"></div>
+</article>
+</section>
+</div>
+</main>
+<dialog id="confirm"><form method="dialog"><h2 id="confirmTitle"></h2><p id="confirmMessage"></p><div class="data-actions"><button value="cancel" data-i18n="Cancel">Cancel</button><button value="ok" class="danger" data-i18n="Confirm">Confirm</button></div></form></dialog>
+    <dialog id="folderDialog" aria-labelledby="folderTitle">
+      <div class="heading"><h2 id="folderTitle" data-i18n="Choose a directory">Choose a directory</h2></div>
+      <div class="folder-nav">
+        <button type="button" id="folderUp" title="Go to parent directory" aria-label="Go to parent directory">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4m-7 7 7-7 7 7"/></svg>
+        </button>
+        <button type="button" id="folderHome" data-i18n="Home directory">Home directory</button>
+        <button type="button" id="folderNew" data-i18n="New folder">New folder</button>
+      </div>
+      <p id="folderPath" dir="auto"></p>
+      <form id="folderCreateForm" hidden>
+        <label><span data-i18n="Folder name">Folder name</span><input id="folderName" required autocomplete="off" spellcheck="false" maxlength="255"></label>
+        <div class="folder-create-actions"><button type="submit" id="folderCreate" class="primary" data-i18n="Create folder">Create folder</button><button type="button" id="folderCreateCancel" data-i18n="Cancel">Cancel</button></div>
+      </form>
+      <div id="folderList" aria-labelledby="folderPath"></div>
+      <p id="folderStatus" role="status"></p>
+      <div class="folder-actions">
+        <button type="button" id="folderCancel" data-i18n="Cancel">Cancel</button>
+        <button type="button" id="folderChoose" class="primary" data-i18n="Use this directory">Use this directory</button>
+      </div>
+    </dialog>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+      <form id="settingsForm">
+        <div class="heading">
+          <h2 id="settingsTitle" data-i18n="Settings">Settings</h2>
+          <button type="button" id="settingsClose" data-i18n="Close">Close</button>
+        </div>
+        <p data-i18n="Paths refer to the machine running WebUI.">Paths refer to the machine running WebUI.</p>
+        <div>
+          <label for="settingsData" data-i18n="Local data directory">Local data directory</label>
+          <div class="settings-data-path">
+            <input id="settingsData" required spellcheck="false" autocomplete="off">
+            <button id="settingsBrowse" type="button" data-i18n="Browse…">Browse…</button>
+          </div>
+        </div>
+        <small data-i18n="Used for recordings and training downloads. Training datasets are stored in datasets/.">Used for recordings and training downloads. Training datasets are stored in datasets/.</small>
+        <div>
+          <label for="settingsCheckpoint" data-i18n="Model Checkpoint Directory">Model Checkpoint Directory</label>
+          <div class="settings-data-path"><input id="settingsCheckpoint" required spellcheck="false" autocomplete="off"><button id="settingsCheckpointBrowse" type="button" data-i18n="Browse…">Browse…</button></div>
+        </div>
+        <fieldset id="settingsConfigs">
+          <legend data-i18n="Extra configuration directories">Extra configuration directories</legend>
+          <div id="settingsRootList"></div>
+          <button type="button" id="settingsAddRoot" data-i18n="Add directory">Add directory</button>
+          <small data-i18n="First match wins, then built-in profiles. New profiles go in the first directory.">First match wins, then built-in profiles. New profiles go in the first directory.</small>
+        </fieldset>
+        <label><span data-i18n="Hugging Face username">Hugging Face username</span>
+          <input id="settingsUsername" autocomplete="off" spellcheck="false">
+        </label>
+        <label><span>Hugging Face Token</span>
+          <input id="settingsToken" type="password" autocomplete="new-password" spellcheck="false">
+        </label>
+        <small id="settingsTokenState"></small>
+        <label class="settings-checkbox"><input id="settingsClearToken" type="checkbox">
+          <span data-i18n="Clear saved token">Clear saved token</span>
+        </label>
+        <p id="settingsError" role="alert" hidden></p>
+        <p id="settingsPathNote" data-i18n="Directory changes require disconnected devices. Account changes apply to newly started sessions.">Directory changes require disconnected devices. Account changes apply to newly started sessions.</p>
+        <button type="submit" id="settingsSave" class="primary" data-i18n="Save settings">Save settings</button>
+      </form>
+    </dialog>
+
+</body>
+</html>

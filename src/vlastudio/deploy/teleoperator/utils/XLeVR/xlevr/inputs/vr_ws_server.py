@@ -3,6 +3,8 @@ VR WebSocket server for receiving controller data from web browsers.
 Adapted from the original vr_robot_teleop.py script.
 """
 
+from collections import deque
+import time
 import asyncio
 import json
 import ssl
@@ -144,12 +146,20 @@ class VRWebSocketServer(BaseInputProvider):
         self.latest_client_ip = client_ip
         logger.info(f"VR client connected: {client_address}")
         self.clients.add(websocket)
+        recent_frames = deque(maxlen=24)
         
         try:
             async for message in websocket:
                 try:
+                    received = time.perf_counter()
                     data = json.loads(message)
-                    await self.process_controller_data(data, client_ip=client_ip)
+                    timing = data.get("frameTiming")
+                    history = None
+                    if (isinstance(timing, list) and len(timing) == 2
+                            and type(timing[0]) is int and isinstance(timing[1], (int, float))):
+                        recent_frames.append((timing[0], timing[1], received))
+                        history = tuple(recent_frames)
+                    await self.process_controller_data(data, client_ip=client_ip, frame_history=history)
                 except json.JSONDecodeError:
                     logger.warning(f"Received non-JSON message: {message}")
                 except Exception as e:
@@ -172,7 +182,7 @@ class VRWebSocketServer(BaseInputProvider):
             await self.handle_grip_release('right')
             logger.info(f"VR client {client_address} cleanup complete")
     
-    async def process_controller_data(self, data: Dict, client_ip: Optional[str] = None):
+    async def process_controller_data(self, data: Dict, client_ip: Optional[str] = None, frame_history=None):
         """Process incoming VR controller data."""
         # Silent processing - debug output removed for cleaner logs
         
@@ -205,12 +215,12 @@ class VRWebSocketServer(BaseInputProvider):
         
         # Process controller data
         if 'leftController' in data:
-            await self.process_single_controller('left', data['leftController'])
+            await self.process_single_controller('left', data['leftController'], frame_history)
         
         if 'rightController' in data:
-            await self.process_single_controller('right', data['rightController'])
+            await self.process_single_controller('right', data['rightController'], frame_history)
     
-    async def process_single_controller(self, hand: str, data: Dict):
+    async def process_single_controller(self, hand: str, data: Dict, frame_history=None):
         """Process data for a single controller."""
         position = data.get('position', {})
         rotation = data.get('rotation', {})
@@ -322,6 +332,8 @@ class VRWebSocketServer(BaseInputProvider):
                     } if quaternion else None
                 }
             )
+            if frame_history is not None:
+                goal.metadata["frame_history"] = frame_history
             await self.send_goal(goal)
         
         # 保留原有的squeeze键逻辑作为备用（可选）

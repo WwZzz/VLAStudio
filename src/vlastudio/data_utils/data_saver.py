@@ -493,11 +493,11 @@ class HDF5DataSaver(BaseDataSaver):
         self._episode_count = self._count_existing_episodes()
     
     def _count_existing_episodes(self) -> int:
-        """Count existing HDF5 episode files."""
+        """Return the next index after the highest saved HDF5 episode."""
         if not self.output_dir.exists():
             return 0
-        count = sum(1 for f in self.output_dir.glob("episode_*.hdf5"))
-        return count
+        indices = (p.stem[8:] for p in self.output_dir.glob("episode_*.hdf5"))
+        return max((int(i) for i in indices if i.isascii() and i.isdigit()), default=-1) + 1
     
     def _get_episode_path(self, episode_idx: int) -> Path:
         return self.output_dir / f"episode_{episode_idx:04d}.hdf5"
@@ -713,9 +713,10 @@ class HDF5DataSaver(BaseDataSaver):
         
         # Rename temp to final
         final_path = self._get_episode_path(episode_idx)
-        if final_path.exists():
-            final_path.unlink()
-        tmp_path.rename(final_path)
+        from datetime import datetime, timezone
+        with h5py.File(tmp_path, "r+") as h5:
+            h5.attrs["saved_at"] = datetime.now(timezone.utc).isoformat()
+        tmp_path.replace(final_path)
         
         return frame_count
     

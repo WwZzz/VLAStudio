@@ -1,0 +1,173 @@
+"""Browse completed recordings under the WebUI output directory."""
+from datetime import datetime, timezone
+from functools import lru_cache
+import base64
+import hashlib
+from pathlib import Path
+import re
+import uuid
+
+from .settings import data_directory
+
+def root_directory():
+    return data_directory()
+
+
+def files(dataset, index):
+    if not isinstance(dataset, str) or not re.fullmatch(r"[\w-][\w.-]{0,79}", dataset):
+        raise ValueError("Invalid dataset")
+    if type(index) is not int or not 0 <= index < 10**12:
+        raise ValueError("Invalid episode")
+    directory = root_directory() / dataset
+    if directory.is_symlink() or directory.resolve().parent != root_directory().resolve():
+        raise ValueError("Invalid dataset directory")
+    paths = [directory / f"episode_{index:04d}.hdf5",
+             directory / "video" / f"real_eval_episode_{index:04d}.mp4"]
+    return [p for p in paths if p.is_file() and p.resolve() == directory.resolve() / p.relative_to(directory)]
+
+
+def revision(paths):
+    stats = [p.stat() for p in paths]
+    return hashlib.sha256(str([(s.st_ino, s.st_mtime_ns, s.st_size) for s in stats]).encode()).hexdigest()[:24]
+
+
+@lru_cache(maxsize=1024)
+def saved_at(path, version, mtime):
+    if path.suffix == ".hdf5":
+        import h5py
+        try:
+            with h5py.File(path, "r") as recording:
+                if "saved_at" in recording.attrs:
+                    return str(recording.attrs["saved_at"])
+        except OSError:
+            pass
+    from .datasets import read_manifest
+    directory = path.parent.parent if path.suffix == ".mp4" else path.parent
+    item = read_manifest(directory) or {}
+    index = str(int(path.stem.rsplit("_", 1)[-1]))
+    return item.get("episodes", {}).get(index, {}).get("saved_at") or datetime.fromtimestamp(mtime, timezone.utc).isoformat()
+
+
+def catalog(active_video=None, dataset=None):
+    rows = []
+    if not root_directory().exists():
+        return rows
+    if dataset is not None and not re.fullmatch(r"[\w-][\w.-]{0,79}", dataset):
+        raise ValueError("Invalid dataset")
+    for directory in [root_directory() / dataset] if dataset else sorted(root_directory().iterdir()):
+        if not directory.is_dir() or directory.is_symlink() or not re.fullmatch(r"[\w-][\w.-]{0,79}", directory.name):
+            continue
+        indices = set()
+        for folder, pattern in [(directory, r"episode_(\d{4,12})\.hdf5"), (directory / "video", r"real_eval_episode_(\d{4,12})\.mp4")]:
+            if not folder.is_dir() or folder.is_symlink():
+                continue
+            for item in folder.iterdir():
+                match = re.fullmatch(pattern, item.name)
+                if match:
+                    indices.add(int(match[1]))
+        for index in sorted(indices):
+            paths = files(directory.name, index)
+            if paths and not (directory.name == active_video and paths[0].suffix == ".mp4"):
+                version = revision(paths)
+                rows.append(dict(dataset=directory.name, index=index, version=version,
+                                 saved_at=saved_at(paths[0], version, paths[0].stat().st_mtime),
+                                 rerecordable=len(paths) == 1 and paths[0].suffix == ".hdf5"))
+    return rows
+
+
+def checked(dataset, index, version):
+    paths = files(dataset, index)
+    if not paths or revision(paths) != version:
+        raise ValueError("Recording changed. Reopen the episode library.")
+    return paths
+
+
+def replacement_task(dataset, index, version):
+    import h5py
+    paths = checked(dataset, index, version)
+    if len(paths) != 1 or paths[0].suffix != ".hdf5":
+        raise ValueError("Only standalone collection episodes can be re-recorded")
+    with h5py.File(paths[0], "r") as recording:
+        return str(recording.attrs.get("task", ""))
+
+
+def remove(dataset, index, version):
+    paths = checked(dataset, index, version)
+    # Keep deletion reversible. Roll back a partial move of a video/dataset pair.
+    trash = root_directory() / ".trash"
+    if trash.is_symlink():
+        raise ValueError("Invalid trash directory")
+    target = trash / uuid.uuid4().hex / dataset
+    target.mkdir(parents=True)
+    moved = []
+    try:
+        for p in paths:
+            dst = target / p.name
+            p.rename(dst)
+            moved.append((dst, p))
+        from .datasets import modified
+        modified(paths[0].parent if paths[0].suffix == ".hdf5" else paths[0].parent.parent)
+    except OSError:
+        for dst, p in reversed(moved):
+            dst.rename(p)
+        raise
+
+
+def jpeg(rgb, *, bgr=False):
+    import cv2
+    if max(rgb.shape[:2]) > 800:
+        scale = 800 / max(rgb.shape[:2])
+        rgb = cv2.resize(rgb, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    image = rgb if bgr or rgb.ndim == 2 else cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+    ok, buf = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 75])
+    if not ok:
+        raise ValueError("Failed to decode camera frame")
+    return base64.b64encode(buf).decode()
+
+
+def read(dataset, index, version, frame=None):
+    path = checked(dataset, index, version)[0]
+    if path.suffix == ".mp4":
+        import cv2
+        cap = cv2.VideoCapture(str(path))
+        try:
+            count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            if not cap.isOpened() or count < 1:
+                raise ValueError("Video is unavailable")
+            if frame is None:
+                return dict(count=count, fps=cap.get(cv2.CAP_PROP_FPS) or 30)
+            if not 0 <= frame < count:
+                raise ValueError("Invalid frame")
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
+            ok, image = cap.read()
+            if not ok:
+                raise ValueError("Failed to read video frame")
+            return dict(images={"Video": jpeg(image, bgr=True)}, values={})
+        finally:
+            cap.release()
+    import h5py
+    import numpy as np
+    with h5py.File(path, "r") as recording:
+        stamps = recording["timestamps"]
+        count = len(stamps)
+        if count == 0:
+            raise ValueError("Empty recording")
+        if frame is None:
+            times = np.asarray(stamps, dtype=float).reshape(-1)
+            timeline = times - times[0]
+            valid = len(times) == count and np.isfinite(timeline).all() and (np.diff(timeline) >= 0).all()
+            return dict(count=count, fps=float(recording.attrs.get("fps", 30)) or 30,
+                        times=timeline.tolist() if valid else None)
+        if not 0 <= frame < count:
+            raise ValueError("Invalid frame")
+        images, values = {}, {}
+        def extract(name, item):
+            if not isinstance(item, h5py.Dataset) or not item.shape or item.shape[0] != count:
+                return
+            if len(item.shape) == 4 and item.shape[-1] == 3 and item.dtype == np.uint8:
+                images[name.removeprefix("observation/images/")] = jpeg(item[frame])
+            elif len(item.shape) <= 2 and item.size // count <= 256 and item.dtype.kind in "biuf" and name != "timestamps":
+                vals = np.asarray(item[frame]).reshape(-1)
+                values[name.removeprefix("observation/")] = [round(float(v), 5) if np.isfinite(v) else None for v in vals]
+        recording.visititems(extract)
+        return dict(images=images, values=values)
