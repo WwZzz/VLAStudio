@@ -713,6 +713,9 @@ class HDF5DataSaver(BaseDataSaver):
         
         # Rename temp to final
         final_path = self._get_episode_path(episode_idx)
+        from datetime import datetime, timezone
+        with h5py.File(tmp_path, "r+") as h5:
+            h5.attrs["saved_at"] = datetime.now(timezone.utc).isoformat()
         tmp_path.replace(final_path)
         
         return frame_count

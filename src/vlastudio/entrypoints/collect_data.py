@@ -224,14 +224,14 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
     # Create data saver (it will count existing episodes automatically).
     # Per-device enrich_saved_frame hooks run at stream/save time (e.g. AliciaD state_ee FK).
     enrich_saved_frame = create_enrich_saved_frame_func(all_configs)
-    data_saver = create_data_saver(
-        format=args.dataset_format,
-        hdf5_compression=args.hdf5_compression,
-        output_dir=args.output_dir,
-        fps=int(round(args.frequency)),
-        task=args.task,
-        enrich_saved_frame=enrich_saved_frame,
-    )
+    def saver(directory):
+        return create_data_saver(
+            format=args.dataset_format, hdf5_compression=args.hdf5_compression,
+            output_dir=directory, fps=int(round(args.frequency)), task=args.task,
+            enrich_saved_frame=enrich_saved_frame,
+        )
+
+    data_saver = saver(args.output_dir)
     
     # Determine starting episode index
     if args.start_idx is not None:
@@ -273,6 +273,12 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
 
             # Start recording episode
             options = episode_options(start_command)
+            if "dataset" in options:
+                # Web collections may change task and destination between episodes.
+                directory = Path(args.output_dir).parent / options["dataset"]
+                data_saver.finalize()
+                data_saver = saver(directory)
+                episode_idx = data_saver.episode_count
             data_saver.task = options.get("task", args.task)
             actual_idx = data_saver.start_episode(
                 episode_idx=options.get("index", episode_idx),
@@ -407,7 +413,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                     if "version" in options:
                         from vlastudio.webui.episodes import checked
                         try:
-                            checked(Path(args.output_dir).name, actual_idx, options["version"])
+                            checked(data_saver.output_dir.name, actual_idx, options["version"])
                         except (OSError, ValueError) as exc:
                             data_saver.finish_episode(save=False)
                             logger.error("Re-recording not saved: {}", exc)
@@ -415,6 +421,9 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                     saved_frames = data_saver.finish_episode(save=True)
                     if saved_frames > 0:
                         logger.success("Saved {} frames to {} (episode {})", saved_frames, data_saver.dataset_path, actual_idx)
+                        if "dataset" in options:
+                            from vlastudio.webui.datasets import modified
+                            modified(data_saver.output_dir)
                         saved_any = True
                         if "index" not in options:
                             episode_idx += 1

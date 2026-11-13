@@ -10,6 +10,19 @@
   const seek = $("frameSeek"), play = $("playEpisode"), remove = $("deleteEpisode");
   let rows = [], selected, meta, frame = 0, playing = false;
   let request, timer, revision = 0;
+  let scopeKey, scopedDataset, choices = [];
+  const suffix = $("suffix");
+  const date = value => value ? new Date(value).toLocaleString(language === "zh" ? "zh-CN" : "en") : tr("Not recorded");
+  function scope() {
+    return {robot: $("robot").value, task: $("simulationFields").hidden ? "" : $("task").value,
+      real_task: $("realTaskFields").hidden ? "" : $("real_task").value};
+  }
+  function chooseSuffix() {
+    const item = choices.find(row => row.suffix === suffix.value);
+    scopedDataset = item?.dataset;
+    $("datasetDates").textContent = (item?.created_at || item?.modified_at) ?
+      tr("Created") + " " + date(item.created_at) + " · " + tr("Updated") + " " + date(item.modified_at) : "";
+  }
   let catalogRequest = 0, sessionKey, output;
   const retake = $("retakeEpisode");
   retake.innerHTML = transportIcon("record");
@@ -24,7 +37,7 @@
     retake.hidden = !collecting;
     const unavailable = !session?.connection?.ready ? "Connect the robot to re-record" :
       !selected?.rerecordable ? "Only standalone collection episodes can be re-recorded" :
-      session.active && session.options.output !== selected.dataset ? "Connect collection to the selected dataset" :
+      selected.dataset !== scopedDataset ? "Connect collection to the selected dataset" :
       session.active && session.phase !== "ready" ? "Collection is not ready for a new recording" : "";
     retake.disabled = busy || !!unavailable;
     retake.title = tr(unavailable || "Re-record episode");
@@ -172,6 +185,7 @@
     const items = rows.filter(r => r.dataset === dataset.value);
     list.replaceChildren(...items.map(item => {
       const row = el("button", "", episodeLabel(item));
+      row.append(el("small", "", date(item.saved_at)));
       row.type = "button";
       row.dataset.version = item.version;
       row.setAttribute("aria-controls", "episodePlayer");
@@ -188,11 +202,25 @@
   async function load() {
     const token = ++catalogRequest;
     try {
-      const result = await api("episodes");
+      const context = scope();
+      const key = JSON.stringify(context);
+      if (context.robot) {
+        const items = await api("datasets", context);
+        if (token !== catalogRequest) return;
+        const previous = scopeKey === key ? suffix.value :
+          state?.session.options?.real_task === context.real_task && state?.session.options?.robot === context.robot
+          ? state.session.options.suffix || "" : "";
+        scopeKey = key;
+        choices = items;
+        suffix.replaceChildren(...items.map(item => new Option(item.suffix || tr("Default"), item.suffix)));
+        suffix.value = items.some(row => row.suffix === previous) ? previous : "";
+        chooseSuffix();
+      }
+      const result = scopedDataset ? await api("episodes?dataset=" + encodeURIComponent(scopedDataset)) : [];
       if (token !== catalogRequest) return;
       rows = result;
-      const preferred = dataset.value || output;
-      const names = [...new Set([output, ...rows.map(r => r.dataset)].filter(Boolean))];
+      const preferred = scopedDataset;
+      const names = [scopedDataset].filter(Boolean);
       dataset.replaceChildren(...names.map(n => new Option(n,n)));
       if (names.includes(preferred)) dataset.value = preferred;
       renderList();
@@ -234,6 +262,19 @@
     const token = revision;
     show(Number(seek.value), token).catch(e => failed(e, token));
   };
+  suffix.onchange = () => { chooseSuffix(); load(); };
+  $("newSuffix").onclick = async () => {
+    const value = window.prompt(tr("New suffix"))?.trim();
+    if (!value) return;
+    const context = scope();
+    try {
+      const item = await api("datasets/create", {...context, suffix:value});
+      if (JSON.stringify(scope()) !== JSON.stringify(context)) return;
+      if (![...suffix.options].some(option => option.value === value)) suffix.add(new Option(value, value));
+      suffix.value = item.suffix;
+      await load();
+    } catch (error) { notice(tr(error.message)); }
+  };
   dataset.onchange = renderList;
   $("libraryOpen").onclick = async () => {
     heldKeys.clear();
@@ -242,10 +283,6 @@
     (list.querySelector('[aria-pressed="true"]') || list.firstElementChild || dataset).focus({preventScroll:true});
   };
   $("currentEpisode").onclick = event => {
-    if (output && dataset.value !== output) {
-      dataset.value = output;
-      renderList();
-    }
     selectEpisode(null);
     if (event.detail) event.currentTarget.blur();
     refresh().catch(error => notice(error.message));
@@ -288,7 +325,7 @@
       dataset.selectedIndex = -1;
       selectEpisode(null);
     }
-    const key = JSON.stringify([name, s.id, s.phase, s.episode]);
+    const key = JSON.stringify([name, s.id, s.phase, s.episode, scope(), language]);
     if (key !== sessionKey) {
       sessionKey = key;
       load();

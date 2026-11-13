@@ -9,6 +9,7 @@ import tempfile
 import threading
 import time
 
+from . import datasets
 from .bridge import PAUSE
 from .profiles import ROOT, catalog, channels, config
 from .runtimes import resolve_runtime
@@ -160,6 +161,16 @@ class Studio:
                 settings = describe(params)
         return dict(kind=mode, channel=channel, **settings)
 
+    def collection(self, opts):
+        import yaml
+        rows = yaml.safe_load(config("robot", opts["robot"]).read_text())
+        tasks = next((row["webui"].get("tasks", []) for row in
+                      (rows if isinstance(rows, list) else [rows]) if row.get("webui")), [])
+        task = (opts.get("task") or tasks[0]) if tasks else ""
+        if task and task not in tasks:
+            raise ValueError("Unknown simulation task")
+        return datasets.scope(opts["robot"], task, opts.get("real_task", ""))
+
     def start(self, mode, opts):
         if mode not in self.runners:
             raise ValueError("Unknown mode")
@@ -175,6 +186,9 @@ class Studio:
                 opts = dict(opts, task=self.connected["task"], on_success=self.connected["on_success"])
             opts.setdefault("on_success", "continue")
             self._compatible_profile(opts["robot"], opts)
+            item = datasets.identity(self.collection(opts), opts.get("suffix", ""))
+            datasets.ensure(item)
+            opts = dict(opts, output=item["dataset"])
             descriptor = self._source(mode, opts)
             if descriptor.get("qpos_contract") == "rebot_b601rs" and not any(
                 typ.endswith(".RebotB601RS") and not args.get("read_only")
@@ -198,7 +212,7 @@ class Studio:
         if self.selected == runner.sid:
             self.selected = None
 
-    def action(self, mode, sid, action, real_task=None):
+    def action(self, mode, sid, action, real_task=None, suffix=None):
         with self.lock:
             runner = self.runners[mode]
             with runner.lock:
@@ -232,7 +246,23 @@ class Studio:
                     elif mode == "infer":
                         runner.mailbox_path.with_name("action-contract").write_text("{}")
                     self.selected = sid
-                runner.action(sid, action, real_task=real_task)
+                destination = None
+                if mode == "collect" and action == "record":
+                    opts = dict(runner.options)
+                    if real_task is not None:
+                        opts["real_task"] = real_task
+                    if suffix is not None:
+                        opts["suffix"] = suffix
+                    item = datasets.identity(self.collection(opts), opts.get("suffix", ""))
+                    destination = item["dataset"]
+                    other = self.runners["infer"]
+                    if other.proc and other.output == destination:
+                        raise ValueError("Dataset is in use")
+                    datasets.ensure(item)
+                runner.action(sid, action, real_task=real_task, destination=destination)
+                if destination:
+                    runner.output = opts["output"] = destination
+                    runner.options.update(opts)
 
     def rerecord(self, data):
         from .episodes import replacement_task
@@ -251,12 +281,16 @@ class Studio:
             runner = self.runners["collect"]
             if data.get("id") != (runner.sid if runner.proc else None):
                 raise ValueError("Collection session changed")
+            opts = dict(data["options"], robot=self.connected["robot"], task=self.connected["task"])
+            item = datasets.identity(self.collection(opts), opts.get("suffix", ""))
+            if item["dataset"] != dataset:
+                raise ValueError("Select the task and suffix used by this episode")
+            if self.runners["infer"].proc and self.runners["infer"].output == dataset:
+                raise ValueError("Dataset is in use")
             if not runner.proc:
-                opts = dict(data["options"], robot=self.connected["robot"], output=dataset,
-                            connection=connection, real_task="")
+                opts = dict(opts, robot=self.connected["robot"], output=dataset,
+                            connection=connection)
                 self.start("collect", opts)
-            if runner.output != dataset:
-                raise ValueError("Connect collection to the selected dataset")
             sid = runner.sid
         deadline = time.monotonic() + 30
         while True:
@@ -267,7 +301,9 @@ class Studio:
                     raise ValueError("Collection session changed")
                 if state["phase"] == "ready" and not state["simulation"]["paused"]:
                     task = replacement_task(dataset, index, version)
-                    runner.start_retake(index, version, task)
+                    runner.start_retake(index, version, task, dataset)
+                    runner.output = dataset
+                    runner.options.update(output=dataset, real_task=opts.get("real_task", ""), suffix=item["suffix"])
                     return
                 if state["phase"] not in ("loading", "waiting_robot") or time.monotonic() >= deadline:
                     raise ValueError("Collection is not ready for a new recording")

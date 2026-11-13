@@ -247,7 +247,7 @@ class Session:
             if self.proc is not None:
                 raise ValueError("已有会话运行中")
             self.mode, self.robot = mode, opts["robot"]
-            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","task","on_success","real_task") if k in opts}
+            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","suffix","task","on_success","real_task") if k in opts}
             rows = channels(self.robot)
             if sum(".deploy.robot." in typ for _, typ, _ in rows) > 1:
                 raise ValueError("请选择单机器人或双臂组合配置，以便逐次确认暂停与回零")
@@ -496,7 +496,7 @@ class Session:
                 except (FileNotFoundError, BlockingIOError, ConnectionRefusedError):
                     pass
 
-    def action(self, sid, action, real_task=None):
+    def action(self, sid, action, real_task=None, destination=None):
         with self.lock:
             state = self.state()
             if sid != self.sid or action not in state["actions"]:
@@ -530,7 +530,9 @@ class Session:
                     self.box[0] = PAUSE  # ignore late policy output while inference returns
                 if action == "record":
                     self.retaking = False
-                command = None
+                metadata = {}
+                if destination:
+                    metadata["dataset"] = destination
                 if action == "record" and self.mode == "collect" and real_task is not None:
                     if catalog()["robot_options"].get(self.robot, {}).get("tasks"):
                         raise ValueError("Simulation task is bound to the environment")
@@ -538,11 +540,11 @@ class Session:
                     if real_task != "":
                         task = get_task(real_task)
                         instruction = task["instruction"] or task["name"]
-                    command = json.dumps({"task": instruction}, ensure_ascii=False)
-                self._key(action, state["phase"], command)
+                    metadata["task"] = instruction
+                self._key(action, state["phase"], json.dumps(metadata) if metadata else None)
 
-    def start_retake(self, index, version, task):
-        self._key("record", "ready", json.dumps(dict(index=index, version=version, task=task)))
+    def start_retake(self, index, version, task, dataset):
+        self._key("record", "ready", json.dumps(dict(index=index, version=version, task=task, dataset=dataset)))
         self.retaking = True
 
     def _key(self, action, phase, command=None):

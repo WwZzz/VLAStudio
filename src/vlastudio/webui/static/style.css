@@ -769,6 +769,7 @@ body.reviewing #transport :is(#buttons,#teleSwitch,.transport-state) {display:no
 #playbackTransport {display:flex;align-items:center;gap:12px;flex:1;min-width:0}
 #playbackTransport #playEpisode {flex:none}
 #libraryOpen {background:#edf3ed;color:#294936;border-color:#c6d6cb;white-space:nowrap}
+#episodeList button small {display:block;font-size:.78em;font-weight:400;opacity:.8}
 #episodePanel select {max-width:100%;min-width:0}
 #deleteEpisode {color:#a13535}
 #recordedImages {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:8px}
@@ -921,8 +922,21 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 
 #configLoading {width:100%;height:4px;accent-color:var(--green)}
 
-#settingsOpen {padding:6px;width:32px;height:32px;flex-shrink:0}
-#settingsOpen svg {display:block;width:18px;height:18px}
+#settingsOpen {display:grid;place-items:center;padding:0;width:32px;height:32px;flex-shrink:0}
+#settingsOpen svg {display:block;width:20px;height:20px}
+.settings-data-path {display:flex;align-items:center;gap:8px;margin-top:6px}
+.settings-data-path input {flex:1;min-width:0}
+.settings-data-path button {flex:none}
+#folderDialog {width:min(480px,94vw);max-height:88dvh;overflow:auto}
+#folderUp {display:grid;place-items:center;width:36px;min-height:36px;padding:0}
+.folder-nav,.folder-actions {display:flex;gap:8px;flex-wrap:wrap}
+.folder-actions {justify-content:flex-end;margin-top:14px}
+#folderPath {font-family:monospace;overflow-wrap:anywhere}
+#folderList {display:grid;max-height:40dvh;overflow:auto}
+#folderList button {text-align:start;background:transparent;border:0;border-bottom:1px solid var(--border);border-radius:0;overflow-wrap:anywhere}
+#folderList button:hover,#folderList button:focus-visible {background:var(--green-soft)}
+#folderStatus {color:var(--muted)}
+#folderDialog p:empty {display:none}
 #settingsDialog {width:min(620px,96vw);max-height:92dvh;overflow:auto}
 #settingsForm {padding:0;margin:0;gap:10px}
 #settingsForm p {margin:0}
@@ -938,3 +952,7 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 #settingsClearToken {width:auto}
 #settingsError {color:#b52b3a}
 :root[data-theme=dark] #settingsError {color:#ffacb8}
+
+#folderCreateForm{margin:14px 0;padding:12px;border:1px solid var(--border);border-radius:8px}
+#folderCreateForm label{display:grid;gap:7px;margin:0 0 10px}#folderName{width:100%;box-sizing:border-box}
+.folder-create-actions{display:flex;gap:8px;flex-wrap:wrap}

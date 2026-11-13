@@ -15,8 +15,7 @@ function renderThemeToggle() {
     ? '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>'
     : '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20.5 14A9 9 0 0 1 10 3.5 9 9 0 1 0 20.5 14Z"/></svg>';
 }
-document.documentElement.dataset.theme = savedTheme === "dark" || savedTheme === "light"
-  ? savedTheme : systemTheme.matches ? "dark" : "light";
+window.VLATheme.apply();
 $("themeToggle").onclick = () => {
   const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   savedTheme = document.documentElement.dataset.theme = theme;
@@ -228,7 +227,8 @@ function options() {
     policy: $("policy").value,
     manager: $("manager").value,
     rate: Number($("rate").value),
-    output: $("output").value,
+    output: "",
+    suffix: $("suffix").value,
     task: $("task").value,
     real_task: $("real_task").value,
     on_success: $("on_success").value,
@@ -257,7 +257,13 @@ function renderTaskPanel() {
         "Select or create a robot task. Its instruction will be saved with recordings.",
       );
 }
+function resetDatasetSuffix() {
+  $("suffix").replaceChildren();
+  document.dispatchEvent(new Event("episode-session"));
+}
+$("task").addEventListener("change", resetDatasetSuffix);
 $("real_task").onchange = () => {
+  resetDatasetSuffix();
   renderTaskPanel();
   localStorage.setItem("vla-" + mode, JSON.stringify(options()));
 };
@@ -279,6 +285,7 @@ $("taskForm").onsubmit = async (event) => {
     robotTasks = await api("tasks");
     fillRobotTasks();
     $("real_task").value = task.id;
+    resetDatasetSuffix();
     renderTaskPanel();
     localStorage.setItem("vla-" + mode, JSON.stringify(options()));
     $("taskDialog").close();
@@ -299,13 +306,14 @@ function defaults() {
       ? "quest3_bi_alicia_rel_ee"
       : "";
   $("sync").value = r === "rebot_b601rs_head_rel_ee" ? "rebot_b601rs_head" : "";
-  $("output").value = collecting ? r : "";
+  $("output").value = "";
   const settings = profiles.robot_options?.[r];
   $("simulationFields").hidden = !settings?.tasks;
   fill("task", settings?.tasks || []);
   if (settings?.teleop) $("teleop").value = settings.teleop;
   if (settings?.rate) $("rate").value = settings.rate;
   renderTaskPanel();
+  resetDatasetSuffix();
   if (!collecting && r === "dummy")
     $("policy").value = "__dummy-zero14-chunk16";
   else if (!collecting && $("policy").value.startsWith("__dummy"))
@@ -444,6 +452,7 @@ async function act(action) {
   const payload = {mode, id: sid, action};
   if (collecting && action === "record" && !$("realTaskFields").hidden)
     payload.real_task = $("real_task").value;
+  if (collecting && action === "record") payload.suffix = $("suffix").value;
   await post("action", payload);
 }
 function transportIcon(key) {
@@ -512,7 +521,7 @@ function renderSession(s) {
       fill("task", tasks);
     $("sync").value = s.options.sync || "";
     for (const [key, value] of Object.entries(s.options || {}))
-      if ($(key) && !(collecting && key === "real_task")) $(key).value = value;
+      if ($(key) && !(collecting && ["real_task", "suffix"].includes(key))) $(key).value = value;
   }
   renderTaskPanel();
   $("phase").textContent =
@@ -522,7 +531,11 @@ function renderSession(s) {
       : "") + tr(phases[s.phase]);
   for (const field of $("form").elements)
     field.disabled = s.active || connecting;
-  if (collecting) $("real_task").disabled = connecting;
+  {
+    const locked = connecting || (!collecting && s.active) || ["recording", "record_paused", "save", "busy", "homing", "stopping"].includes(s.phase);
+    $("real_task").disabled = $("newTask").disabled = locked;
+    $("suffix").disabled = $("newSuffix").disabled = locked;
+  }
   for (const id of ["robot", "task", "on_success"]) $(id).disabled = !!selection || busy;
   syncProfilePickers();
   $("robotConnection").disabled = busy || (!!c && !!s.loaded?.length);
@@ -1174,6 +1187,9 @@ $("language").onchange = () => {
   applyLanguage();
 };
 $(collecting ? "navCollect" : "navInfer").classList.add("active");
+$("outLabel").hidden = true;
+$("suffixFields").hidden = false;
+$("libraryDatasetField").hidden = true;
 $("collectFields").hidden = !collecting;
 $("inferFields").hidden = collecting;
 applyLanguage();
@@ -1185,3 +1201,22 @@ setInterval(() => {
       $("link").className = "chip";
     });
 }, 450);
+
+document.addEventListener("settingsopening", () => heldKeys.clear());
+document.addEventListener("settingschanged", async () => {
+  try {
+      const previous=options();
+      profiles=await api("catalog");
+      fill("robot",profiles.robot.filter(n=>(profiles.robot_options?.[n]?.modes||["collect","infer"]).includes(mode)));
+      fill("teleop",profiles.teleop,tr("None · Observations only"));
+      fill("sync",profiles.recording,tr("Native synchronization"));
+      fill("manager",profiles.action_manager);
+      for (const id of ["robot","teleop","sync","manager"]) {
+        const value=previous[id] || "";
+        if ([...$(id).options].some(option=>option.value===value)) $(id).value=value;
+      }
+      syncProfilePickers();renderTaskPanel();
+      localStorage.setItem("vla-"+mode,JSON.stringify(options()));
+      await refresh();
+  } catch (error) { notice(error.message); }
+});

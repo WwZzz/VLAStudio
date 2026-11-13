@@ -1024,6 +1024,11 @@ class Quest3Teleop(BaseTeleopDevice):
                     # Only write to shm when unsqueeze button is pressed AND there's new VR data
                     if should_write:
                         # Write action dict with state info (action, unsqueeze_active, anchor_just_set)
+                        if self.arm_mode in ("left", "right"):
+                            goal = data.get(self.arm_mode)
+                            history = (getattr(goal, "metadata", None) or {}).get("frame_history")
+                            if history:
+                                action_dict["frame_history"] = history
                         self.write_data_to_shm(action_dict)
                         self._write_count += 1
                         

@@ -1,4 +1,6 @@
 """Browse completed recordings under the WebUI output directory."""
+from datetime import datetime, timezone
+from functools import lru_cache
 import base64
 import hashlib
 from pathlib import Path
@@ -29,11 +31,30 @@ def revision(paths):
     return hashlib.sha256(str([(s.st_ino, s.st_mtime_ns, s.st_size) for s in stats]).encode()).hexdigest()[:24]
 
 
-def catalog(active_video=None):
+@lru_cache(maxsize=1024)
+def saved_at(path, version, mtime):
+    if path.suffix == ".hdf5":
+        import h5py
+        try:
+            with h5py.File(path, "r") as recording:
+                if "saved_at" in recording.attrs:
+                    return str(recording.attrs["saved_at"])
+        except OSError:
+            pass
+    from .datasets import read_manifest
+    directory = path.parent.parent if path.suffix == ".mp4" else path.parent
+    item = read_manifest(directory) or {}
+    index = str(int(path.stem.rsplit("_", 1)[-1]))
+    return item.get("episodes", {}).get(index, {}).get("saved_at") or datetime.fromtimestamp(mtime, timezone.utc).isoformat()
+
+
+def catalog(active_video=None, dataset=None):
     rows = []
     if not root_directory().exists():
         return rows
-    for directory in sorted(root_directory().iterdir()):
+    if dataset is not None and not re.fullmatch(r"[\w-][\w.-]{0,79}", dataset):
+        raise ValueError("Invalid dataset")
+    for directory in [root_directory() / dataset] if dataset else sorted(root_directory().iterdir()):
         if not directory.is_dir() or directory.is_symlink() or not re.fullmatch(r"[\w-][\w.-]{0,79}", directory.name):
             continue
         indices = set()
@@ -47,7 +68,9 @@ def catalog(active_video=None):
         for index in sorted(indices):
             paths = files(directory.name, index)
             if paths and not (directory.name == active_video and paths[0].suffix == ".mp4"):
-                rows.append(dict(dataset=directory.name, index=index, version=revision(paths),
+                version = revision(paths)
+                rows.append(dict(dataset=directory.name, index=index, version=version,
+                                 saved_at=saved_at(paths[0], version, paths[0].stat().st_mtime),
                                  rerecordable=len(paths) == 1 and paths[0].suffix == ".hdf5"))
     return rows
 
@@ -82,6 +105,8 @@ def remove(dataset, index, version):
             dst = target / p.name
             p.rename(dst)
             moved.append((dst, p))
+        from .datasets import modified
+        modified(paths[0].parent if paths[0].suffix == ".hdf5" else paths[0].parent.parent)
     except OSError:
         for dst, p in reversed(moved):
             dst.rename(p)

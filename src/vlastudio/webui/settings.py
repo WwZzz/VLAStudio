@@ -33,12 +33,17 @@ def configured_roots(data):
 def public():
     data, version = stored()
     return dict(data_dir=str(Path(data.get("data_dir", DEFAULT_DATA)).expanduser()),
+                checkpoint_dir=str(Path(data.get("checkpoint_dir", DEFAULT_DATA.parent / "checkpoints")).expanduser()),
                 config_roots=configured_roots(data), hf_username=data.get("hf_username", ""),
                 token_set=bool(data.get("hf_token", os.environ.get("HF_TOKEN", ""))), version=version)
 
 
 def data_directory():
     return Path(public()["data_dir"]).expanduser().resolve()
+
+
+def checkpoint_directory():
+    return Path(public()["checkpoint_dir"]).expanduser().resolve()
 
 
 def extra_configs():
@@ -70,12 +75,51 @@ def absolute_directory(value, required=False):
     return str(path.resolve())
 
 
+def browse_directory(value, initial=False):
+    path = Path(absolute_directory(value, required=True)) if value else Path.home()
+    if initial:
+        # The editable field may already contain a new directory to be created on save.
+        while not path.is_dir() and path != path.parent:
+            path = path.parent
+    with os.scandir(path) as entries:
+        folders = []
+        for entry in entries:
+            try:
+                if entry.is_dir():
+                    folders.append({"name": entry.name, "path": entry.path})
+            except OSError:
+                continue
+    folders.sort(key=lambda folder: (folder["name"].casefold(), folder["name"]))
+    return {"path": str(path), "parent": str(path.parent) if path != path.parent else None,
+            "folders": folders}
+
+
+def create_directory(value, name):
+    if (not isinstance(name, str) or not name.strip() or name.strip() in (".", "..")
+            or len(name.strip().encode("utf-8")) > 255
+            or any(char in name for char in ("/", "\\"))
+            or any(ord(char) < 32 or ord(char) == 127 for char in name)):
+        raise ValueError("Enter a folder name without path separators")
+    parent = Path(absolute_directory(value, required=True))
+    if not parent.is_dir():
+        raise ValueError("The parent directory no longer exists")
+    child = parent / name.strip()
+    try:
+        child.mkdir()
+    except FileExistsError:
+        raise ValueError("A file or folder with this name already exists") from None
+    except PermissionError:
+        raise ValueError("You do not have permission to create a folder here") from None
+    return {"path": str(child)}
+
+
 def save(studio, payload):
     with studio.lock:
         data, version = stored()
         if payload.get("version") != version:
             raise ValueError("Settings changed. Reopen settings before saving.")
         data_dir = absolute_directory(payload.get("data_dir", ""), required=True)
+        checkpoint_dir = absolute_directory(payload.get("checkpoint_dir", str(checkpoint_directory())), required=True)
         previous = configured_roots(data)
         if "config_roots" in payload:
             requested = payload["config_roots"]
@@ -108,8 +152,12 @@ def save(studio, payload):
         # Check actual write access, including on network-mounted storage.
         with tempfile.TemporaryFile(dir=target):
             pass
+        checkpoint_target = Path(checkpoint_dir)
+        checkpoint_target.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=checkpoint_target):
+            pass
         data.pop("config_root", None)
-        data.update(data_dir=data_dir, config_roots=roots, hf_username=username)
+        data.update(data_dir=data_dir, checkpoint_dir=checkpoint_dir, config_roots=roots, hf_username=username)
         if payload.get("clear_token"):
             data["hf_token"] = ""
         elif token:

@@ -409,6 +409,10 @@ def eval_real_session_recorder_main(
             video_only_reuse_same_episode_after_discard = (not save) and n > 0
             if save and n > 0:
                 saved_awaiting_next = True
+                if os.environ.get("VLASTUDIO_WEB_FD"):
+                    from pathlib import Path
+                    from vlastudio.webui.datasets import modified
+                    modified(Path(video_dir).parent, ep)
             if ep is not None:
                 action = "saved" if save else "discarded"
                 logger.info("[SessionRecorder] {} episode {} ({} video frames)", action, ep, n)
@@ -425,6 +429,9 @@ def eval_real_session_recorder_main(
         episode_open = False
         if save and n > 0:
             saved_awaiting_next = True
+            if os.environ.get("VLASTUDIO_WEB_FD"):
+                from vlastudio.webui.datasets import modified
+                modified(data_saver.output_dir, actual_episode_idx)
         action = "saved" if save else "discarded"
         logger.info("[SessionRecorder] {} episode {} ({} frames)", action, actual_episode_idx, n)
         return n

@@ -15,9 +15,25 @@ import yaml
 from .profiles import config_roots, profile_paths
 
 KINDS = ("robot", "teleop", "recording", "action_manager")
+TRAINING_KINDS = ("policy", "task", "training")
 
 
 def profile_path(kind, name):
+    if kind in TRAINING_KINDS:
+        if (not isinstance(name, str) or len(name) > 512 or
+                not all(re.fullmatch(r"[\w][\w.-]{0,119}", part) for part in name.split("/"))):
+            raise ValueError("Invalid configuration name")
+        from .training import paths
+        known = paths(kind).get(name)
+        root = next((root for root in config_roots() if known is not None and
+                     known.resolve().is_relative_to((root / kind).resolve())), config_roots()[0])
+        folder = (root / kind).resolve()
+        path = known if known is not None else folder / (name + ".yaml")
+        if not path.resolve().is_relative_to(folder) or path.is_symlink():
+            raise ValueError("Invalid configuration path")
+        if any(parent.is_symlink() for parent in path.parents if parent != folder and parent.is_relative_to(folder)):
+            raise ValueError("Invalid configuration path")
+        return path
     if kind not in KINDS or not isinstance(name, str) or not re.fullmatch(r"[\w][\w.-]{0,79}", name):
         raise ValueError("Invalid configuration name")
     known = profile_paths(kind).get(name)
@@ -57,6 +73,22 @@ def validate(kind, content):
         json.dumps(doc, allow_nan=False)
     except (ValueError, TypeError, RecursionError) as exc:
         raise ValueError("Configuration values must be finite JSON-compatible values") from exc
+    if kind in TRAINING_KINDS:
+        if not isinstance(doc, dict) or not doc:
+            raise ValueError("Configuration must be a nonempty mapping")
+        if kind == "policy":
+            reference = doc.get("type") or doc.get("module_path")
+            if not isinstance(reference, str) or not reference.strip():
+                raise ValueError("Policy configuration needs a type")
+            if not isinstance(doc.get("args", {}), dict):
+                raise ValueError("Policy args must be a mapping")
+        if kind == "task":
+            sources = doc.get("datasets", [])
+            vqa = doc.get("vqa", [])
+            if (not isinstance(sources, list) or not isinstance(vqa, list) or
+                    not (sources or vqa) or not all(isinstance(row, dict) and row for row in sources + vqa)):
+                raise ValueError("Dataset configuration needs a nonempty datasets or vqa list")
+        return
     if kind == "recording":
         if not isinstance(doc, dict) or not isinstance(doc.get("required"), list) or not doc["required"]:
             raise ValueError("Recording configuration needs a nonempty required channel list")
@@ -89,6 +121,9 @@ def validate(kind, content):
 
 
 def in_use(studio, kind, name):
+    if kind in TRAINING_KINDS:
+        # Submitted training jobs use private config snapshots.
+        return False
     if kind == "robot" and (studio.connected.get("robot") == name or studio.preview.profile == name):
         return True
     key = dict(robot="robot", teleop="teleop", recording="sync", action_manager="manager")[kind]
@@ -110,7 +145,7 @@ def save(studio, kind, name, content, version, target):
         elif dest.exists():
             raise ValueError("A configuration with this name already exists")
         dest.parent.mkdir(parents=True, exist_ok=True)
-        fd, temporary = tempfile.mkstemp(prefix="."+target+"-", suffix=".tmp", dir=dest.parent)
+        fd, temporary = tempfile.mkstemp(prefix="."+Path(target).name+"-", suffix=".tmp", dir=dest.parent)
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as file:
                 file.write(content)

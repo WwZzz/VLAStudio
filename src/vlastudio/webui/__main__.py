@@ -10,7 +10,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import config_editor, episodes, settings
+from . import config_editor, data_management, datasets, episodes, settings, training
 from .profiles import catalog
 from .studio import Studio
 from .tasks import list_tasks, create_task
@@ -43,6 +43,9 @@ class Handler(BaseHTTPRequestHandler):
                  "/infer":("index.html","text/html"), "/app.js":("app.js","text/javascript"),
                  "/style.css":("style.css","text/css"),
                  "/vlastudio-mark.svg":("vlastudio-mark.svg","image/svg+xml")}
+        files["/log-search.js"] = ("log-search.js", "text/javascript")
+        files["/theme.js"] = ("theme.js", "text/javascript")
+        files["/training-config.js"] = ("training-config.js", "text/javascript")
         files["/settings.js"] = ("settings.js", "text/javascript")
         files["/config-devices.js"] = ("config-devices.js", "text/javascript")
         files["/config-editor.js"] = ("config-editor.js", "text/javascript")
@@ -53,6 +56,106 @@ class Handler(BaseHTTPRequestHandler):
             file, mime = files[url.path]
             return self.reply((ASSETS/file).read_bytes(), mime + "; charset=utf-8")
         s = self.server.session
+        if url.path in ("/train", "/train.js", "/train.css"):
+            name = "train.html" if url.path == "/train" else url.path[1:]
+            mime = "text/html" if name.endswith(".html") else "text/javascript" if name.endswith(".js") else "text/css"
+            return self.reply((ASSETS / name).read_bytes(), mime + "; charset=utf-8")
+        if url.path.startswith("/api/training/"):
+            try:
+                query = parse_qs(url.query)
+                if url.path == "/api/training/catalog":
+                    return self.reply(training.catalog())
+                if url.path == "/api/training/runs":
+                    return self.reply(training.runs())
+                if url.path == "/api/training/run":
+                    return self.reply(training.detail(query["id"][0]))
+                if url.path == "/api/training/log":
+                    path = training.artifact(query["id"][0], "training.log")
+                    with path.open("rb") as stream:
+                        total = os.fstat(stream.fileno()).st_size
+                        start, end, status = 0, total - 1, 200
+                        byte_range = self.headers.get("Range")
+                        if byte_range:
+                            import re
+                            match = re.fullmatch(r"bytes=(\d+)-(\d*)", byte_range)
+                            if not match:
+                                return self.reply({"error":"Invalid log byte range"}, status=416)
+                            start = int(match[1])
+                            end = min(int(match[2]), total - 1) if match[2] else total - 1
+                            if start >= total or end < start:
+                                return self.reply(b"", "text/plain", status=416,
+                                                  headers=(("Content-Range", f"bytes */{total}"),))
+                            status = 206
+                        remaining = max(0, end - start + 1)
+                        stream.seek(start)
+                        self.send_response(status)
+                        self.send_header("Content-Type", "text/plain; charset=utf-8")
+                        self.send_header("Content-Length", str(remaining))
+                        self.send_header("Accept-Ranges", "bytes")
+                        if status == 206:
+                            self.send_header("Content-Range", f"bytes {start}-{end}/{total}")
+                        self.send_header("Cache-Control", "no-store")
+                        self.send_header("X-Content-Type-Options", "nosniff")
+                        self.end_headers()
+                        while remaining:
+                            block = stream.read(min(65536, remaining))
+                            if not block:
+                                break
+                            self.wfile.write(block)
+                            remaining -= len(block)
+                    return
+                if url.path == "/api/training/model":
+                    identifier = query["id"][0]
+                    run = training.detail(identifier)["run"]
+                    if run["status"] != "completed":
+                        raise ValueError("The final model is available after training completes")
+                    model = training.directory(identifier) / "model"
+                    if not model.is_dir():
+                        raise ValueError("No saved model")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/gzip")
+                    self.send_header("Content-Disposition", 'attachment; filename="model-' + identifier + '.tar.gz"')
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Connection", "close")
+                    self.end_headers()
+                    import tarfile
+                    with tarfile.open(fileobj=self.wfile, mode="w|gz", dereference=False) as archive:
+                        for path in sorted(model.rglob("*")):
+                            relative = path.relative_to(model)
+                            if (path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(model.resolve())
+                                    and not any(part.startswith("checkpoint-") for part in relative.parts)):
+                                archive.add(path, arcname="model/" + relative.as_posix(), recursive=False)
+                    return
+                if url.path == "/api/training/artifact":
+                    path = training.artifact(query["id"][0], query["file"][0])
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Length", str(path.stat().st_size))
+                    from urllib.parse import quote
+                    self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + quote(path.name))
+                    self.end_headers()
+                    import shutil
+                    with path.open("rb") as stream:
+                        shutil.copyfileobj(stream, self.wfile)
+                    return
+                return self.reply({"error":"Not found"}, status=404)
+            except (ValueError, KeyError, TypeError, OSError) as exc:
+                return self.reply({"error":str(exc)}, status=409)
+        if url.path == "/data":
+            return self.reply((ASSETS / "data.html").read_bytes(), "text/html; charset=utf-8")
+        if url.path in ("/data.js", "/data.css"):
+            name = url.path[1:]
+            return self.reply((ASSETS / name).read_bytes(), "text/javascript" if name.endswith(".js") else "text/css")
+        if url.path == "/api/health":
+            return self.reply({"ok": True})
+        if url.path == "/api/data/catalog":
+            return self.reply(data_management.catalog())
+        if url.path == "/api/data/annotations":
+            try:
+                query = {k:v[0] for k,v in parse_qs(url.query).items()}
+                return self.reply(data_management.annotations(query["dataset"], int(query["index"]), query["version"]))
+            except (ValueError, KeyError, OSError) as exc:
+                return self.reply({"error":str(exc)}, status=409)
         if url.path == "/api/settings":
             return self.reply(settings.public())
         if url.path == "/api/device-types":
@@ -82,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
                     infer = s.runners["infer"]
                     active_video = infer.output if infer.proc else None
                 if url.path == "/api/episodes":
-                    return self.reply(episodes.catalog(active_video))
+                    return self.reply(episodes.catalog(active_video, parse_qs(url.query).get("dataset", [None])[0]))
                 query = {k:v[0] for k,v in parse_qs(url.query).items()}
                 dataset, index = query["dataset"], int(query["index"])
                 if dataset == active_video and all(p.suffix == ".mp4" for p in episodes.files(dataset, index)):
@@ -152,10 +255,33 @@ class Handler(BaseHTTPRequestHandler):
         s = self.server.session
         try:
             size = int(self.headers.get("Content-Length","0"))
-            limit = 262144 if self.path == "/api/config" else 8192
+            limit = 1048576 if self.path == "/api/data/annotations" else 262144 if self.path == "/api/config" else 8192
             if not 1 <= size <= limit:
                 raise ValueError("Invalid request size")
             data = json.loads(self.rfile.read(size))
+            if self.path == "/api/training/start":
+                return self.reply(training.start(data))
+            if self.path == "/api/training/stop":
+                return self.reply(training.stop(data["id"]))
+            if self.path == "/api/data/annotations":
+                with s.lock:
+                    return self.reply(data_management.save(data))
+            if self.path == "/api/data/delete":
+                with s.lock:
+                    if any(r.proc and r.output == data["dataset"] for r in s.runners.values()):
+                        raise ValueError("Disconnect before deleting from this dataset")
+                    data_management.remove_dataset(data["dataset"])
+                return self.reply({"ok":True})
+            if self.path in ("/api/datasets", "/api/datasets/create"):
+                with s.lock:
+                    context = s.collection(data)
+                    if self.path.endswith("/create"):
+                        return self.reply(datasets.ensure(datasets.identity(context, data["suffix"])))
+                    return self.reply(datasets.choices(context))
+            if self.path == "/api/settings/directories/create":
+                return self.reply(settings.create_directory(data.get("path"), data.get("name")))
+            if self.path == "/api/settings/directories":
+                return self.reply(settings.browse_directory(data.get("path"), data.get("initial") is True))
             if self.path == "/api/settings":
                 return self.reply(settings.save(s, data))
             if self.path == "/api/config":
@@ -181,7 +307,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.path == "/api/start":
                 s.start(data["mode"], data)
             elif self.path == "/api/action":
-                s.action(data["mode"], data["id"], data["action"], real_task=data.get("real_task"))
+                s.action(data["mode"], data["id"], data["action"], real_task=data.get("real_task"), suffix=data.get("suffix"))
             elif self.path == "/api/keyboard":
                 s.runners["collect"].keyboard(data)
             elif self.path == "/api/preview":

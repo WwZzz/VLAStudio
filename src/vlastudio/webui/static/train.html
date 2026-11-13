@@ -1,0 +1,118 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VLAStudio · Policy training</title><script src="/theme.js"></script>
+    <link rel="icon" href="/vlastudio-mark.svg"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/train.css"><script src="/i18n.js" defer></script><script src="/log-search.js" defer></script><script src="/train.js" defer></script><script src="/training-config.js" defer></script><script src="/settings.js" defer></script></head><body><header>
+<a class="brand" href="/collect"><img src="/vlastudio-mark.svg" width="32" height="32" alt="">VLA<span>Studio</span></a>
+<nav><a href="/collect" data-i18n="Data collection">Data collection</a><a href="/infer" data-i18n="Policy inference">Policy inference</a><a href="/data" data-i18n="Data management">Data management</a><a href="/train" class="active" data-i18n="Policy training">Policy training</a></nav>
+      <div class="header-tools">
+        <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+        <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.97 2.15A9.9 9.9 0 0 1 13.03 2.15L13.49 4.34A7.8 7.8 0 0 1 16.36 5.53L18.23 4.31A9.9 9.9 0 0 1 19.69 5.77L18.47 7.64A7.8 7.8 0 0 1 19.66 10.51L21.85 10.97A9.9 9.9 0 0 1 21.85 13.03L19.66 13.49A7.8 7.8 0 0 1 18.47 16.36L19.69 18.23A9.9 9.9 0 0 1 18.23 19.69L16.36 18.47A7.8 7.8 0 0 1 13.49 19.66L13.03 21.85A9.9 9.9 0 0 1 10.97 21.85L10.51 19.66A7.8 7.8 0 0 1 7.64 18.47L5.77 19.69A9.9 9.9 0 0 1 4.31 18.23L5.53 16.36A7.8 7.8 0 0 1 4.34 13.49L2.15 13.03A9.9 9.9 0 0 1 2.15 10.97L4.34 10.51A7.8 7.8 0 0 1 5.53 7.64L4.31 5.77A9.9 9.9 0 0 1 5.77 4.31L7.64 5.53A7.8 7.8 0 0 1 10.51 4.34L10.97 2.15Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
+        <select id="language" aria-label="Language">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+        </select>
+      </div>
+</header><main>
+<div class="heading"><h1 data-i18n="Policy training">Policy training</h1><button id="refresh" data-i18n="Refresh">Refresh</button></div>
+<p id="message" role="status"></p>
+<div class="training-layout">
+<section class="panel"><h2 data-i18n="New training run">New training run</h2>
+<form id="trainForm">
+<label><span data-i18n="Run name">Run name</span><input id="runName" required maxlength="100" autocomplete="off"></label>
+<div class="training-config-picker"><span class="config-label"><label for="policy" data-i18n="Policy">Policy</label><button id="edit-policy" type="button" class="config-edit" data-config-kind="policy" disabled aria-label="Edit configuration"></button></span><select id="policy" required></select></div>
+<div class="training-config-picker"><span class="config-label"><label for="task" data-i18n="Dataset configuration">Dataset configuration</label><button id="edit-task" type="button" class="config-edit" data-config-kind="task" disabled aria-label="Edit configuration"></button></span><select id="task" required></select></div>
+<small data-i18n="Dataset configurations define data paths, cameras and action format.">Dataset configurations define data paths, cameras and action format.</small>
+<div class="training-config-picker"><span class="config-label"><label for="training" data-i18n="Training configuration">Training configuration</label><button id="edit-training" type="button" class="config-edit" data-config-kind="training" disabled aria-label="Edit configuration"></button></span><select id="training" required></select></div>
+<details><summary data-i18n="Training parameters">Training parameters</summary><p data-i18n="Leave blank to use the selected configuration.">Leave blank to use the selected configuration.</p><div id="parameters"></div></details>
+<p><small data-i18n="Runs execute on this WebUI machine using its Python environment.">Runs execute on this WebUI machine using its Python environment.</small></p>
+<button class="primary" id="startTraining" type="submit" disabled data-i18n="Start training">Start training</button>
+</form></section>
+<section class="training-workspace">
+<p id="detailEmpty" class="panel" data-i18n="Select a training run to view its logs and metrics.">Select a training run to view its logs and metrics.</p>
+<article class="panel" id="runDetail" hidden>
+<div class="heading"><h2 id="runTitle"></h2><button id="stopTraining" class="danger" data-i18n="Stop training">Stop training</button></div>
+<p id="runState" role="status"></p><p id="runError" role="alert" hidden></p><progress id="progress" max="100"></progress><p id="runPath" class="path"></p>
+<details><summary data-i18n="Request configuration">Request configuration</summary><pre id="runConfig"></pre></details>
+<div class="heading"><h3 data-i18n="Training curves">Training curves</h3><select id="metric" aria-label="Metric"></select></div>
+<p id="noMetrics" data-i18n="Metrics appear after the first logging step.">Metrics appear after the first logging step.</p>
+<svg id="chart" viewBox="0 0 760 260" role="img" aria-label="Training curve"></svg><p id="metricValue"></p>
+<section id="logPanel" aria-labelledby="trainingLogTitle"><div class="heading"><h3 id="trainingLogTitle" data-i18n="Training log">Training log</h3><div class="log-actions"><button id="findLog" type="button" data-i18n="Find in log">Find in log</button><a id="openLog" target="_blank" rel="noopener" data-i18n="Open full log">Open full log</a><a id="downloadLog" data-i18n="Download log">Download log</a></div></div>
+<p id="logStatus" role="status" aria-live="off"></p><div id="logSearchBar" role="search" hidden>
+<label class="log-search-input"><span class="log-search-label" data-i18n="Search log">Search log</span><input id="logQuery" type="search" autocomplete="off" spellcheck="false" aria-controls="log"></label>
+<output id="logMatchCount" role="status"></output>
+<div class="log-search-buttons"><button id="logPrevious" type="button" aria-label="Previous match">↑</button><button id="logNext" type="button" aria-label="Next match">↓</button><button id="logSearchClose" type="button" aria-label="Close search">×</button></div>
+<small id="logSearchState" role="status"></small>
+</div><pre id="log" tabindex="0"></pre></section>
+<div class="heading"><h3 data-i18n="Model weights and artifacts">Model weights and artifacts</h3><a id="downloadModel" hidden data-i18n="Download final model">Download final model</a></div><p data-i18n="Saved files appear here as training progresses.">Saved files appear here as training progresses.</p><div id="artifacts"></div>
+</article></section><aside id="trainingSidebar" class="panel" aria-labelledby="trainingRunsTitle"><h2 id="trainingRunsTitle" data-i18n="Training runs">Training runs</h2><div id="runs"></div></aside></div></main>    <dialog id="folderDialog" aria-labelledby="folderTitle">
+      <div class="heading"><h2 id="folderTitle" data-i18n="Choose a directory">Choose a directory</h2></div>
+      <div class="folder-nav">
+        <button type="button" id="folderUp" title="Go to parent directory" aria-label="Go to parent directory">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4m-7 7 7-7 7 7"/></svg>
+        </button>
+        <button type="button" id="folderHome" data-i18n="Home directory">Home directory</button>
+        <button type="button" id="folderNew" data-i18n="New folder">New folder</button>
+      </div>
+      <p id="folderPath" dir="auto"></p>
+      <form id="folderCreateForm" hidden>
+        <label><span data-i18n="Folder name">Folder name</span><input id="folderName" required autocomplete="off" spellcheck="false" maxlength="255"></label>
+        <div class="folder-create-actions"><button type="submit" id="folderCreate" class="primary" data-i18n="Create folder">Create folder</button><button type="button" id="folderCreateCancel" data-i18n="Cancel">Cancel</button></div>
+      </form>
+      <div id="folderList" aria-labelledby="folderPath"></div>
+      <p id="folderStatus" role="status"></p>
+      <div class="folder-actions">
+        <button type="button" id="folderCancel" data-i18n="Cancel">Cancel</button>
+        <button type="button" id="folderChoose" class="primary" data-i18n="Use this directory">Use this directory</button>
+      </div>
+    </dialog>
+    <dialog id="settingsDialog" aria-labelledby="settingsTitle">
+      <form id="settingsForm">
+        <div class="heading">
+          <h2 id="settingsTitle" data-i18n="Settings">Settings</h2>
+          <button type="button" id="settingsClose" data-i18n="Close">Close</button>
+        </div>
+        <p data-i18n="Paths refer to the machine running WebUI.">Paths refer to the machine running WebUI.</p>
+        <div>
+          <label for="settingsData" data-i18n="Local data directory">Local data directory</label>
+          <div class="settings-data-path">
+            <input id="settingsData" required spellcheck="false" autocomplete="off">
+            <button id="settingsBrowse" type="button" data-i18n="Browse…">Browse…</button>
+          </div>
+        </div>
+        <small data-i18n="Used for recordings and training downloads. Training datasets are stored in datasets/.">Used for recordings and training downloads. Training datasets are stored in datasets/.</small>
+        <div>
+          <label for="settingsCheckpoint" data-i18n="Model Checkpoint Directory">Model Checkpoint Directory</label>
+          <div class="settings-data-path"><input id="settingsCheckpoint" required spellcheck="false" autocomplete="off"><button id="settingsCheckpointBrowse" type="button" data-i18n="Browse…">Browse…</button></div>
+        </div>
+        <fieldset id="settingsConfigs">
+          <legend data-i18n="Extra configuration directories">Extra configuration directories</legend>
+          <div id="settingsRootList"></div>
+          <button type="button" id="settingsAddRoot" data-i18n="Add directory">Add directory</button>
+          <small data-i18n="First match wins, then built-in profiles. New profiles go in the first directory.">First match wins, then built-in profiles. New profiles go in the first directory.</small>
+        </fieldset>
+        <label><span data-i18n="Hugging Face username">Hugging Face username</span>
+          <input id="settingsUsername" autocomplete="off" spellcheck="false">
+        </label>
+        <label><span>Hugging Face Token</span>
+          <input id="settingsToken" type="password" autocomplete="new-password" spellcheck="false">
+        </label>
+        <small id="settingsTokenState"></small>
+        <label class="settings-checkbox"><input id="settingsClearToken" type="checkbox">
+          <span data-i18n="Clear saved token">Clear saved token</span>
+        </label>
+        <p id="settingsError" role="alert" hidden></p>
+        <p id="settingsPathNote" data-i18n="Directory changes require disconnected devices. Account changes apply to newly started sessions.">Directory changes require disconnected devices. Account changes apply to newly started sessions.</p>
+        <button type="submit" id="settingsSave" class="primary" data-i18n="Save settings">Save settings</button>
+      </form>
+    </dialog>
+
+<dialog id="configDialog" aria-labelledby="configTitle">
+<form id="configForm">
+<div class="heading"><h2 id="configTitle" data-i18n="Edit configuration">Edit configuration</h2><button type="button" id="configClose" data-i18n="Close">Close</button></div>
+<small id="configLocation"></small><progress id="configLoading" hidden></progress>
+<p id="configUsage" data-i18n="Saved changes apply to new training requests. Submitted runs keep their configuration snapshots.">Saved changes apply to new training requests. Submitted runs keep their configuration snapshots.</p>
+<label><span data-i18n="Configuration name">Configuration name</span><input id="configName" required maxlength="512" autocomplete="off" spellcheck="false"></label>
+<label id="configYaml"><span data-i18n="Parameters (YAML)">Parameters (YAML)</span><textarea id="configContent" required spellcheck="false" wrap="off"></textarea></label>
+<p id="configError" role="alert" hidden></p><div class="row config-actions"><button type="button" id="configCopy" data-i18n="Save as copy">Save as copy</button><button type="submit" id="configSave" class="primary" data-i18n="Save configuration">Save configuration</button></div>
+</form></dialog></body></html>

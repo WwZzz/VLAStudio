@@ -1,5 +1,20 @@
 "use strict";
 const chinese = {
+  "Browse…": "浏览…",
+  "Choose a directory": "选择目录",
+  "Go to parent directory": "回到上一级目录",
+  "Home directory": "用户主目录",
+  "Use this directory": "使用此目录",
+  "No subdirectories": "没有子目录",
+  "Loading directories…": "正在读取目录…",
+  "Not recorded": "未记录",
+  "Data management": "数据管理",
+  "Dataset version suffix": "数据集版本后缀",
+  "New suffix": "新建后缀",
+  "Default": "默认",
+  "Created": "创建于",
+  "Updated": "更新于",
+  "Invalid dataset suffix": "后缀限 1–40 个字母、数字、汉字、下划线、横线或点，不能以点开头",
   "Motor {id} fault {bits}. Homing did not start. Motor disable is unconfirmed.": "{id} 号电机故障 {bits}。未开始回零，未确认失能。",
   "Settings": "\u8bbe\u7f6e",
   "Paths refer to the machine running WebUI.": "\u76ee\u5f55\u6307\u8fd0\u884c WebUI \u7684\u673a\u5668\u4e0a\u7684\u8def\u5f84\u3002",
@@ -273,3 +288,15 @@ let language = localStorage.getItem("vla-language") === "zh" ? "zh" : "en";
 function tr(text) {
   return language === "zh" ? chinese[text] || text : text;
 }
+
+Object.assign(chinese, {"Policy training":"策略训练", "Model Checkpoint Directory":"模型权重保存目录"});
+
+Object.assign(chinese, {
+  "New folder":"新建文件夹", "Folder name":"文件夹名称", "Create folder":"创建文件夹", "Creating folder…":"正在创建文件夹…",
+  "Enter a folder name without path separators":"请输入文件夹名称，不能包含路径分隔符",
+  "The parent directory no longer exists":"上级目录已不存在",
+  "A file or folder with this name already exists":"已存在同名文件或文件夹",
+  "You do not have permission to create a folder here":"没有权限在此目录新建文件夹",
+});
+
+Object.assign(chinese,{"Used for recordings and training downloads. Training datasets are stored in datasets/.":"用于录制数据和训练下载。训练数据集保存在 datasets/ 子目录。"});

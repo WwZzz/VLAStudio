@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>VLAStudio · Control</title>
+    <script src="/theme.js"></script>
     <link rel="stylesheet" href="/style.css" />
     <link rel="icon" type="image/svg+xml" href="/vlastudio-mark.svg" />
     <script src="/i18n.js" defer></script>
@@ -28,11 +29,12 @@
         <a href="/infer" id="navInfer" data-i18n="Policy inference"
           >Policy inference</a
         >
-      </nav>
+        <a href="/data" data-i18n="Data management">Data management</a>
+      <a href="/train" data-i18n="Policy training">Policy training</a></nav>
       <div class="header-tools">
         <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
         <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
-          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m9 3-1 3-3 1 1 3-2 2 2 2-1 3 3 1 1 3h6l1-3 3-1-1-3 2-2-2-2 1-3-3-1-1-3Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.97 2.15A9.9 9.9 0 0 1 13.03 2.15L13.49 4.34A7.8 7.8 0 0 1 16.36 5.53L18.23 4.31A9.9 9.9 0 0 1 19.69 5.77L18.47 7.64A7.8 7.8 0 0 1 19.66 10.51L21.85 10.97A9.9 9.9 0 0 1 21.85 13.03L19.66 13.49A7.8 7.8 0 0 1 18.47 16.36L19.69 18.23A9.9 9.9 0 0 1 18.23 19.69L16.36 18.47A7.8 7.8 0 0 1 13.49 19.66L13.03 21.85A9.9 9.9 0 0 1 10.97 21.85L10.51 19.66A7.8 7.8 0 0 1 7.64 18.47L5.77 19.69A9.9 9.9 0 0 1 4.31 18.23L5.53 16.36A7.8 7.8 0 0 1 4.34 13.49L2.15 13.03A9.9 9.9 0 0 1 2.15 10.97L4.34 10.51A7.8 7.8 0 0 1 5.53 7.64L4.31 5.77A9.9 9.9 0 0 1 5.77 4.31L7.64 5.53A7.8 7.8 0 0 1 10.51 4.34L10.97 2.15Z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
         <button type="button" id="themeToggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
         <select id="language" aria-label="Language">
@@ -244,6 +246,13 @@
               </div>
               <p id="realTaskInstruction"></p>
             </div>
+            <div id="suffixFields" hidden>
+              <div class="task-picker">
+                <label><span data-i18n="Dataset version suffix">Dataset version suffix</span><select id="suffix"></select></label>
+                <button type="button" id="newSuffix" data-i18n="New suffix">New suffix</button>
+              </div>
+              <small id="datasetDates"></small>
+            </div>
           </article>
           <section class="panel" id="episodePanel">
             <h2 data-i18n="Episodes">Episodes</h2>
@@ -251,7 +260,7 @@
               <strong data-i18n="Current Episode">Current Episode</strong>
               <span id="currentEpisodeState"></span>
             </button>
-            <label><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
+            <label id="libraryDatasetField"><span data-i18n="Dataset">Dataset</span><select id="libraryDataset"></select></label>
             <div id="episodeList" role="group" aria-label="Recorded episodes"></div>
             <button id="deleteEpisode" type="button" hidden data-i18n="Delete episode">Delete episode</button>
             <small id="emptyEpisodes" data-i18n="No recordings">No recordings</small>
@@ -300,6 +309,27 @@
         </div>
       </form>
     </dialog>
+    <dialog id="folderDialog" aria-labelledby="folderTitle">
+      <div class="heading"><h2 id="folderTitle" data-i18n="Choose a directory">Choose a directory</h2></div>
+      <div class="folder-nav">
+        <button type="button" id="folderUp" title="Go to parent directory" aria-label="Go to parent directory">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4m-7 7 7-7 7 7"/></svg>
+        </button>
+        <button type="button" id="folderHome" data-i18n="Home directory">Home directory</button>
+        <button type="button" id="folderNew" data-i18n="New folder">New folder</button>
+      </div>
+      <p id="folderPath" dir="auto"></p>
+      <form id="folderCreateForm" hidden>
+        <label><span data-i18n="Folder name">Folder name</span><input id="folderName" required autocomplete="off" spellcheck="false" maxlength="255"></label>
+        <div class="folder-create-actions"><button type="submit" id="folderCreate" class="primary" data-i18n="Create folder">Create folder</button><button type="button" id="folderCreateCancel" data-i18n="Cancel">Cancel</button></div>
+      </form>
+      <div id="folderList" aria-labelledby="folderPath"></div>
+      <p id="folderStatus" role="status"></p>
+      <div class="folder-actions">
+        <button type="button" id="folderCancel" data-i18n="Cancel">Cancel</button>
+        <button type="button" id="folderChoose" class="primary" data-i18n="Use this directory">Use this directory</button>
+      </div>
+    </dialog>
     <dialog id="settingsDialog" aria-labelledby="settingsTitle">
       <form id="settingsForm">
         <div class="heading">
@@ -307,10 +337,18 @@
           <button type="button" id="settingsClose" data-i18n="Close">Close</button>
         </div>
         <p data-i18n="Paths refer to the machine running WebUI.">Paths refer to the machine running WebUI.</p>
-        <label><span data-i18n="Local data directory">Local data directory</span>
-          <input id="settingsData" required spellcheck="false" autocomplete="off">
-        </label>
-        <small data-i18n="Used for new recordings and the episode library.">Used for new recordings and the episode library.</small>
+        <div>
+          <label for="settingsData" data-i18n="Local data directory">Local data directory</label>
+          <div class="settings-data-path">
+            <input id="settingsData" required spellcheck="false" autocomplete="off">
+            <button id="settingsBrowse" type="button" data-i18n="Browse…">Browse…</button>
+          </div>
+        </div>
+        <small data-i18n="Used for recordings and training downloads. Training datasets are stored in datasets/.">Used for recordings and training downloads. Training datasets are stored in datasets/.</small>
+        <div>
+          <label for="settingsCheckpoint" data-i18n="Model Checkpoint Directory">Model Checkpoint Directory</label>
+          <div class="settings-data-path"><input id="settingsCheckpoint" required spellcheck="false" autocomplete="off"><button id="settingsCheckpointBrowse" type="button" data-i18n="Browse…">Browse…</button></div>
+        </div>
         <fieldset id="settingsConfigs">
           <legend data-i18n="Extra configuration directories">Extra configuration directories</legend>
           <div id="settingsRootList"></div>
