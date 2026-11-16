@@ -1,0 +1,35 @@
+@import url('/vendor/xterm.css');
+#terminalOpen{display:grid;place-items:center;padding:0;width:32px;height:32px;flex-shrink:0}#terminalOpen svg{width:20px;height:20px;display:block}
+#terminalOpen[aria-expanded=true]{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+body.terminal-visible{height:100dvh;overflow:hidden;display:flex;flex-direction:column;padding-bottom:0!important}
+body.terminal-visible>header{flex-shrink:0}
+body.terminal-visible>main{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;width:100%;margin:0 auto;padding-bottom:max(65px,var(--terminal-transport-space,0px))}
+body.terminal-visible #transport{bottom:var(--terminal-panel-height)}
+body.terminal-visible #trainingSidebar,body.terminal-visible .data-browser{max-height:max(120px,calc(100dvh - var(--terminal-panel-height) - 150px))}
+#terminalPanel{position:relative;flex:0 0 auto;width:100%;min-width:0;height:300px;display:flex;flex-direction:column;background:var(--paper);border-top:1px solid var(--border);z-index:45;text-align:left}
+#terminalPanel[hidden],#terminalPanel [hidden]{display:none!important}
+#terminalResize{position:absolute;top:-4px;left:0;right:0;height:7px;z-index:2;cursor:ns-resize;touch-action:none}
+#terminalResize:hover,#terminalResize:focus-visible{background:var(--green);outline:0}
+.terminal-resizing,.terminal-resizing *{cursor:ns-resize!important;user-select:none!important}
+#terminalPanel .terminal-heading{display:flex;align-items:center;gap:16px;min-height:40px;padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+#terminalTitle{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin:0;flex-shrink:0}
+#terminalTabs{display:flex;align-self:stretch;align-items:stretch;gap:3px;min-width:0;overflow-x:auto;scrollbar-width:thin;flex:1}
+.terminal-tab{display:flex;align-items:center;gap:2px;border-bottom:2px solid transparent;flex-shrink:0}
+.terminal-tab:has([aria-selected=true]){border-bottom-color:var(--green);background:var(--green-soft)}
+#terminalPanel .terminal-tab button{border:0;background:transparent;box-shadow:none;border-radius:3px;padding:6px 9px;min-height:28px;color:var(--muted);font-size:12px;white-space:nowrap}
+#terminalPanel .terminal-tab [aria-selected=true]{color:var(--ink)}
+#terminalPanel .terminal-tab .terminal-tab-close{padding:2px 5px;margin-right:4px;font-size:16px}
+#terminalPanel .terminal-tab button:hover{background:color-mix(in srgb,var(--ink) 7%,transparent);color:var(--ink)}
+#terminalPanel .terminal-ended{opacity:.65}
+#terminalPanel .terminal-controls{display:flex;align-items:center;gap:5px;flex-shrink:0}
+#terminalPanel .terminal-controls button{height:27px;min-width:27px;padding:2px 7px;border:0;background:transparent;color:var(--ink);box-shadow:none;font-size:18px;border-radius:4px}
+#terminalPanel .terminal-controls button:hover{background:var(--green-soft)}
+#terminalPanel #terminalReconnect{font-size:12px;border:1px solid var(--border)}
+#terminalScreen{position:relative;flex:1;min-height:0;background:#111b18;overflow:hidden;color:#d8e6df}
+.terminal-session{position:absolute;inset:0;padding:8px 12px}
+.terminal-session .xterm{height:100%}
+#terminalEmpty{position:absolute;inset:0;display:grid;place-items:center;margin:0;color:#94a89d;font-size:12px}
+#terminalPanel .terminal-footer{display:flex;align-items:center;gap:16px;min-height:25px;padding:3px 14px;flex-shrink:0;background:var(--side);font-size:11px;color:var(--muted)}
+#terminalCwd{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;font-family:Consolas,monospace}
+#terminalStatus{margin:0;flex-shrink:0}#terminalStatus.error{color:#d84a45;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:600px){#terminalPanel .terminal-heading{padding:0 8px;gap:8px}#terminalTitle{display:none}.terminal-session{padding:6px}#terminalPanel .terminal-footer{padding:3px 8px;gap:8px}#terminalPanel #terminalReconnect{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}

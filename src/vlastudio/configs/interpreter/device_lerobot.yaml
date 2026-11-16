@@ -1,0 +1,8 @@
+extends: base.yaml
+description: LeRobot SO101/Koch follower and leader SDKs.
+# Extras verified against https://github.com/huggingface/lerobot/blob/v0.3.3/pyproject.toml
+requirements:
+- lerobot[feetech,dynamixel]==0.3.3
+checks:
+- import:lerobot
+- import:serial

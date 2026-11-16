@@ -1,10 +1,11 @@
 """VLAStudio's lightweight public API. Importing it never installs dependencies."""
-from .extensions import register, resolve, create
-from .dependencies import DependencyError, environment_plan
-from .api import (load_dataset, load_policy, load_env, connect_policy, train, serve,
-                  show_camera, collect, infer,
-                  Dataset, Policy, RemotePolicy, Environment, TrainingResult,
-                  EvaluationResult, TaskError)
+from vlastudio.core.extensions import register, resolve, create
+from vlastudio.deploy.interpreter.dependencies import DependencyError, environment_plan
+from vlastudio.core.api import (
+    load_dataset, load_policy, load_env, connect_policy, train, serve,
+    show_camera, collect, infer, Dataset, Policy, RemotePolicy, Environment,
+    TrainingResult, EvaluationResult, TaskError,
+)
 
 __version__ = "0.2.2"
 __all__ = ["register", "resolve", "create", "load_dataset", "load_policy", "load_env",
@@ -18,7 +19,7 @@ def run(command, args=(), **options):
 
     Example: run("train", ["-p", "my_policy.yaml", "-o", "/checkpoints/run"])
     """
-    from .cli import main
+    from vlastudio.entrypoints.cli import main
     argv = [command, *map(str, args)]
     for key, value in options.items():
         flag = "--" + key.replace("_", "-")

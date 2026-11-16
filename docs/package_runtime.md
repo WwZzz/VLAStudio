@@ -18,6 +18,36 @@ virtual environment, invoke pip/uv, or patch installed distributions.
 Guard workflow entrypoints with `if __name__ == "__main__":`, especially for
 simulator/device processes on Windows. Scripts are launched with `python run.py`.
 
+## Source layout
+
+The package root contains only `__init__.py` (public exports) and `__main__.py`
+(`python -m vlastudio`). Implementation modules are grouped by responsibility:
+
+| Location under `src/vlastudio/` | Responsibility |
+| --- | --- |
+| `core/api.py`, `core/interfaces.py` | Public workflow handles and lazy component interfaces |
+| `core/configuration.py`, `core/extensions.py` | Configuration lookup and component/plugin resolution |
+| `core/paths.py`, `core/compat.py` | Shared cache/source paths and historical component import names |
+| `entrypoints/cli.py`, `entrypoints/*.py` | Console dispatch and task commands |
+| `configs/interpreter/*.yaml` | Declarative Python versions, dependencies and component checks |
+| `deploy/interpreter/manager.py`, `cli.py`, `recipes.py`, `dependencies.py`, `probe.py` | uv interpreter management, recipe composition and validation |
+| `deploy/interpreter/installers.py`, `downloads.py`, `behavior.py`, `robotwin.py` | Native prerequisites, downloads and simulator installation |
+| `deploy/interpreter/runtime.py`, `worker.py` | Task subprocess launch and dispatch |
+| `webui/` | WebUI settings, services and interface assets |
+
+Public calls such as `vlastudio.load_policy`, `vlastudio.run` and the
+`vlastudio env` command are unchanged. Internal imports now use the locations
+above; for example, `vlastudio.env_manager.Manager` becomes
+`vlastudio.deploy.interpreter.manager.Manager`.
+
+The former `src/vlastudio/locks/` contained four unreferenced package-version
+snapshots. They have been removed; component recipes remain the installation
+inputs. The repository's `uv.lock` still locks the project dependency graph.
+Runtime `.lock` files under the cache protect concurrent installations and
+registry writes. They serve a different purpose and remain in use. Custom
+runtime manifests can still supply `lockfile` or `lock` for a complete pinned
+installation.
+
 ## Paths and caches
 
 Built-in YAML files live under `src/vlastudio/configs`. User YAML files can live
@@ -37,11 +67,11 @@ collators and trainers customize training. Custom simulators implement the same
 benchmark interface as the built-in examples. Extension references accept module
 paths, `module:symbol` references and Python file references via `vla.resolve`.
 
-Environment YAML files describe dependencies using `python`, `requirements`,
+Dependency YAML files in `configs/interpreter/` describe `python`, `requirements`,
 `extends`, optional platform restrictions and notes. A child can replace an
 inherited package constraint; composing peer components retains their constraints
-so conflicts are reported instead of silently discarded. Model-specific pinned
-requirements files are committed for pip/uv to consume externally.
+so conflicts are reported instead of silently discarded. Component-specific
+requirements and source revisions are declared in these recipes.
 
 `runtime_manifest` selects dependency metadata and an optional custom worker
 entrypoint. It does not select another interpreter or install anything.

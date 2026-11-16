@@ -61,6 +61,12 @@ class Quest3Teleop(BaseTeleopDevice):
     TELEOP_MODES = ("delta_ee", "rel_ee")
     GRIPPER_TRIGGER_MODES = frozenset({"delta_binary", "analog_travel", "a_open_trigger_close"})
     
+    @staticmethod
+    def action_source_settings(config):
+        return dict(arms=2 if config.get("arm_mode", "dual") == "dual" else 1,
+                    control_mode=config.get("mode", "delta_ee"),
+                    absolute_gripper=not config.get("gripper_delta_mode", False))
+
     def __init__(
         self,
         name: str = "quest3_teleop",
@@ -1011,10 +1017,18 @@ class Quest3Teleop(BaseTeleopDevice):
                 data = self.get_data()
                 
                 if data is not None:
+                    if hasattr(self, "preview_channel_name"):
+                        from vlastudio.webui.quest_preview import publish
+                        publish(self, data)
                     action_dict, should_write = self.convert_data_to_action(data)
                     # Only write to shm when unsqueeze button is pressed AND there's new VR data
                     if should_write:
                         # Write action dict with state info (action, unsqueeze_active, anchor_just_set)
+                        if self.arm_mode in ("left", "right"):
+                            goal = data.get(self.arm_mode)
+                            history = (getattr(goal, "metadata", None) or {}).get("frame_history")
+                            if history:
+                                action_dict["frame_history"] = history
                         self.write_data_to_shm(action_dict)
                         self._write_count += 1
                         
@@ -1028,6 +1042,10 @@ class Quest3Teleop(BaseTeleopDevice):
             return
         self._closed = True
         self.is_running = False
+        preview = getattr(self, "_preview_shm", None)
+        if preview is not None:
+            preview.destroy()
+            self._preview_shm = None
 
         # Stop keep-awake / restore proximity first (must finish before parent kill).
         if getattr(self, "_keep_awake", None) is not None:

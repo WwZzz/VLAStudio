@@ -36,6 +36,7 @@ Usage:
 # CRITICAL: Import shm_utils FIRST to patch resource_tracker before multiprocessing
 import vlastudio.deploy.shm_utils; from vlastudio import deploy  # noqa: F401 - applies _fix_resource_tracker() on import
 
+import os
 import argparse
 from contextlib import ExitStack
 from pathlib import Path
@@ -51,39 +52,12 @@ from vlastudio.deploy.utils import (
     get_shm_name,
     load_device_configs,
     start_devices,
+    stop_device_processes,
 )
 from vlastudio.deploy.visualizer.base import start_all_visualizers, stop_all_visualizers
 from vlastudio.data_utils.data_saver import create_data_saver, generate_task_config
 from vlastudio.utils.extensions import resolve
-
-
-def _stop_device_processes(workers):
-    with ExitStack() as signals:
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            previous = signal.signal(sig, signal.SIG_IGN)
-            signals.callback(signal.signal, sig, previous)
-        _join_devices(workers)
-
-
-def _join_devices(workers):
-    # A device may own a multi-stage shutdown and require an unbounded join.
-    failures = []
-    for _, process, _ in workers:
-        if process.is_alive():
-            process.terminate()
-    for name, process, timeout in workers:
-        if timeout is None:
-            logger.info("Waiting for {} to confirm shutdown...", name)
-        process.join(timeout=timeout)
-        if timeout is None:
-            if process.exitcode != 0:
-                failures.append(f"{name}: exit {process.exitcode}")
-        elif process.is_alive():
-            logger.warning("Device {} did not exit within {}s, killing...", name, timeout)
-            process.kill()
-            process.join(timeout=1.0)
-    if failures:
-        raise RuntimeError("Device shutdown unconfirmed: " + ", ".join(failures))
+from vlastudio.webui.bridge import wait_for_robot, keyboard, phase, episode_options
 
 
 def main():
@@ -166,7 +140,9 @@ def main():
         optional_inputs = load_optional_inputs(sync_path, recorded, single_quest_name=preset_name)
 
     # Clean orphaned SHM
-    cleanup_all_shm(all_shm_names)
+    attached = bool(os.environ.get("VLASTUDIO_ATTACHED_ROBOT"))
+    owned = teleop_configs if attached else all_configs
+    cleanup_all_shm([get_shm_name(cfg) for cfg in owned])
     logger.info("Cleaned up orphaned SHM segments.")
 
     # Start all devices
@@ -177,11 +153,16 @@ def main():
             raise KeyboardInterrupt
         old_term = signal.signal(signal.SIGTERM, on_term)
         devices.callback(signal.signal, signal.SIGTERM, old_term)
-        devices.callback(_stop_device_processes, workers)
-        for cfg in all_configs:
+        devices.callback(stop_device_processes, workers)
+        for cfg in owned:
             timeout = getattr(resolve(cfg["type"]), "process_shutdown_timeout_s", 8.0)
             process, = start_devices([cfg])
             workers.append((get_shm_name(cfg), process, timeout))
+        try:
+            wait_for_robot()
+        except KeyboardInterrupt:
+            logger.info("Collection cancelled while waiting for robot readiness")
+            return
         _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_configs, workers, devices, optional_inputs)
 
 
@@ -214,8 +195,8 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
 
     # Create synchronizer
     valid_channels = [(n, ch) for n, ch in shm_channels if ch is not None]
-    if args.sync_config or optional_inputs or any(timeout is None for _, _, timeout in workers):
-        missing = [name for name, channel in shm_channels if channel is None]
+    if os.environ.get("VLASTUDIO_ATTACHED_ROBOT") or args.sync_config or optional_inputs or any(timeout is None for _, _, timeout in workers):
+        missing = [name for name, channel in shm_channels if channel is None or channel.shm is None]
         if missing:
             raise RuntimeError(f"Required device channels unavailable: {missing}")
     teleop_names = {get_shm_name(cfg) for cfg in teleop_configs}
@@ -243,14 +224,14 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
     # Create data saver (it will count existing episodes automatically).
     # Per-device enrich_saved_frame hooks run at stream/save time (e.g. AliciaD state_ee FK).
     enrich_saved_frame = create_enrich_saved_frame_func(all_configs)
-    data_saver = create_data_saver(
-        format=args.dataset_format,
-        hdf5_compression=args.hdf5_compression,
-        output_dir=args.output_dir,
-        fps=int(round(args.frequency)),
-        task=args.task,
-        enrich_saved_frame=enrich_saved_frame,
-    )
+    def saver(directory):
+        return create_data_saver(
+            format=args.dataset_format, hdf5_compression=args.hdf5_compression,
+            output_dir=directory, fps=int(round(args.frequency)), task=args.task,
+            enrich_saved_frame=enrich_saved_frame,
+        )
+
+    data_saver = saver(args.output_dir)
     
     # Determine starting episode index
     if args.start_idx is not None:
@@ -262,7 +243,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         logger.info("Found existing dataset with {} episodes, starting from episode {}", 
                     data_saver.episode_count, episode_idx)
     
-    kb = KBHit()
+    kb = keyboard(KBHit)
     kb.set_curses_term()
     
     teleop_name = (
@@ -282,7 +263,8 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         while True:
             # Wait for Enter to START
             logger.info("Press Enter to START episode {}...", episode_idx)
-            while read_input() is None:
+            phase("ready")
+            while (start_command := read_input()) is None:
                 sync.read_and_buffer()
                 time.sleep(0.01)
             # Consume any extra input
@@ -290,17 +272,33 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                 pass
 
             # Start recording episode
+            options = episode_options(start_command)
+            if "dataset" in options:
+                # Web collections may change task and destination between episodes.
+                directory = Path(args.output_dir).parent / options["dataset"]
+                data_saver.finalize()
+                data_saver = saver(directory)
+                episode_idx = data_saver.episode_count
+            data_saver.task = options.get("task", args.task)
             actual_idx = data_saver.start_episode(
-                episode_idx=episode_idx,
+                episode_idx=options.get("index", episode_idx),
                 device_names=device_names_list,
                 teleop_device=teleop_name,
             )
-            logger.info("Recording episode {}. Press Enter to STOP...", actual_idx)
+            resumable = getattr(kb, "resumable_recording", False)
+            logger.info("Recording episode {}. Press Enter to {}...", actual_idx, "PAUSE" if resumable else "STOP")
+            phase("recording")
             
             rate_limiter = RateLimiter()
 
+            # The synchronizer also polls this callback. Keep the actual input so
+            # an Enter received while waiting for a device can pause the recording.
+            command = None
+
             def stop_requested() -> bool:
-                return read_input() is not None
+                nonlocal command
+                command = read_input()
+                return command is not None
 
             recording_start_time = time.perf_counter()
             sync.begin_episode(recording_start_time)
@@ -312,13 +310,25 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
             slow_sync_count = 0  # sync_wait > 50ms
             sum_sync_ms = 0.0
             
-            while not stop_requested():
+            while True:
                 loop_start = time.perf_counter()
                 frame = sync.get_synced_frame_blocking(stop_check=stop_requested, debug=False)
                 sync_time = time.perf_counter()
                 
                 if frame is None:
-                    break
+                    if not resumable or command != "":
+                        break
+                    paused_at = time.perf_counter()
+                    phase("record_paused")
+                    while (command := read_input()) is None:
+                        time.sleep(0.01)
+                    resumed_at = time.perf_counter()
+                    recording_start_time += resumed_at - paused_at
+                    if command != "":
+                        break
+                    sync.begin_episode(resumed_at)
+                    phase("recording")
+                    continue
                 
                 # Use actual recording time as sync reference
                 ref_ts = time.perf_counter()
@@ -388,6 +398,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
 
             # Save or discard
             logger.info("Save? (Enter=SAVE, any key+Enter=DISCARD)")
+            phase("save")
             prompt = None
             while prompt is None:
                 prompt = read_input()
@@ -399,11 +410,23 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                     logger.warning("No frames to save.")
                     data_saver.finish_episode(save=False)
                 else:
+                    if "version" in options:
+                        from vlastudio.webui.episodes import checked
+                        try:
+                            checked(data_saver.output_dir.name, actual_idx, options["version"])
+                        except (OSError, ValueError) as exc:
+                            data_saver.finish_episode(save=False)
+                            logger.error("Re-recording not saved: {}", exc)
+                            continue
                     saved_frames = data_saver.finish_episode(save=True)
                     if saved_frames > 0:
                         logger.success("Saved {} frames to {} (episode {})", saved_frames, data_saver.dataset_path, actual_idx)
+                        if "dataset" in options:
+                            from vlastudio.webui.datasets import modified
+                            modified(data_saver.output_dir)
                         saved_any = True
-                        episode_idx += 1
+                        if "index" not in options:
+                            episode_idx += 1
                     else:
                         logger.error("Failed to save episode {}", actual_idx)
             else:
@@ -434,12 +457,15 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
         # Belt-and-suspenders: if teleop was killed mid-adb, restore Quest sleep from parent.
         try:
             from vlastudio.deploy.teleoperator.quest_keep_awake import restore_quest_proximity_best_effort
-            restore_quest_proximity_best_effort()
+            if not os.environ.get("VLASTUDIO_ATTACHED_ROBOT") or any("quest" in cfg["type"].lower() for cfg in teleop_configs):
+                restore_quest_proximity_best_effort()
         except Exception as e:
             logger.debug("Parent Quest proximity restore skipped: {}", e)
         
         # Finalize data saver (important for LeRobot to close parquet writers)
         if data_saver is not None:
+            if os.environ.get("VLASTUDIO_ATTACHED_ROBOT") and data_saver.is_recording:
+                data_saver.finish_episode(save=False)
             data_saver.finalize()
             if args.gen_config:
                 generate_task_config(
@@ -449,7 +475,7 @@ def _collect(args, all_configs, all_shm_names, teleop_configs, visualizer_config
                     task_name=args.task if args.task else None,
                 )
         
-        cleanup_all_shm(all_shm_names)
+        cleanup_all_shm([name for name, _, _ in workers])
         if shutdown_error is not None:
             raise shutdown_error
         logger.info("Done.")

@@ -1,0 +1,36 @@
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
+  name: aloha_sim_joint
+  webui:
+    runtime: aloha
+    runtime_imports: [dm_control, mujoco]
+    rate: 50
+    tasks: [sim_transfer_cube_scripted, sim_insertion_scripted]
+    modes: [infer]
+  args:
+    name: aloha_sim_joint
+    control_shm_name: keyboard_delta
+    fps: 50
+    input_mode: native
+    task: sim_transfer_cube_scripted
+    environment:
+      args:
+        ctrl_space: joint
+        ctrl_type: abs
+        camera_ids: [0]
+        image_size: [640, 480]
+        render_selected_cameras: true
+        continue_after_success: true
+        separate_termination: true
+    action:
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.aloha.AlohaJointAdapter
+      arms: 2
+      width: 7
+      space: joint
+      type: abs
+    observation:
+      fields:
+        qpos: state_joint
+        state: state
+        state_joint: state_joint
+        state_ee: state_ee
+      cameras: [head_camera]

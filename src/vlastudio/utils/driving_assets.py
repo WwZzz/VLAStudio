@@ -11,7 +11,7 @@ B2D_DATA_REVISION = 'd84ae18cf20a88b9220df1bc15c073d8824b7ac1'
 
 
 def cache_root():
-    from vlastudio.paths import cache_root as shared_cache
+    from vlastudio.core.paths import cache_root as shared_cache
     return shared_cache()/'driving'
 
 

@@ -1,0 +1,22 @@
+# qpos = six motor/URDF joint angles in radians + normalized gripper [0=closed,1=open].
+- type: vlastudio.deploy.robot.rebot_b601rs.RebotB601RS
+  name: rebot_b601rs
+  args:
+    name: rebot_b601rs
+    channel: can1
+    control_mode: qpos
+    ik_end_frame: link6
+    fps: 100.0
+    velocity_limit_rad_s: 0.5
+
+- type: vlastudio.deploy.sensor.camera.opencv_camera.OpenCVCamera
+  name: head_camera
+  args:
+    name: head_camera
+    index_or_path: /dev/v4l/by-id/usb-SN0002_2K_USB_Camera_46435000_P020300_SN0002-video-index0
+    width: 640
+    height: 480
+    fps: 30
+    fourcc: MJPG
+    max_size_mb: 4
+    bgr_to_rgb: true

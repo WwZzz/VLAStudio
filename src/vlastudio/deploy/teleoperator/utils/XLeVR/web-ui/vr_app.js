@@ -24,6 +24,8 @@ AFRAME.registerComponent('controller-updater', {
     this.headsetInfoText = document.querySelector('#headsetInfo');
 
     // --- WebSocket Setup ---
+    this.traceFrames = new URLSearchParams(location.hash.slice(1)).get("timing") === "1";
+    this.frameSequence = 0;
     this.websocket = null;
     this.leftGripDown = false;
     this.rightGripDown = false;
@@ -429,18 +431,13 @@ AFRAME.registerComponent('controller-updater', {
     console.log('XYZ axis indicators created for both controllers (RGB for XYZ)');
   },
 
-  tick: function () {
+  tick: function (time) {
     // Update controller text if controllers are visible
     if (!this.leftHand || !this.rightHand) return; // Added safety check
 
-    // --- BEGIN DETAILED LOGGING ---
-    if (this.leftHand.object3D) {
-      // console.log(`Left Hand Raw - Visible: ${this.leftHand.object3D.visible}, Pos: ${this.leftHand.object3D.position.x.toFixed(2)},${this.leftHand.object3D.position.y.toFixed(2)},${this.leftHand.object3D.position.z.toFixed(2)}`);
-    }
-    if (this.rightHand.object3D) {
-      // console.log(`Right Hand Raw - Visible: ${this.rightHand.object3D.visible}, Pos: ${this.rightHand.object3D.position.x.toFixed(2)},${this.rightHand.object3D.position.y.toFixed(2)},${this.rightHand.object3D.position.z.toFixed(2)}`);
-    }
-    // --- END DETAILED LOGGING ---
+    // Pose packets follow every XR frame; the numeric HUD only needs 10 Hz.
+    const refreshHud = this.nextHudTime === undefined || time >= this.nextHudTime;
+    if (refreshHud) this.nextHudTime = time + 100;
 
     // Collect data from both controllers
     const leftController = {
@@ -476,8 +473,6 @@ AFRAME.registerComponent('controller-updater', {
         const leftRotY = THREE.MathUtils.radToDeg(leftRotEuler.y);
         const leftRotZ = THREE.MathUtils.radToDeg(leftRotEuler.z);
 
-        // 添加调试信息
-        console.log(`Left Hand - Visible: ${this.leftHand.object3D.visible}, Pos: ${leftPos.x.toFixed(2)},${leftPos.y.toFixed(2)},${leftPos.z.toFixed(2)}`);
 
         // Calculate relative rotation if grip is held
         if (this.leftGripDown && this.leftGripInitialRotation) {
@@ -494,17 +489,15 @@ AFRAME.registerComponent('controller-updater', {
             );
           }
           
-          console.log('Left relative rotation:', this.leftRelativeRotation);
-          console.log('Left Z-axis rotation:', this.leftZAxisRotation.toFixed(1), 'degrees');
         }
 
         // Create display text including relative rotation when grip is held
-        let combinedLeftText = `Pos: ${leftPos.x.toFixed(2)} ${leftPos.y.toFixed(2)} ${leftPos.z.toFixed(2)}\\nRot: ${leftRotX.toFixed(0)} ${leftRotY.toFixed(0)} ${leftRotZ.toFixed(0)}`;
-        if (this.leftGripDown && this.leftGripInitialRotation) {
-          combinedLeftText += `\\nZ-Rot: ${this.leftZAxisRotation.toFixed(1)}°`;
-        }
+        if (refreshHud && this.leftHandInfoText) {
+            let combinedLeftText = `Pos: ${leftPos.x.toFixed(2)} ${leftPos.y.toFixed(2)} ${leftPos.z.toFixed(2)}\\nRot: ${leftRotX.toFixed(0)} ${leftRotY.toFixed(0)} ${leftRotZ.toFixed(0)}`;
+            if (this.leftGripDown && this.leftGripInitialRotation) {
+              combinedLeftText += `\\nZ-Rot: ${this.leftZAxisRotation.toFixed(1)}°`;
+            }
 
-        if (this.leftHandInfoText) {
             this.leftHandInfoText.setAttribute('value', combinedLeftText);
         }
 
@@ -535,16 +528,6 @@ AFRAME.registerComponent('controller-updater', {
                 };
                 // 侧边按钮 - Quest3左手: X和Y按钮
                 // Note: Quest3左手控制器物理按钮是X和Y，不是A和B
-                // Debug: log all button states to identify correct mapping
-                const leftBtnStates = [];
-                for (let i = 0; i < Math.min(leftGamepad.buttons.length, 10); i++) {
-                    leftBtnStates.push(!!leftGamepad.buttons[i]?.pressed);
-                }
-                // Log when any button is pressed
-                if (leftBtnStates.some(b => b)) {
-                    console.log(`Left buttons state:`, leftBtnStates.map((p, i) => `[${i}]=${p}`).join(', '));
-                }
-                
                 // Try multiple possible indices for Y button
                 const btnX = !!leftGamepad.buttons[4]?.pressed;  // X button (should work like A)
                 const btnY3 = !!leftGamepad.buttons[3]?.pressed;  // Try index 3
@@ -560,16 +543,10 @@ AFRAME.registerComponent('controller-updater', {
                     menu: !!leftGamepad.buttons[6]?.pressed
                 };
                 
-                // Debug: log which Y button index is active
-                if (btnY3 || btnY5) {
-                    console.log(`Left Y button: [3]=${btnY3}, [5]=${btnY5}`);
-                }
             }
         }
         leftController.trigger =
             leftTriggerAnalog !== null ? leftTriggerAnalog : (this.leftTriggerDown ? 1 : 0);
-    } else {
-        console.log('Left hand object not available');
     }
 
     // Update Right Hand Text & Collect Data
@@ -582,8 +559,6 @@ AFRAME.registerComponent('controller-updater', {
         const rightRotY = THREE.MathUtils.radToDeg(rightRotEuler.y);
         const rightRotZ = THREE.MathUtils.radToDeg(rightRotEuler.z);
 
-        // 添加调试信息
-        console.log(`Right Hand - Visible: ${this.rightHand.object3D.visible}, Pos: ${rightPos.x.toFixed(2)},${rightPos.y.toFixed(2)},${rightPos.z.toFixed(2)}`);
 
         // Calculate relative rotation if grip is held
         if (this.rightGripDown && this.rightGripInitialRotation) {
@@ -600,17 +575,15 @@ AFRAME.registerComponent('controller-updater', {
             );
           }
           
-          console.log('Right relative rotation:', this.rightRelativeRotation);
-          console.log('Right Z-axis rotation:', this.rightZAxisRotation.toFixed(1), 'degrees');
         }
 
         // Create display text including relative rotation when grip is held
-        let combinedRightText = `Pos: ${rightPos.x.toFixed(2)} ${rightPos.y.toFixed(2)} ${rightPos.z.toFixed(2)}\\nRot: ${rightRotX.toFixed(0)} ${rightRotY.toFixed(0)} ${rightRotZ.toFixed(0)}`;
-        if (this.rightGripDown && this.rightGripInitialRotation) {
-          combinedRightText += `\\nZ-Rot: ${this.rightZAxisRotation.toFixed(1)}°`;
-        }
+        if (refreshHud && this.rightHandInfoText) {
+            let combinedRightText = `Pos: ${rightPos.x.toFixed(2)} ${rightPos.y.toFixed(2)} ${rightPos.z.toFixed(2)}\\nRot: ${rightRotX.toFixed(0)} ${rightRotY.toFixed(0)} ${rightRotZ.toFixed(0)}`;
+            if (this.rightGripDown && this.rightGripInitialRotation) {
+              combinedRightText += `\\nZ-Rot: ${this.rightZAxisRotation.toFixed(1)}°`;
+            }
 
-        if (this.rightHandInfoText) {
             this.rightHandInfoText.setAttribute('value', combinedRightText);
         }
 
@@ -683,8 +656,6 @@ AFRAME.registerComponent('controller-updater', {
         if (!this.rightTriggerDown && rightTriggerAnalog === null) {
             rightController.trigger = 0;
         }
-    } else {
-        console.log('Right hand object not available');
     }
 
     // Collect headset data
@@ -696,8 +667,8 @@ AFRAME.registerComponent('controller-updater', {
         const headsetRotZ = THREE.MathUtils.radToDeg(headsetRotEuler.z);
 
         // Update headset info text
-        const headsetText = `Pos: ${headsetPos.x.toFixed(2)} ${headsetPos.y.toFixed(2)} ${headsetPos.z.toFixed(2)}\nRot: ${headsetRotX.toFixed(0)} ${headsetRotY.toFixed(0)} ${headsetRotZ.toFixed(0)}`;
-        if (this.headsetInfoText) {
+        if (refreshHud && this.headsetInfoText) {
+            const headsetText = `Pos: ${headsetPos.x.toFixed(2)} ${headsetPos.y.toFixed(2)} ${headsetPos.z.toFixed(2)}\nRot: ${headsetRotX.toFixed(0)} ${headsetRotY.toFixed(0)} ${headsetRotZ.toFixed(0)}`;
             this.headsetInfoText.setAttribute('value', headsetText);
         }
 
@@ -711,9 +682,6 @@ AFRAME.registerComponent('controller-updater', {
           w: this.headset.object3D.quaternion.w 
         };
         
-        console.log(`Headset - Pos: ${headsetPos.x.toFixed(2)},${headsetPos.y.toFixed(2)},${headsetPos.z.toFixed(2)}`);
-    } else {
-        console.log('Headset object not available');
     }
 
     // Send combined packet if WebSocket is open and at least one controller has valid data
@@ -730,17 +698,11 @@ AFRAME.registerComponent('controller-updater', {
                 rightController: rightController,
                 headset: headset
             };
+            if (this.traceFrames) {
+                dualControllerData.frameTiming = [++this.frameSequence, performance.now()];
+            }
             this.websocket.send(JSON.stringify(dualControllerData));
             
-            // 添加调试信息
-            console.log('Sending VR data:', {
-                left: hasValidLeft ? 'valid' : 'invalid',
-                right: hasValidRight ? 'valid' : 'invalid',
-                headset: hasValidHeadset ? 'valid' : 'invalid',
-                leftPos: leftController.position,
-                rightPos: rightController.position,
-                headsetPos: headset.position
-            });
         }
     }
   }

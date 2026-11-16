@@ -7,4 +7,4 @@ args:
   ctrl_type: abs
   camera_ids: [0]
   image_size: [640, 480]
-runtime: ../../../environments/aloha.yaml
+runtime: ../../interpreter/aloha.yaml

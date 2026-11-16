@@ -15,7 +15,7 @@ Two extension points are covered:
 
 ## 0. How VLAStudio resolves your class
 
-Every `type:` field in a config is resolved by `vlastudio.extensions.resolve`.
+Every `type:` field in a config is resolved by `vlastudio.core.extensions.resolve`.
 You may use any of:
 
 | Form | Example |
@@ -310,7 +310,7 @@ success are read from the env's returned `info` (see `benchmark/utils.evaluate`)
 ### 2.5 Registering
 
 Environments are resolved through the same extension mechanism as every other
-kind (`vlastudio.extensions.resolve`, `kind="env"`). Your `type:` may be a
+kind (`vlastudio.core.extensions.resolve`, `kind="env"`). Your `type:` may be a
 packaged dotted path, your own package, a local file path, or an installed
 entry point ??exactly the forms in ?0. The reference may resolve to a module that
 exposes `create_env(config)`, or directly to a class / callable used as the

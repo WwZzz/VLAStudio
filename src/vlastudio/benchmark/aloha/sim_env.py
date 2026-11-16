@@ -16,7 +16,7 @@ from .constants import PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN
 
 BOX_POSE = [None] # to be changed from outside
 
-def make_sim_env(task_name):
+def make_sim_env(task_name, time_limit=20):
     """
     Environment for simulated robot bi-manual manipulation, with joint position control
     Action space:      [left_arm_qpos (6),             # absolute joint position
@@ -38,13 +38,13 @@ def make_sim_env(task_name):
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_transfer_cube.xml')
         physics = load_physics(xml_path)
         task = TransferCubeTask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+        env = control.Environment(physics, task, time_limit=time_limit, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
     elif 'sim_insertion' in task_name:
         xml_path = os.path.join(XML_DIR, f'bimanual_viperx_insertion.xml')
         physics = load_physics(xml_path)
         task = InsertionTask(random=False)
-        env = control.Environment(physics, task, time_limit=20, control_timestep=DT,
+        env = control.Environment(physics, task, time_limit=time_limit, control_timestep=DT,
                                   n_sub_steps=None, flat_observation=False)
     else:
         raise NotImplementedError

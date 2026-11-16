@@ -307,7 +307,52 @@ def load_config(path: str) -> List[dict]:
 def _device_spawns_children(cfg: dict) -> bool:
     """True if this device type spawns child processes (e.g. GUI), so it must not run in a daemon process."""
     device_type = cfg.get("type", "")
-    return "keyboard" in device_type or "tk_slider" in device_type
+    return bool(cfg.get("spawns_children")) or "keyboard" in device_type or "tk_slider" in device_type
+
+
+def _start_spawned_device(cfg, web_mailbox):
+    """Transfer the session mailbox explicitly: spawn does not inherit its fd."""
+    from vlastudio.deploy.base import start_device
+
+    fd = web_mailbox.detach() if web_mailbox is not None else None
+    if fd is not None:
+        os.environ['VLASTUDIO_WEB_FD'] = str(fd)
+    try:
+        start_device(cfg)
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
+def stop_device_processes(workers):
+    import signal
+    from contextlib import ExitStack
+    with ExitStack() as signals:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            previous = signal.signal(sig, signal.SIG_IGN)
+            signals.callback(signal.signal, sig, previous)
+        _join_devices(workers)
+
+
+def _join_devices(workers):
+    # A device may own a multi-stage shutdown and require an unbounded join.
+    failures = []
+    for _, process, _ in workers:
+        if process.is_alive():
+            process.terminate()
+    for name, process, timeout in workers:
+        if timeout is None:
+            logger.info("Waiting for {} to confirm shutdown...", name)
+        process.join(timeout=timeout)
+        if timeout is None:
+            if process.exitcode != 0:
+                failures.append(f"{name}: exit {process.exitcode}")
+        elif process.is_alive():
+            logger.warning("Device {} did not exit within {}s, killing...", name, timeout)
+            process.kill()
+            process.join(timeout=1.0)
+    if failures:
+        raise RuntimeError("Device shutdown unconfirmed: " + ", ".join(failures))
 
 
 def start_devices(configs: List[dict], daemon: bool = True) -> List[mp.Process]:
@@ -324,7 +369,16 @@ def start_devices(configs: List[dict], daemon: bool = True) -> List[mp.Process]:
 
     procs = []
     for cfg in configs:
-        p = mp.Process(target=start_device, args=(cfg,))
+        method = cfg.get('process_start_method')
+        if method not in (None, 'spawn'):
+            raise ValueError('Device process_start_method must be spawn or omitted')
+        if method == 'spawn':
+            from multiprocessing.reduction import DupFd
+            fd = os.environ.get('VLASTUDIO_WEB_FD')
+            mailbox = DupFd(int(fd)) if fd is not None else None
+            p = mp.get_context('spawn').Process(target=_start_spawned_device, args=(cfg, mailbox))
+        else:
+            p = mp.Process(target=start_device, args=(cfg,))
         # Daemon processes cannot have children; Keyboard/TkSlider start GUI subprocesses
         p.daemon = False if _device_spawns_children(cfg) else daemon
         p.start()

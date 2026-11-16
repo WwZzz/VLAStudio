@@ -37,6 +37,7 @@ class RebotB601RS(AliciaD):
         super().__init__(name=name,urdf_path=str(URDF),
                          control_mode='qpos' if control_mode=='ee' else control_mode,**kwargs)
         self.control_mode = control_mode
+        self.profile_control_mode = control_mode
         self.channel, self.read_only = channel, read_only
         self.velocity_limit = float(velocity_limit_rad_s)
         self.home_velocity = min(float(home_velocity_rad_s),self.velocity_limit)
@@ -52,6 +53,7 @@ class RebotB601RS(AliciaD):
         if not np.isfinite(self.home_gripper_tolerance) or self.home_gripper_tolerance<=self.gripper_deadband:
             raise ValueError('Gripper home tolerance must exceed its control deadband')
         self._tracking_time=None
+        self._delta_direction = np.zeros(6)
         self._ik_tracking_status=None
         self._home_status=None
         self.bus = None
@@ -121,9 +123,17 @@ class RebotB601RS(AliciaD):
 
     def _seed(self, obs):
         self._current_joint_angles = np.asarray(obs['joint_angles'],dtype=float).copy()
-        self._target_qpos = self._current_joint_angles.copy()
-        self._smooth_qpos = self._current_joint_angles.copy()
+        # Measured overshoot is valid feedback for FK and diagnostics. Seed
+        # the command filter and IK iterate inside their command-space bounds.
+        solver = self.ik_solver
+        reference = np.clip(self._current_joint_angles, solver.lower, solver.upper)
+        self._target_qpos = reference.copy()
+        self._smooth_qpos = reference.copy()
         self._current_gripper = self._target_gripper = float(obs['qpos'][6]*1000)
+        self._ik_initialized = False
+        self._delta_direction.fill(0)
+        self._tracking_time = None
+        solver.reset(reference)
 
     def enable(self):
         if not self._connected:
@@ -149,7 +159,6 @@ class RebotB601RS(AliciaD):
             obs = self.get_observation()
             self._seed(obs)
             self._rel_ee_anchor_pose = self.ik_solver.compute_fk(obs['joint_angles'])
-            self.ik_solver.reset(obs['joint_angles'])
             self._rel_ee_anchor_initialized = True
             self._tracking_time=None
             return True
@@ -159,12 +168,36 @@ class RebotB601RS(AliciaD):
         dt=1/60 if self._tracking_time is None else np.clip(now-self._tracking_time,.001,1/30)
         self._tracking_time=now
         measured=self.get_observation()['joint_angles']
-        reference=self._smooth_qpos if self._smooth_qpos is not None else measured
+        # Advance the unsmoothed IK reference independently of the output EMA.
+        # Feeding the EMA back here multiplies every velocity-limited step by
+        # joint_smooth_alpha and prevents the command from reaching its set speed.
+        reference=self.ik_solver.init_data.copy()
         q,status=self.ik_solver.track(target_pose,reference,self.velocity_limit*dt,measured=measured)
         self._ik_tracking_status=dict(status,dt_s=float(dt))
         # Here success means a bounded, feasible tracking step, not convergence.
         # Holding at a boundary must not trigger Alicia's failed-solve re-anchoring.
         return True,q,1,status['residual']
+
+    def prepare_action_source(self, source):
+        if source:
+            if source.get('arms', 1) != 1:
+                raise ValueError("Rebot expects a single-arm input")
+            if source['kind'] == 'infer':
+                self.control_mode = 'ee' if self.profile_control_mode == 'ee' else 'qpos'
+            elif source['channel']:
+                mode = source.get('control_mode')
+                mapped = mode == 'qpos' and source.get('qpos_contract') == 'rebot_b601rs'
+                if not mapped and mode not in ('delta_ee', 'rel_ee'):
+                    raise ValueError("Rebot requires a Cartesian source or mapped Rebot joint coordinates")
+                self.control_mode = mode
+                self.gripper_absolute = source['absolute_gripper']
+        self._seed(self.get_observation())
+        self._rel_ee_vr_unsqueeze_active = False
+        self._rel_ee_anchor_pose = None
+        self._prev_ik_qpos = None
+        self._teleop_holding_still = False
+        self._still_count = 0
+        return dict(space='ee' if self.control_mode == 'ee' else 'joint', type='abs')
 
     def process_action(self, message):
         if message.get('action') is None:
@@ -178,7 +211,22 @@ class RebotB601RS(AliciaD):
             target = _transform_matrix_from_xyz_rpy(a[:3],a[3:6])
             ok,q,_,_ = self.ik_solver.solve(target,q_init=self.get_observation()['joint_angles'])
             return dict(message,action=np.r_[q,a[6]] if ok else None)
-        if message.get('unsqueeze_active',False):
+        if self.control_mode == 'delta_ee':
+            # Keep accumulated deltas during a held key. On direction changes
+            # the raw IK pose may be a whole step ahead of the filtered command.
+            # Drop that outstanding step before composing the new increment.
+            direction = np.sign(a[:6])
+            if not np.array_equal(direction, self._delta_direction):
+                self._delta_direction = direction
+                if self._smooth_qpos is not None:
+                    self.ik_solver.set_reference(self._smooth_qpos[:6])
+                self._prev_ik_qpos = None
+                self._still_count = 0
+                self._teleop_holding_still = False
+            # Keyboard sends normalized opening increments. Unlike Alicia's loop,
+            # Rebot.start() does not update the gripper before process_action().
+            self._target_gripper = float(np.clip(self._target_gripper + a[6]*1000, 0, 1000))
+        if message.get('unsqueeze_active',False) and self.control_mode != 'delta_ee':
             if self.gripper_absolute:
                 self._target_gripper = float(np.clip(a[6]*1000,0,1000))
             else:
@@ -228,7 +276,10 @@ class RebotB601RS(AliciaD):
         """Explicit B/reset: minimum-jerk return to existing motor zero (all seven)."""
         start = self.get_observation()['qpos'].astype(float)
         previous_velocity = self.bus.velocity
-        self.bus.set_velocity_limit(self.home_velocity, homing=True)
+        # Use the slower coordinated trajectory for disconnect, including its time scaling.
+        speed = min(.2, self.home_velocity) if self._shutting_down else self.home_velocity
+        min_duration = max(6., self.home_duration) if self._shutting_down else self.home_duration
+        self.bus.set_velocity_limit(speed, homing=True)
         goals = []
         if staged:
             intermediate = start.copy()
@@ -242,9 +293,9 @@ class RebotB601RS(AliciaD):
         try:
             for goal in goals:
                 # A normal exit during an in-flight B trajectory interrupts it;
-                # shutdown starts a fresh staged park from measured feedback.
-                duration = max(self.home_duration,
-                    1.9*max(abs(goal[:6]-start[:6]))/self.home_velocity,
+                # shutdown starts a fresh return from measured feedback.
+                duration = max(min_duration,
+                    1.9*max(abs(goal[:6]-start[:6]))/speed,
                     1.9*abs(goal[6]-start[6])*self.gripper_open_rad)
                 steps = max(2,int(duration*50))
                 for s in np.linspace(0,1,steps+1)[1:]:
@@ -285,6 +336,9 @@ class RebotB601RS(AliciaD):
             self._prev_ik_qpos = None
             self._still_count = 0
             self._teleop_holding_still = False
+
+    def reset_for_teleoperation(self):
+        return self.set_home()
 
     def start(self):
         # Override BaseDevice's immediate-close signal handler. Repeated signals
@@ -371,12 +425,12 @@ class RebotB601RS(AliciaD):
         stage = 'check enable state'
         try:
             if not self.read_only and bus.armed:
-                logger.warning('[RebotB601RS] Exit: cancel target, staged park, verify, then disable')
+                logger.warning('[RebotB601RS] Exit: cancel target, return all six joints to zero, verify, then disable')
                 stage = 'cancel pending target'
                 bus.cancel_pending_target()
                 time.sleep(.3)
                 stage = 'park arm'
-                if not self.set_home(include_gripper=False,staged=True):
+                if not self.set_home(include_gripper=False):
                     raise RuntimeError('Park trajectory did not reach zero')
                 stage = 'confirm parked and still'
                 if not self._confirm_parked_and_still():

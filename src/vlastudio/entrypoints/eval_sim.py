@@ -23,7 +23,7 @@ def env_fn(env_config, env_handler, rollout_index=0):
 def load_env_module(env_cfg):
     """Resolve an environment definition to its create_env factory + evaluate fn.
 
-    ``env_cfg.type`` may be any reference ``vlastudio.extensions.resolve``
+    ``env_cfg.type`` may be any reference ``vlastudio.core.extensions.resolve``
     understands: a packaged dotted path (``pkg.mod.EnvClass`` /
     ``pkg.mod:EnvClass``), a local file (``/path/env.py:EnvClass``), or a plugin
     (``@env/name``). It may resolve to a module exposing ``create_env`` or
@@ -32,7 +32,7 @@ def load_env_module(env_cfg):
     import inspect
     import sys
     from types import SimpleNamespace
-    from vlastudio.extensions import resolve
+    from vlastudio.core.extensions import resolve
 
     target = resolve(env_cfg.type, kind="env")
     if inspect.ismodule(target):

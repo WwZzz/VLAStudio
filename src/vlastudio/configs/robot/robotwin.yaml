@@ -1,0 +1,54 @@
+- type: vlastudio.deploy.robot.bench_robot.BenchmarkRobot
+  name: robotwin
+  webui:
+    runtime: robotwin
+    runtime_imports: [sapien, mplib, curobo]
+    runtime_required_env: [VLASTUDIO_RUNTIME_ROBOTWIN_ROOT]
+    marker_provider:
+      type: vlastudio.webui.marker_providers.RoboTwinMarkerProvider
+      args:
+        frame: tcp
+    rate: 20
+    tasks: [click_bell, adjust_bottle]
+    teleop: keyboard_delta_2arm_20hz
+  args:
+    name: robotwin
+    process_start_method: spawn
+    spawns_children: true
+    control_shm_name: keyboard_delta
+    connect_timeout: 180
+    fps: 20
+    task: click_bell
+    environment:
+      args:
+        ctrl_space: ee
+        ctrl_type: abs
+        task_config: demo_clean
+        continuous: true
+        max_timesteps: 1000000000
+        expert_check: false
+        use_planner: true
+        control_freq: 20
+        seed: 7
+        image_size: [240, 320]
+        camera_names: [head_camera, left_camera, right_camera]
+    on_success: continue
+    on_termination: pause
+    action:
+      adapter: vlastudio.deploy.robot.bench_robot.adapters.robotwin.RoboTwinAdapter
+      arms: 2
+      space: ee
+      type: abs
+      rotation: quat_wxyz
+      translation_frame: local
+      rotation_frame: local
+      # Native EE state/action format; the teleop adapter controls the gripper TCP.
+      initial_target: state_ee
+    observation:
+      fields:
+        qpos: state_joint
+        state: state
+        state_joint: state_joint
+        state_ee: state_ee
+      image_layout: KCHW
+      cameras: [head_camera, left_camera, right_camera]

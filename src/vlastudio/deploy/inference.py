@@ -131,7 +131,8 @@ def inference_worker(
     synchronizer = None
     obs2meta_func = None
     
-    if is_real_mode:
+    def connect_observations():
+        nonlocal synchronizer, obs2meta_func
         # Real mode: connect to device SHMs + synchronizer (parallel attach to reduce wall time)
         from vlastudio.deploy.shm_utils import SharedMemoryDataSynchronizer
         from vlastudio.deploy.base import create_obs2meta_func, default_obs2meta
@@ -173,6 +174,9 @@ def inference_worker(
         else:
             obs2meta_func = default_obs2meta
             logger.info("[InferenceWorker-REAL] No device_configs, using default obs2meta")
+    if is_real_mode:
+        if not os.environ.get("VLASTUDIO_ROBOT_READY_FILE"):
+            connect_observations()
     else:
         # Sim mode: read from obs_shm
         if obs_shm_name is None:
@@ -216,6 +220,8 @@ def inference_worker(
         # inference. With chunked execution this can lag by almost one whole chunk.
         # Here we instead wait until every device has at least one fresh sample and
         # then consume the newest unread sample from each device.
+        if synchronizer is None:
+            connect_observations()
         synced_data = None
         wait_t0 = time.perf_counter()
         last_warn_t = 0.0

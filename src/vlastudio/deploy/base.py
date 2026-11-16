@@ -7,6 +7,7 @@ import importlib
 from vlastudio.utils.extensions import resolve
 import numpy as np
 import signal
+import os
 import sys
 from vlastudio.benchmark.base import MetaObs
 
@@ -36,6 +37,10 @@ def start_device(device_config:dict):
     signal.signal(signal.SIGINT, signal_handler)
     
     try:
+        # Optional integration, initialized and cleaned up in the owning worker.
+        setup = os.environ.get('VLASTUDIO_DEVICE_SETUP')
+        if setup:
+            resolve(setup)(device)
         device.start()
     except Exception as e:
         logger.error(f"[{device.name}] Error in device.start(): {e}")

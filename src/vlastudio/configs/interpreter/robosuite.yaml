@@ -1,0 +1,8 @@
+extends: base.yaml
+description: Robosuite device-host runtime for the WebUI benchmark robot.
+requirements:
+- robosuite==1.5.1
+- robomimic
+checks:
+- import:robosuite
+- import:robomimic

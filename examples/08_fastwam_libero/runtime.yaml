@@ -1,4 +1,4 @@
-extends: ../../src/vlastudio/environments/fastwam.yaml
+extends: ../../src/vlastudio/configs/interpreter/fastwam.yaml
 requirements:
 - robosuite==1.4.1
 - mujoco==3.3.2

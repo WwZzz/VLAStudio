@@ -39,7 +39,7 @@ dependencies = [
 ]
 
 [project.scripts]
-vlastudio = "vlastudio.cli:main"
+vlastudio = "vlastudio.entrypoints.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/WwZzz/VLAStudio"

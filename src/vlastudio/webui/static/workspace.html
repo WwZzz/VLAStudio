@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VLAStudio</title>
+<link rel="icon" href="/vlastudio-mark.svg"><script src="/theme.js"></script>
+<link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/terminal.css"><link rel="stylesheet" href="/workspace.css">
+<script src="/i18n.js" defer></script><script src="/workspace.js" defer></script><script src="/terminal.js" defer></script>
+</head><body class="workspace-shell">
+<header>
+<a class="brand" href="/collect"><img src="/vlastudio-mark.svg" width="32" height="32" alt="">VLA<span>Studio</span></a>
+<nav aria-label="Workspace"><a href="/collect" data-i18n="Data collection">Data collection</a><a href="/infer" data-i18n="Policy inference">Policy inference</a><a href="/data" data-i18n="Data management">Data management</a><a href="/train" data-i18n="Policy training">Policy training</a></nav>
+<div class="header-tools">
+<span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+<button id="terminalOpen" type="button" aria-label="Terminal" title="Terminal"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 7 5 5-5 5M13 17h6"/></svg></button>
+<button id="settingsOpen" type="button" aria-label="Settings" title="Settings"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.97 2.15A9.9 9.9 0 0 1 13.03 2.15L13.49 4.34A7.8 7.8 0 0 1 16.36 5.53L18.23 4.31A9.9 9.9 0 0 1 19.69 5.77L18.47 7.64A7.8 7.8 0 0 1 19.66 10.51L21.85 10.97A9.9 9.9 0 0 1 21.85 13.03L19.66 13.49A7.8 7.8 0 0 1 18.47 16.36L19.69 18.23A9.9 9.9 0 0 1 18.23 19.69L16.36 18.47A7.8 7.8 0 0 1 13.49 19.66L13.03 21.85A9.9 9.9 0 0 1 10.97 21.85L10.51 19.66A7.8 7.8 0 0 1 7.64 18.47L5.77 19.69A9.9 9.9 0 0 1 4.31 18.23L5.53 16.36A7.8 7.8 0 0 1 4.34 13.49L2.15 13.03A9.9 9.9 0 0 1 2.15 10.97L4.34 10.51A7.8 7.8 0 0 1 5.53 7.64L4.31 5.77A9.9 9.9 0 0 1 5.77 4.31L7.64 5.53A7.8 7.8 0 0 1 10.51 4.34L10.97 2.15Z"/><circle cx="12" cy="12" r="3"/></svg></button>
+<button id="themeToggle" type="button" aria-pressed="false" aria-label="Dark mode" title="Dark mode"></button>
+<select id="language" aria-label="Language"><option value="en">English</option><option value="zh">中文</option></select>
+</div>
+</header>
+<div id="workspaceViews"><iframe id="workspaceFrame" class="workspace-frame" title="VLAStudio workspace" allow="clipboard-read; clipboard-write; fullscreen; xr-spatial-tracking"></iframe></div>
+</body></html>

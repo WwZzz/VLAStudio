@@ -11,7 +11,7 @@ def resolve_yaml(name_or_path: str, base_dir: str) -> str:
     Returns an existing file path or raises FileNotFoundError.
     """
     try:
-        from vlastudio.configuration import resolve_config
+        from vlastudio.core.configuration import resolve_config
     except ImportError:
         pass  # Source checkout used without installing the lightweight package.
     else:

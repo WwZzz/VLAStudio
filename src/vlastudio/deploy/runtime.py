@@ -378,6 +378,10 @@ def eval_real_session_recorder_main(
                 _open_video_writer_for_episode(actual_episode_idx)
             episode_open = True
             return
+        if requested_idx is None:
+            # Video-only recordings may predate the first dataset episode.
+            # Choose one free index before opening either writer so they agree.
+            requested_idx = max(data_saver.episode_count, _next_video_only_episode_idx())
         actual_episode_idx = data_saver.start_episode(
             episode_idx=requested_idx,
             device_names=device_name_list,
@@ -409,6 +413,10 @@ def eval_real_session_recorder_main(
             video_only_reuse_same_episode_after_discard = (not save) and n > 0
             if save and n > 0:
                 saved_awaiting_next = True
+                if os.environ.get("VLASTUDIO_WEB_FD"):
+                    from pathlib import Path
+                    from vlastudio.webui.datasets import modified
+                    modified(Path(video_dir).parent, ep)
             if ep is not None:
                 action = "saved" if save else "discarded"
                 logger.info("[SessionRecorder] {} episode {} ({} video frames)", action, ep, n)
@@ -423,8 +431,16 @@ def eval_real_session_recorder_main(
             return 0
         n = data_saver.finish_episode(save=save and n_buf > 0)
         episode_open = False
+        if save and n > 0 and dataset_format == 'hdf5':
+            import h5py
+            from pathlib import Path
+            with h5py.File(Path(data_saver.output_dir) / f'episode_{actual_episode_idx:04d}.hdf5', 'r+') as recording:
+                recording.attrs['recording_source'] = 'inference'
         if save and n > 0:
             saved_awaiting_next = True
+            if os.environ.get("VLASTUDIO_WEB_FD"):
+                from vlastudio.webui.datasets import modified
+                modified(data_saver.output_dir, actual_episode_idx)
         action = "saved" if save else "discarded"
         logger.info("[SessionRecorder] {} episode {} ({} frames)", action, actual_episode_idx, n)
         return n
@@ -508,6 +524,7 @@ def eval_real_session_recorder_main(
                 output_dir=dataset_output_dir,
                 fps=int(round(fps)),
                 task=task,
+                hdf5_compression='lzf',
             )
             # Explicit -s N may overwrite that slot; auto index never clobbers.
             _start_new_episode(
@@ -643,6 +660,7 @@ def setup_eval_real_output_dir(args) -> str:
     logger.info("Output directory (resolved): {}", output_dir)
     manifest = {
         "script": "vlastudio infer",
+        "recording_source": "inference",
         "output_dir": output_dir,
         "robot": getattr(args, "robot", ""),
         "model_name_or_path": getattr(args, "model_name_or_path", ""),
@@ -709,6 +727,7 @@ class EvalRealRuntime:
 
     def __init__(self) -> None:
         self.all_procs: List[Any] = []
+        self.device_timeouts = {}
         self.all_shm: List[Any] = []
         self._cleanup_done = False
         self.recorder_state: Dict[str, Any] = {
@@ -806,6 +825,12 @@ class EvalRealRuntime:
             p.terminate()
             p.join(timeout=5.0)
 
+        for name in ('cmd_queue', 'ack_queue'):
+            channel = st.get(name)
+            if channel is not None:
+                channel.close()
+            st[name] = None
+
     _RECORDER_ACK_STATUS = {
         "pause_recording": "paused",
         "resume_recording": "resumed",
@@ -878,13 +903,18 @@ class EvalRealRuntime:
         logger.info("Running cleanup...")
         self.stop_session_recorder()
 
+        failed_devices = []
         for p in self.all_procs:
             if p.is_alive():
                 p.terminate()
 
         for p in self.all_procs:
-            p.join(timeout=3.0)
-            if p.is_alive():
+            timeout = self.device_timeouts.get(p, 3.0)
+            p.join(timeout=timeout)
+            if timeout is None and p.exitcode:
+                logger.critical("Device {} failed to confirm shutdown (exit {})", p.pid, p.exitcode)
+                failed_devices.append(p.pid)
+            if timeout is not None and p.is_alive():
                 logger.warning("Process {} did not exit gracefully, killing...", p.pid)
                 p.kill()
                 p.join(timeout=1.0)
@@ -895,12 +925,16 @@ class EvalRealRuntime:
             except Exception:
                 pass
 
+        if failed_devices:
+            raise RuntimeError(f"Device shutdown unconfirmed: {failed_devices}")
         logger.info("Cleanup complete.")
 
     def register_exit_hooks(self) -> None:
         """Register SIGINT/SIGTERM and atexit to run :meth:`cleanup_all`."""
 
         def _on_signal(signum, frame):
+            if self._cleanup_done:
+                return
             logger.info("Received signal {}, cleaning up...", signum)
             self.cleanup_all()
             raise SystemExit(0)
