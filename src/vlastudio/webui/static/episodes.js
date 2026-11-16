@@ -14,7 +14,7 @@
   const suffix = $("suffix");
   const date = value => value ? new Date(value).toLocaleString(language === "zh" ? "zh-CN" : "en") : tr("Not recorded");
   function scope() {
-    return {robot: $("robot").value, task: $("simulationFields").hidden ? "" : $("task").value,
+    return {mode, robot: $("robot").value, task: $("simulationFields").hidden ? "" : $("task").value,
       real_task: $("realTaskFields").hidden ? "" : $("real_task").value};
   }
   function chooseSuffix() {
@@ -147,7 +147,7 @@
   function highlight() {
     $("currentEpisode").setAttribute("aria-pressed", String(!selected));
     for (const row of list.children)
-      row.setAttribute("aria-pressed", String(row.dataset.version === selected?.version));
+      row.querySelector("button")?.setAttribute("aria-pressed", String(row.dataset.version === selected?.version));
   }
   async function selectEpisode(item) {
     cancel();
@@ -181,11 +181,12 @@
       buttons();
     } catch (error) { failed(error, token); }
   }
+  const outcomeFilter=VLAOutcomes.filter(list,renderList);
   function renderList() {
-    const items = rows.filter(r => r.dataset === dataset.value);
+    const items = rows.filter(r => r.dataset === dataset.value && (!outcomeFilter.value||(r.outcome||"unknown")===outcomeFilter.value));
     list.replaceChildren(...items.map(item => {
       const row = el("button", "", episodeLabel(item));
-      row.append(el("small", "", date(item.saved_at)));
+      VLAOutcomes.episodeButton(row,item);
       row.type = "button";
       row.dataset.version = item.version;
       row.setAttribute("aria-controls", "episodePlayer");
@@ -193,7 +194,8 @@
         selectEpisode(item);
         $("episodePlayer").scrollIntoView({block:"nearest"});
       };
-      return row;
+      const wrapper=el('div','episode-outcome-row');wrapper.dataset.version=item.version;
+      wrapper.append(row,VLAOutcomes.control(item,()=>{renderList();notice(tr('Result updated'));},notice));return wrapper;
     }));
     $("emptyEpisodes").hidden = items.length > 0;
     if (selected && !items.some(item => item.version === selected.version)) selectEpisode(null);
@@ -216,7 +218,7 @@
         suffix.value = items.some(row => row.suffix === previous) ? previous : "";
         chooseSuffix();
       }
-      const result = scopedDataset ? await api("episodes?dataset=" + encodeURIComponent(scopedDataset)) : [];
+      const result = scopedDataset ? await VLAOutcomes.list(scopedDataset) : [];
       if (token !== catalogRequest) return;
       rows = result;
       const preferred = scopedDataset;
@@ -332,10 +334,15 @@
     }
     if (selected) buttons();
   }
-  document.addEventListener("settingschanged", () => {
+  function refreshSettings() {
     selectEpisode(null);
     rows = []; dataset.replaceChildren(); sessionKey = undefined;
     load();
+  }
+  document.addEventListener("settingschanged", refreshSettings);
+  document.addEventListener("vla-settingsrefresh", refreshSettings);
+  document.addEventListener("vla-viewvisibility", () => {
+    if (!window.VLAView.active()) cancel();
   });
   document.addEventListener("episode-session", syncLibrary);
   $("episodePanel").addEventListener("focusin", () => heldKeys.clear());

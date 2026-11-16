@@ -48,7 +48,8 @@ def saved_at(path, version, mtime):
     return item.get("episodes", {}).get(index, {}).get("saved_at") or datetime.fromtimestamp(mtime, timezone.utc).isoformat()
 
 
-def catalog(active_video=None, dataset=None):
+def catalog(active_video=None, dataset=None, active_episode=None):
+    from .datasets import recording_source
     rows = []
     if not root_directory().exists():
         return rows
@@ -58,6 +59,7 @@ def catalog(active_video=None, dataset=None):
         if not directory.is_dir() or directory.is_symlink() or not re.fullmatch(r"[\w-][\w.-]{0,79}", directory.name):
             continue
         indices = set()
+        source = recording_source(directory)
         for folder, pattern in [(directory, r"episode_(\d{4,12})\.hdf5"), (directory / "video", r"real_eval_episode_(\d{4,12})\.mp4")]:
             if not folder.is_dir() or folder.is_symlink():
                 continue
@@ -67,11 +69,13 @@ def catalog(active_video=None, dataset=None):
                     indices.add(int(match[1]))
         for index in sorted(indices):
             paths = files(directory.name, index)
-            if paths and not (directory.name == active_video and paths[0].suffix == ".mp4"):
+            if paths and not (directory.name == active_video and paths[0].suffix == ".mp4"
+                              and (active_episode is None or index == active_episode)):
                 version = revision(paths)
                 rows.append(dict(dataset=directory.name, index=index, version=version,
                                  saved_at=saved_at(paths[0], version, paths[0].stat().st_mtime),
-                                 rerecordable=len(paths) == 1 and paths[0].suffix == ".hdf5"))
+                                 recording_source=source,
+                                 rerecordable=source != 'inference' and len(paths) == 1 and paths[0].suffix == ".hdf5"))
     return rows
 
 
@@ -84,8 +88,9 @@ def checked(dataset, index, version):
 
 def replacement_task(dataset, index, version):
     import h5py
+    from .datasets import recording_source
     paths = checked(dataset, index, version)
-    if len(paths) != 1 or paths[0].suffix != ".hdf5":
+    if recording_source(root_directory() / dataset) == 'inference' or len(paths) != 1 or paths[0].suffix != ".hdf5":
         raise ValueError("Only standalone collection episodes can be re-recorded")
     with h5py.File(paths[0], "r") as recording:
         return str(recording.attrs.get("task", ""))

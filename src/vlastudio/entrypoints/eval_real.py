@@ -167,6 +167,10 @@ def parse_param():
     
     # Parse arguments (allow unknown for dotted overrides)
     args, unknown = parser.parse_known_args()
+    # Also cover a long-running WebUI supervisor launched before full recording
+    # was enabled: newly spawned inference workers still get complete episodes.
+    if os.environ.get('VLASTUDIO_WEB_GATE') == 'infer' and args.output_dir and args.save_as_dataset is None:
+        args.save_as_dataset = 'hdf5'
     validate_eval_real_save_as_dataset(args, parser)
 
     # Store unknown args for ConfigLoader to process
@@ -368,14 +372,29 @@ def main():
             "=" * 60,
         )
         phase("infer_ready")
-        while kb.get_input() is None:
-            time.sleep(0.001)
-        while kb.get_input() is not None:
-            pass
+        web_control = None
+        recording_control = None
+        if os.environ.get('VLASTUDIO_WEB_FD'):
+            from vlastudio.webui.inference import InferenceEpisodes, is_simulation_robot
+            web_control = InferenceEpisodes(rt, action_manager, send_robot_reset,
+                                            reset_after_trial=is_simulation_robot(robot_configs))
+            if contract_path:
+                from vlastudio.webui.recording_control import RecordingControl
+                def start_recorder(destination):
+                    rt.start_session_recorder(output_dir=destination, device_shm_names=list(all_shm_names),
+                        dataset_format='hdf5', task=args.task, sensing_rate=float(args.sensing_rate),
+                        initial_recording_active=False, wait_until_ready=True)
+                recording_control = RecordingControl(Path(contract_path).parent, web_control, start_recorder)
+        else:
+            while kb.get_input() is None:
+                time.sleep(0.001)
+            while kb.get_input() is not None:
+                pass
         # Must wait for ack: a fire-and-forget post leaves a stale "resumed" ack that
         # desyncs later pause/save send_recorder_cmd calls (false "0 frames" saves).
-        contract = json.loads(Path(contract_path).read_text()) if contract_path else {}
-        rt.send_recorder_cmd("resume_recording")
+        contract = json.loads(Path(contract_path).read_text()) if contract_path and not web_control else {}
+        if not web_control:
+            rt.send_recorder_cmd("resume_recording")
 
         # Main control loop
         logger.info("="*60)
@@ -390,16 +409,29 @@ def main():
         action_count = 0
         last_log_time = time.perf_counter()
         paused = False
-        phase("running")
+        if not web_control:
+            phase("running")
 
         while True:
-            if not paused and try_enter_eval_real_pause_menu(kb, rt):
+            if web_control:
+                if recording_control:
+                    recording_control.poll()
+                previous = web_control.state
+                command = kb.get_input()
+                if command is not None:
+                    web_control.handle(command)
+                if web_control.state != 'running':
+                    time.sleep(.01)
+                    continue
+                if previous != 'running' and contract_path:
+                    contract = json.loads(Path(contract_path).read_text())
+            elif not paused and try_enter_eval_real_pause_menu(kb, rt):
                 paused = True
                 if attached:
                     action_manager.reset()
                 phase("paused")
 
-            if paused:
+            if not web_control and paused:
                 outcome = eval_real_pause_menu_step(
                     kb,
                     rt,

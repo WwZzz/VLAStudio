@@ -7,14 +7,14 @@
     <script src="/theme.js"></script>
     <link rel="stylesheet" href="/style.css" />
     <link rel="icon" type="image/svg+xml" href="/vlastudio-mark.svg" />
-    <script src="/i18n.js" defer></script>
+    <script src="/i18n.js" defer></script><link rel="stylesheet" href="/outcomes.css"><script src="/outcomes.js" defer></script>
     <script src="/app.js" defer></script>
     <script src="/episodes.js" defer></script>
     <script src="/quest.js" defer></script>
     <script src="/config-devices.js" defer></script>
     <script src="/config-editor.js" defer></script>
-    <script src="/settings.js" defer></script>
-  </head>
+    <script src="/interpreters.js" defer></script><script src="/environment-installer.js" defer></script><script src="/settings.js" defer></script>
+  <link rel="stylesheet" href="/terminal.css"><script src="/terminal.js" defer></script></head>
   <body>
     <header>
       <a class="brand" href="/collect"
@@ -33,6 +33,7 @@
       <a href="/train" data-i18n="Policy training">Policy training</a></nav>
       <div class="header-tools">
         <span class="chip" id="link" data-i18n="Connecting">Connecting</span>
+        <button type="button" id="terminalOpen" aria-label="Terminal" title="Terminal"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 7 5 5-5 5M13 17h6"/></svg></button>
         <button type="button" id="settingsOpen" aria-label="Settings" title="Settings">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10.97 2.15A9.9 9.9 0 0 1 13.03 2.15L13.49 4.34A7.8 7.8 0 0 1 16.36 5.53L18.23 4.31A9.9 9.9 0 0 1 19.69 5.77L18.47 7.64A7.8 7.8 0 0 1 19.66 10.51L21.85 10.97A9.9 9.9 0 0 1 21.85 13.03L19.66 13.49A7.8 7.8 0 0 1 18.47 16.36L19.69 18.23A9.9 9.9 0 0 1 18.23 19.69L16.36 18.47A7.8 7.8 0 0 1 13.49 19.66L13.03 21.85A9.9 9.9 0 0 1 10.97 21.85L10.51 19.66A7.8 7.8 0 0 1 7.64 18.47L5.77 19.69A9.9 9.9 0 0 1 4.31 18.23L5.53 16.36A7.8 7.8 0 0 1 4.34 13.49L2.15 13.03A9.9 9.9 0 0 1 2.15 10.97L4.34 10.51A7.8 7.8 0 0 1 5.53 7.64L4.31 5.77A9.9 9.9 0 0 1 5.77 4.31L7.64 5.53A7.8 7.8 0 0 1 10.51 4.34L10.97 2.15Z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
@@ -43,7 +44,7 @@
         </select>
       </div>
     </header>
-    <main>
+    <main><small id="actualInterpreters" class="actual-interpreter" hidden></small>
       <div class="title">
         <div>
           <small id="section"></small>
@@ -79,6 +80,9 @@
                 ></label>
               </div>
               <div id="inferFields">
+                <label class="inference-recording-toggle"><input id="recordInference" type="checkbox" checked><span data-i18n="Record inference results">Record inference results</span></label>
+                <small id="recordInferenceHint" data-i18n="Change recording between trials. Robot and policy stay connected.">Change recording between trials. Robot and policy stay connected.</small>
+                <p id="recordInferenceState" role="status"></p>
                 <label
                   ><span data-i18n="Policy server or model path"
                     >Policy server or model path</span
@@ -336,6 +340,15 @@
           <h2 id="settingsTitle" data-i18n="Settings">Settings</h2>
           <button type="button" id="settingsClose" data-i18n="Close">Close</button>
         </div>
+        <div class="settings-layout">
+        <div class="settings-tabs" role="tablist" aria-orientation="vertical" aria-labelledby="settingsTitle">
+          <button type="button" id="settingsDirectoriesTab" role="tab" aria-controls="settingsDirectoriesPanel" aria-selected="true" data-i18n="General">General</button>
+          <button type="button" id="settingsHuggingFaceTab" role="tab" aria-controls="settingsHuggingFacePanel" aria-selected="false" tabindex="-1">Hugging Face</button>
+        </div>
+        <div class="settings-content">
+        <div id="settingsDirectoriesPanel" class="settings-panel" role="tabpanel" aria-labelledby="settingsDirectoriesTab">
+        <h3 data-i18n="General">General</h3>
+        <h4 data-i18n="Directories">Directories</h4>
         <p data-i18n="Paths refer to the machine running WebUI.">Paths refer to the machine running WebUI.</p>
         <div>
           <label for="settingsData" data-i18n="Local data directory">Local data directory</label>
@@ -355,6 +368,10 @@
           <button type="button" id="settingsAddRoot" data-i18n="Add directory">Add directory</button>
           <small data-i18n="First match wins, then built-in profiles. New profiles go in the first directory.">First match wins, then built-in profiles. New profiles go in the first directory.</small>
         </fieldset>
+        <p id="settingsPathNote" data-i18n="Disconnect devices before changing directories.">Disconnect devices before changing directories.</p>
+        </div>
+        <div id="settingsHuggingFacePanel" class="settings-panel" role="tabpanel" aria-labelledby="settingsHuggingFaceTab" hidden>
+        <h3>Hugging Face</h3>
         <label><span data-i18n="Hugging Face username">Hugging Face username</span>
           <input id="settingsUsername" autocomplete="off" spellcheck="false">
         </label>
@@ -365,9 +382,14 @@
         <label class="settings-checkbox"><input id="settingsClearToken" type="checkbox">
           <span data-i18n="Clear saved token">Clear saved token</span>
         </label>
+        <p data-i18n="Account changes apply to newly started sessions.">Account changes apply to newly started sessions.</p>
+        </div>
         <p id="settingsError" role="alert" hidden></p>
-        <p id="settingsPathNote" data-i18n="Directory changes require disconnected devices. Account changes apply to newly started sessions.">Directory changes require disconnected devices. Account changes apply to newly started sessions.</p>
-        <button type="submit" id="settingsSave" class="primary" data-i18n="Save settings">Save settings</button>
+        <div class="settings-footer">
+          <button type="submit" id="settingsSave" class="primary" data-i18n="Save settings">Save settings</button>
+        </div>
+        </div>
+        </div>
       </form>
     </dialog>
     <dialog id="configDialog" aria-labelledby="configTitle">

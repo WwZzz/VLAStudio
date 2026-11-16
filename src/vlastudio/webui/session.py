@@ -68,8 +68,11 @@ def command_line(mode, options, runtime=None):
         if device not in ('auto', 'cpu', 'cuda'):
             raise ValueError('Policy device must be auto, cpu or cuda')
         if device == 'auto':
-            import torch
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            if runtime is not None and runtime.info:
+                device = runtime.info.get('device', 'cpu')
+            else:
+                import torch
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
         cmd += ['--device', device]
         policy = options.get("policy", "").strip()
         if not policy or policy.startswith("-") or len(policy) > 1024:
@@ -84,6 +87,8 @@ def command_line(mode, options, runtime=None):
         if dest.parent != data_directory():
             raise ValueError("Invalid dataset path")
         cmd += ["-o", str(dest)]
+        if mode == 'infer':
+            cmd += ['--save-as-dataset', 'hdf5']
     return cmd
 
 
@@ -189,7 +194,9 @@ class Preview:
 KEYS = {
     "ready": {"record": ""}, "recording": {"record_pause": "", "finish": "finish"},
     "record_paused": {"record_resume": "", "finish": "finish"}, "save": {"save": "", "discard": "x"},
-    "infer_ready": {"run": ""}, "running": {"pause": ""}, "paused": {"run": "", "reset": "r", "save": "s"},
+    "infer_ready": {"run": "", "reset": "r"}, "running": {"pause": "", "stop": "finish"},
+    "paused": {"run": "", "reset": "r", "stop": "finish"},
+    "infer_save": {"save": "s", "discard": "d"},
 }
 
 
@@ -231,6 +238,7 @@ class Session:
         self.logs = collections.deque(maxlen=230)
         self.locks = []
         self.pending = None
+        self.recording_pending = self.recording_result = None
         self.stopping = False
         self.code = None
         self.quest_proc = None
@@ -247,7 +255,7 @@ class Session:
             if self.proc is not None:
                 raise ValueError("已有会话运行中")
             self.mode, self.robot = mode, opts["robot"]
-            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","suffix","task","on_success","real_task") if k in opts}
+            self.options = {k:opts[k] for k in ("robot","teleop","sync","policy","manager","rate","output","suffix","task","on_success","real_task","record_inference") if k in opts}
             rows = channels(self.robot)
             if sum(".deploy.robot." in typ for _, typ, _ in rows) > 1:
                 raise ValueError("请选择单机器人或双臂组合配置，以便逐次确认暂停与回零")
@@ -316,6 +324,7 @@ class Session:
                 self._release()
                 raise
             self.sid = secrets.token_hex(8)
+            self.recording_pending = self.recording_result = None
             self.stopping, self.pending, self.code = False, None, None
             self.reset_after_pause = False
             self.episode = None
@@ -394,6 +403,7 @@ class Session:
     def state(self):
         with self.lock:
             live = self.proc is not None
+            self._sync_recording_setting()
             phase = PHASES[self.box[2]] if live else "idle"
             if (live and self.reset_after_pause and phase == "paused"
                     and self.pending != self.box[3]):
@@ -430,14 +440,21 @@ class Session:
                 allowed.append("reset")
             if self.mode == "infer" and not self.output and "save" in allowed:
                 allowed.remove("save")
-            if (live and self.mode == "infer" and phase == "paused" and self.box[4] != 255
+            if self.mode == "infer" and not self.reset_ok and "reset" in allowed:
+                allowed.remove("reset")
+            if (live and self.mode == "infer" and phase in ("paused", "infer_ready") and self.box[4] != 255
                     and (self.box[4] != self.box[0] or self.box[1] == RESETTING)):
                 phase = "homing" if self.box[0] in (RESET_A, RESET_B) else "busy"
                 allowed = []
             if live:
-                allowed.append("stop")
+                if self.mode != 'infer':
+                    allowed.append('stop')
+                elif not self.output or phase not in ('running', 'paused', 'infer_save', 'busy', 'homing'):
+                    allowed.append('disconnect')
             if self.stopping and live:
                 phase, allowed = "stopping", []
+            if live and getattr(self, 'recording_pending', None):
+                phase, allowed = 'busy', []
             with self.preview.lock:
                 blocked = [row for row in self.preview.devices.values() if row.get('paused')]
             simulation = dict(paused=bool(live and blocked), reason='')
@@ -457,6 +474,10 @@ class Session:
                 elif self.gated and self.box[1] == RESETTING:
                     tele = "homing"
             return dict(id=self.sid, active=live, mode=self.mode, robot=self.robot, phase=phase,
+                        runtime=getattr(self, 'runtime', None) if live else None,
+                        recording_configurable=bool(live and self.mode == 'infer' and
+                            getattr(self, 'mailbox_path', None) and
+                            self.mailbox_path.with_name('recording-capability.json').exists()),
                         simulation=simulation,
                         options=self.options if live else {}, episode=self.episode if live else None,
                         quest=dict(config=self.quest_config) if live and self.quest_config else None,
@@ -465,6 +486,51 @@ class Session:
                         keyboard_base_bindings=self.keyboard_base_bindings if live else [],
                         keyboard_axes=self.keyboard_axes if live else [],
                         tele=tele, controls_enabled=controls_enabled, actions=allowed, logs=list(self.logs), exit=self.code)
+
+    def _sync_recording_setting(self):
+        pending = getattr(self, 'recording_pending', None)
+        if not pending:
+            return
+        if not self.proc:
+            self.recording_pending = None
+            return
+        path = self.mailbox_path.with_name('recording-response.json')
+        if not path.exists():
+            return
+        response = json.loads(path.read_text())
+        if response.get('id') != pending['id']:
+            return
+        if response.get('ok'):
+            self.output = pending['dataset'] if response['enabled'] else ''
+            self.options.update(record_inference=response['enabled'], output=self.output)
+            if not response['enabled']:
+                self.episode = None
+        self.recording_result = response
+        self.recording_pending = None
+
+    def configure_recording(self, sid, enabled, dataset):
+        from .recording_control import write_json
+        with self.lock:
+            state = self.state()
+            if self.mode != 'infer' or sid != self.sid or state['phase'] != 'infer_ready':
+                raise ValueError('Finish this inference trial before changing recording')
+            if not state['recording_configurable']:
+                raise ValueError('Reconnect the policy once to enable live recording settings')
+            if self.options.get('record_inference', True) == enabled:
+                return
+            request = dict(id=secrets.token_hex(12), enabled=enabled,
+                           output=str(data_directory()/dataset) if enabled else '')
+            self.recording_result = None
+            self.recording_pending = dict(request, dataset=dataset)
+            write_json(self.mailbox_path.with_name('recording-request.json'), request)
+            deadline = time.monotonic()+20
+            while self.recording_pending:
+                self._sync_recording_setting()
+                if time.monotonic() >= deadline:
+                    raise ValueError('Waiting for the recorder to confirm the change')
+                time.sleep(.02)
+            if not self.recording_result or not self.recording_result.get('ok'):
+                raise ValueError((self.recording_result or {}).get('error', 'Recording update failed'))
 
     def quest_preview(self, sid):
         with self.lock:
@@ -501,7 +567,7 @@ class Session:
             state = self.state()
             if sid != self.sid or action not in state["actions"]:
                 raise ValueError("会话状态已改变，请重试")
-            if action == "stop":
+            if action == "disconnect" or (action == "stop" and self.mode == "collect"):
                 self.box[0] = PAUSE
                 self.stopping = True
                 self.proc.terminate()
@@ -526,7 +592,7 @@ class Session:
                     self.box[0] = PAUSE
                     self._key("pause", "running")
                     return
-                if self.mode == "infer" and action == "pause":
+                if self.mode == "infer" and action in ("pause", "stop"):
                     self.box[0] = PAUSE  # ignore late policy output while inference returns
                 if action == "record":
                     self.retaking = False

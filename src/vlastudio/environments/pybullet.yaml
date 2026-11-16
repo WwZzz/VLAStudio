@@ -1,0 +1,6 @@
+extends: base.yaml
+description: PyBullet device-host simulation.
+requirements:
+- pybullet
+checks:
+- import:pybullet

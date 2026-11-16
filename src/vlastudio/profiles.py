@@ -133,7 +133,10 @@ def environment_for(config, path, manifest=None, *, check_platform=True):
                 project = tomllib.loads(metadata.read_text(encoding='utf-8'))['project']
                 from packaging.specifiers import SpecifierSet
                 supported = project.get('requires-python', '>=3.10')
-                python = next((v for v in ('3.10', '3.11', '3.12') if v in SpecifierSet(supported)), None)
+                # A minor-only value is interpreted as patch zero by packaging.
+                # Recipes such as >=3.10.14 still support the managed 3.10 line;
+                # Manager.install validates the actual downloaded patch version.
+                python = next((v for v in ('3.10', '3.11', '3.12') if v in SpecifierSet(supported) or (v + '.99') in SpecifierSet(supported)), None)
                 if python is None:
                     raise ValueError(f'No supported default Python in {supported}; supply --runtime-manifest with an explicit Python version')
                 declaration = {'python': python, 'requires_python': supported,

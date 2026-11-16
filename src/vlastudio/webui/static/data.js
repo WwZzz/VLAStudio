@@ -8,7 +8,7 @@ Object.assign(chinese, {
   "Clear selection":"清除选区", "Drag the red arrow to preview. Click a separator to select it, or drag it to change its frame. Click a segment to loop it.":"拖动红色箭头预览。点击分隔符可选中，拖动可调整位置。点击区间可循环播放。",
   "Separator":"分隔符", "Episode endpoint":"片段端点", "Current frame":"当前帧", "Frame":"帧", "Loop segment":"循环子片段", "Show options":"展开选项", "Add separator here":"在此添加分隔符", "Latest revision":"最新修订", "Recorded signals":"已录制信号", "Delete dataset":"删除数据集", "Whole episode":"整个片段",
   "Subtask segment":"子任务片段", "Language description":"语言描述", "Reviewed":"已人工复核",
-  "unknown":"未知", "success":"成功", "failure":"失败", "Unsaved edits · kept in this browser":"修改已暂存在本浏览器，尚未保存",
+  "unknown":"未标注", "success":"成功", "failure":"失败", "Unsaved edits · kept in this browser":"修改已暂存在本浏览器，尚未保存",
   "Annotations saved":"标注已保存", "Cancel":"取消", "Confirm":"确认", "No matching datasets":"没有匹配的数据集",
   "Move this dataset and all its episodes to trash?":"将数据集及全部片段移到回收目录？",
   "Move this recording to trash?":"将此片段移到回收目录？",
@@ -151,6 +151,7 @@ function renderDatasets() {
   $("datasetList").replaceChildren(...shown.map(item => {
     const button = node("button");
     button.append(node("strong", item.legacy ? item.dataset : [item.robot, item.task, value(item,"suffix")].filter(Boolean).join(" · ")));
+    button.append(node('span',tr(item.recording_source === 'inference' ? 'Inference recording' : item.recording_source === 'collection' ? 'Teleoperation collection' : 'Unknown recording source'),'recording-source '+item.recording_source));
     button.append(node("small", tr("Updated") + " " + date(item.modified_at)));
     button.setAttribute("aria-pressed", String(item.dataset === selectedDataset?.dataset));
     button.onclick = () => chooseDataset(item).catch(error => message(error.message, true));
@@ -201,7 +202,7 @@ async function refresh() {
 $("refresh").onclick = () => refresh().catch(error => message(error.message, true));
 function datasetInfo() {
   $("datasetTitle").textContent = selectedDataset.dataset;
-  $("datasetInfo").textContent = (selectedDataset.legacy ? tr("Legacy dataset") + " · " : "") +
+  $("datasetInfo").textContent = tr(selectedDataset.recording_source === 'inference' ? 'Inference recording' : selectedDataset.recording_source === 'collection' ? 'Teleoperation collection' : 'Unknown recording source') + ' · ' + (selectedDataset.legacy ? tr("Legacy dataset") + " · " : "") +
     tr("Created") + " " + date(selectedDataset.created_at) + " · " + tr("Updated") + " " + date(selectedDataset.modified_at);
 }
 function stop() {
@@ -222,17 +223,22 @@ async function chooseDataset(item) {
   datasetInfo(); renderDatasets(); renderEpisodes();
   $("deleteDataset").hidden = false;
   const token = selectionToken;
-  const rows = await api("episodes?dataset=" + encodeURIComponent(item.dataset));
+  const rows = await VLAOutcomes.list(item.dataset);
   if (token !== selectionToken) return;
   episodeRows = rows; renderEpisodes();
 }
+const outcomeFilter=VLAOutcomes.filter($("episodeList"),renderEpisodes);
 function renderEpisodes() {
-  $("episodeList").replaceChildren(...episodeRows.map(item => {
+  $("episodeList").replaceChildren(...episodeRows.filter(item=>!outcomeFilter.value||(item.outcome||"unknown")===outcomeFilter.value).map(item => {
     const button = node("button");
-    button.append(node("strong","Episode " + String(item.index).padStart(4,"0")), node("small",date(item.saved_at)));
+    VLAOutcomes.episodeButton(button,item);
     button.setAttribute("aria-pressed", String(selected?.version === item.version));
     button.onclick = () => chooseEpisode(item).catch(error => message(error.message,true));
-    return button;
+    const row=node('div',undefined,'episode-outcome-row');row.append(button,VLAOutcomes.control(item,async(item,result)=>{
+      if(selected?.version===item.version){const whole=documentData.records.find(r=>r.scope==='episode');Object.assign(whole,{outcome:item.outcome,reviewed:item.outcome!=='unknown'});documentData.revision=result.document.revision;documentData.updated_at=result.document.updated_at;history=result.history.map(doc=>doc.schema==='episode-outcome-v1'?{...doc,schema:'interval-annotations-v1',length:documentData.length,records:doc.records.map(r=>({...r,end:documentData.length}))}:doc);currentRevision=result.document.revision;if(dirty)changed();renderAnnotations();}
+      renderEpisodes();message('Result updated');
+    },error=>message(error,true),()=>{if(selected?.version===item.version&&(dirty||saving)){message('Save or cancel your annotation edits first.',true);return false;}return true;}));
+    return row;
   }));
 }
 function query(item = selected) { return new URLSearchParams({dataset:item.dataset,index:item.index,version:item.version}); }
@@ -572,6 +578,7 @@ $("save").onclick = async () => {
     if (draft && JSON.stringify(JSON.parse(draft).document.records) === JSON.stringify(records)) localStorage.removeItem(key);
     if (token === selectionToken && JSON.stringify(documentData.records) === JSON.stringify(records)) {
       documentData = result.document; currentRevision = documentData.revision; history = result.history; dirty = false;
+      const item=episodeRows.find(r=>r.version===source.version);if(item){item.outcome=result.document.records.find(r=>r.scope==='episode').outcome;item.annotation_revision=result.document.revision;renderEpisodes();}
       renderAnnotations(); message("Annotations saved");
     } else if (token === selectionToken) {
       currentRevision = result.document.revision; history = result.history; changed();
@@ -606,11 +613,27 @@ applyTheme(); applyLanguage(); refresh().catch(error=>message(error.message,true
 
 
 document.addEventListener("settingsopening", stop);
-document.addEventListener("settingschanged", () => {
-  clearEpisode(); selectedDataset = null; episodeRows = [];
-  $("datasetTitle").textContent = $("datasetInfo").textContent = "";
-  $("deleteDataset").hidden = true;
-  renderEpisodes(); refresh().catch(error => message(error.message, true));
+function refreshSettings() {
+  stop();
+  if (!dirty) {
+    clearEpisode(); selectedDataset = null; episodeRows = [];
+    $("datasetTitle").textContent = $("datasetInfo").textContent = "";
+    $("deleteDataset").hidden = true;
+    renderEpisodes();
+  }
+  refresh().catch(error => message(error.message, true));
+}
+document.addEventListener("settingschanged", refreshSettings);
+document.addEventListener("vla-settingsrefresh", refreshSettings);
+document.addEventListener("vla-viewvisibility", () => {
+  if (!window.VLAView.active()) stop();
+  else checkService();
+});
+document.addEventListener("vla-preferenceschange", () => {
+  const defaultSelected = $("filterSuffix").value === tr("Default");
+  language = localStorage.getItem("vla-language") === "zh" ? "zh" : "en";
+  if (defaultSelected) $("filterSuffix").value = tr("Default");
+  applyTheme(); applyLanguage();
 });
 async function checkService() {
   try {
@@ -621,4 +644,4 @@ async function checkService() {
   }
 }
 checkService();
-setInterval(() => { if (!document.hidden) checkService(); }, 5000);
+setInterval(() => { if (window.VLAView.active()) checkService(); }, 5000);

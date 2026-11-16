@@ -122,3 +122,29 @@ Use separate model and simulator environments with remote inference when needed.
 `vlastudio env install` is still available to repair or register an existing base environment.
 OpenPI needs pinned source dependencies, overrides and a Transformers patch;
 `env create --policy openpi` performs these steps explicitly during installation.
+
+
+## WebUI component environments
+
+In Settings → Python Interpreters, Component environments lists the policies,
+simulations, robots and teleoperators found in the configuration directories.
+Check and install selected configuration processes only the policy/robot/teleoperator
+selected on the current workspace page; each row
+also has Check and Install / repair. A separate Install specified components catalog
+supports category/search filters, individual row actions and explicit multi-selection,
+independently of the current workspace configuration. The background queue survives page closure.
+It runs real import checks first and reuses a working interpreter. Missing
+components use the existing `env_manager.Manager` recipes and uv to create
+separate environments under the shared cache's `envs/` directory. Logs and
+progress remain available in the settings panel. No training or robot motion is
+started by these import checks.
+
+Successful results are registered for automatic selection by component. Explicit
+configuration overrides and manually selected interpreters retain priority.
+Install results do not overwrite unsaved settings, switch an active session, or
+upgrade the interpreter used by a running robot/policy. Licensed native runtimes
+require the existing installer license acceptance; missing recipes and system
+prerequisites are shown per component, and other queued components continue.
+Custom components can declare `runtime` in their YAML, or a deployment profile
+can set `webui.runtime_manifest` to its runtime YAML. Environment checks verify
+imports; use separate simulator/model smoke checks to validate actual execution.

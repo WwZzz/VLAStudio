@@ -1,3 +1,4 @@
+.workspace-embedded body > header{display:none}
 :root {
   color-scheme: light;
   --chart-grid: #d9e1d9;
@@ -17,6 +18,12 @@
   background: var(--bg);
   font-size: 13px;
 }
+.inference-recording-toggle{display:flex;align-items:center;gap:8px;margin:0}
+.inference-recording-toggle input{width:16px;height:16px;margin:0;accent-color:var(--green)}
+#recordInferenceHint{display:block;color:var(--muted);line-height:1.6;margin:7px 0}
+#recordInferenceState{font-size:11px;color:var(--green);margin:5px 0 14px}
+.recording-source{display:inline-block;width:fit-content;font-size:10px;line-height:1.6;padding:2px 7px;border-radius:4px;background:var(--green-soft);color:var(--green);font-weight:500}
+.recording-source.inference{background:color-mix(in srgb,#5386d7 16%,var(--paper));color:light-dark(#315f9e,#a0c4fb)}
 * {
   box-sizing: border-box;
 }
@@ -937,8 +944,29 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 #folderList button:hover,#folderList button:focus-visible {background:var(--green-soft)}
 #folderStatus {color:var(--muted)}
 #folderDialog p:empty {display:none}
-#settingsDialog {width:min(620px,96vw);max-height:92dvh;overflow:auto}
-#settingsForm {padding:0;margin:0;gap:10px}
+#settingsDialog {width:min(900px,96vw);height:min(620px,92dvh);max-height:92dvh;padding:0;overflow:hidden;box-sizing:border-box}
+#settingsForm {height:100%;display:grid;grid-template-rows:auto minmax(0,1fr);padding:0;margin:0;gap:0}
+#settingsForm > .heading {margin:0;padding:18px 22px;border-bottom:1px solid var(--border)}
+.settings-layout {display:grid;grid-template-columns:180px minmax(0,1fr);min-height:0}
+.settings-tabs {display:grid;align-content:start;gap:4px;padding:16px 12px;background:var(--side);border-right:1px solid var(--border)}
+.settings-tabs [role=tab] {text-align:left;padding:10px 12px;background:transparent;border-color:transparent;color:var(--muted);overflow-wrap:anywhere}
+.settings-tabs [aria-selected=true] {background:var(--green-soft);border-color:var(--border);color:var(--green);font-weight:600}
+.settings-tabs [role=tab]:focus-visible {outline:2px solid var(--green);outline-offset:2px}
+.settings-content {display:flex;flex-direction:column;gap:18px;min-width:0;min-height:0;padding:24px;overflow:auto}
+.settings-panel {display:grid;align-content:start;gap:14px;min-width:0}
+.settings-panel h3 {margin:0 0 6px;font-size:20px}
+.settings-panel h4 {margin:0;font-size:14px}
+.settings-panel p,.settings-panel small {overflow-wrap:anywhere}
+.settings-footer {display:flex;justify-content:flex-end;margin-top:auto;padding-top:18px;border-top:1px solid var(--border)}
+@media(max-width:560px) {
+  .settings-layout {grid-template-columns:108px minmax(0,1fr)}
+  .settings-tabs {padding:12px 6px}
+  .settings-tabs [role=tab] {padding:10px 8px;font-size:12px}
+  .settings-content {padding:16px 12px}
+  #settingsForm > .heading {padding:14px 16px}
+  .settings-data-path {flex-wrap:wrap}
+  .settings-data-path input {flex-basis:100%}
+}
 #settingsForm p {margin:0}
 #settingsForm small {color:var(--muted);line-height:1.5}
 #settingsForm .settings-checkbox {display:flex;align-items:center;gap:8px}
@@ -956,3 +984,9 @@ body.reviewing #transport {display:flex;flex-wrap:nowrap}
 #folderCreateForm{margin:14px 0;padding:12px;border:1px solid var(--border);border-radius:8px}
 #folderCreateForm label{display:grid;gap:7px;margin:0 0 10px}#folderName{width:100%;box-sizing:border-box}
 .folder-create-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.interpreter-card{border:1px solid var(--border);border-radius:10px;padding:14px;display:grid;gap:12px;margin-bottom:10px;min-width:0}.interpreter-card .heading{gap:12px;margin:0}.interpreter-card .heading label{flex:1;min-width:0}.interpreter-card textarea{width:100%;box-sizing:border-box;font:inherit}.interpreter-card>button{justify-self:start}.interpreter-probe{white-space:pre-wrap;overflow-wrap:anywhere}.interpreter-card details label{margin-top:10px}#interpreterBindings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.interpreter-override{display:grid;gap:10px;border:1px solid var(--border);padding:12px;border-radius:8px;margin:10px 0}.interpreter-override>button{justify-self:end}.actual-interpreter{display:block;color:var(--muted);overflow-wrap:anywhere;margin:8px 0 12px}.actual-interpreter[hidden]{display:none}@media(max-width:600px){#interpreterBindings{grid-template-columns:1fr}}
+
+#environmentInstaller{display:grid;gap:12px;margin:8px 0;min-width:0}.environment-toolbar{display:flex;flex-wrap:wrap;gap:8px}.environment-toolbar select{flex:0 1 160px}.environment-toolbar input{flex:1;min-width:120px}#environmentComponents{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px}.environment-component{padding:12px;border-bottom:1px solid var(--border)}.environment-component:last-child{border-bottom:0}.environment-component-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.environment-component-title{display:flex;flex-direction:column;min-width:90px;flex:1;overflow-wrap:anywhere}.environment-row-actions{display:flex;gap:6px}.environment-row-actions button,.environment-log-button{font-size:12px;padding:5px 8px}.environment-result{font-size:12px;color:var(--muted)}.environment-result[data-state=ready],.environment-result[data-state=reused]{color:var(--green)}.environment-component-note{display:block;overflow-wrap:anywhere;margin-top:6px}.environment-license{display:flex;align-items:center;gap:6px;font-size:12px;margin-top:8px}.environment-license input{width:auto}.environment-log-button{margin-top:8px}#environmentLogText{max-height:220px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
+
+.environment-catalog{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:8px;margin-top:10px}.environment-pick{width:auto;flex:0 0 auto}.environment-select-summary{display:block;overflow-wrap:anywhere;margin:8px 0}#environmentBrowse>summary{font-weight:600}

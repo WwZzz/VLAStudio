@@ -65,9 +65,9 @@
     }
   }
   async function poll() {
-    if (!session || panel.hidden) return;
+    if (!session || panel.hidden || !window.VLAView.active()) return;
     const token = generation;
-    if (!document.hidden && panel.open && !reviewingEpisode()) {
+    if (window.VLAView.active() && panel.open && !reviewingEpisode()) {
       request = new AbortController();
       const id = session;
       try {
@@ -93,8 +93,8 @@
   // Fixed camera projection of WebXR coordinates. X right, Y up, Z depth.
   const project = p => [p[0]*.85-p[2]*.55, -p[1]+p[2]*.28];
   function draw() {
-    if (!session || panel.hidden) return;
-    if (!document.hidden && panel.open && !reviewingEpisode()) {
+    if (!session || panel.hidden || !window.VLAView.active()) return;
+    if (window.VLAView.active() && panel.open && !reviewingEpisode()) {
       const now = clock + (performance.now()-received)/1000;
       for (const [hand, view] of views) {
         const {canvas, status, keys} = view, trail = trails.get(hand) || [];
@@ -146,6 +146,10 @@
     }
     animation = requestAnimationFrame(draw);
   }
+  document.addEventListener("vla-viewvisibility", () => {
+    stop();
+    if (session && window.VLAView.active()) { poll(); draw(); }
+  });
   document.addEventListener("episode-session", render);
   $("teleop").addEventListener("change", render);
   panel.addEventListener("toggle", () => {if (!panel.open) return; render();});

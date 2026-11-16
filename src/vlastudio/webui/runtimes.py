@@ -69,11 +69,20 @@ class RuntimeLaunch:
         return info
 
 
-def resolve_runtime(profile, *, registry_path=None, environ=None):
+def resolve_runtime(profile, *, registry_path=None, environ=None, role=None, key=None):
     """Resolve only trusted site configuration; request data cannot supply commands."""
     from .settings import runtime_environment
     parent = runtime_environment(os.environ if environ is None else environ)
-    settings = catalog()['robot_options'].get(profile, {})
+    settings = catalog()['robot_options'].get(profile, {}) if profile else {}
+    from .interpreters import selection, launch
+    role = role or ('simulation' if settings.get('runtime', 'current') != 'current' or settings.get('tasks') else 'robot')
+    entry = selection(role, key if key is not None else profile or '')
+    if entry:
+        runtime = launch(entry, environ)
+        if role in ('simulation', 'robot'):
+            runtime.imports = list(settings.get('runtime_imports', []))
+            runtime.required_env = list(settings.get('runtime_required_env', []))
+        return runtime
     name = settings.get('runtime', 'current')
     selected = registry_path or parent.get('VLASTUDIO_WEBUI_RUNTIMES')
     if selected is None:

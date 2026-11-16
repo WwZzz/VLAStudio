@@ -41,6 +41,7 @@ def catalog():
                     except OSError:
                         pass
             item["legacy"] = True
+        item['recording_source'] = datasets.recording_source(directory, item if not item.get('legacy') else None)
         stats = directory.stat()
         result.append(dict(item, created_at=item.get("created_at"), modified_at=item.get("modified_at") or
                            datetime.fromtimestamp(stats.st_mtime, timezone.utc).isoformat()))
@@ -63,17 +64,75 @@ def load_versions(path):
     return json.loads(path.read_text(encoding="utf-8"))["versions"] if path.exists() else []
 
 
-def annotations(dataset, index, version):
+def outcomes(dataset):
+    result = []
+    for item in episodes.catalog(dataset=dataset):
+        _, path = annotation_path(dataset, item['index'], item['version'])
+        matching = [v for v in load_versions(path) if v['source_version'] == item['version']]
+        doc = matching[-1] if matching else {}
+        whole = next((r for r in doc.get('records', []) if r['scope'] == 'episode'), {})
+        result.append(dict(item, outcome=whole.get('outcome', 'unknown'), annotation_revision=doc.get('revision')))
+    return result
+
+
+def annotation_snapshot(dataset, index, version):
     directory, path = annotation_path(dataset, index, version)
-    meta = episodes.read(dataset, index, version)
     versions = load_versions(path)
-    matching = [doc for doc in versions if doc["source_version"] == version]
+    matching = [doc for doc in versions if doc['source_version'] == version]
     doc = matching[-1] if matching else dict(
-        schema="interval-annotations-v1", dataset=dataset, episode_id=index, source_version=version,
-        length=meta["count"], revision=None, records=[dict(id="episode", scope="episode",
-        start=0, end=meta["count"], language=(datasets.read_manifest(directory) or {}).get("task", ""),
-        outcome="unknown", reviewed=False)])
+        schema='episode-outcome-v1', dataset=dataset, episode_id=index, source_version=version,
+        length=None, revision=None, records=[dict(id='episode', scope='episode',
+        start=0, end=None, language=(datasets.read_manifest(directory) or {}).get('task', ''),
+        outcome='unknown', reviewed=False)])
     return dict(document=doc, history=list(reversed(matching)), source_changed=bool(versions and not matching))
+
+
+def save_outcome(data):
+    if data.get('outcome') not in ('unknown', 'success', 'failure'):
+        raise ValueError('Invalid episode outcome')
+    dataset, index, version = (data[k] for k in ('dataset', 'index', 'version'))
+    directory, path = annotation_path(dataset, index, version)
+    path.parent.mkdir(exist_ok=True)
+    lock = path.with_suffix('.lock')
+    if lock.is_symlink():
+        raise ValueError('Invalid annotation lock')
+    with lock.open('a') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        doc = annotation_snapshot(dataset, index, version)['document']
+        if 'revision' in data and data['revision'] != doc['revision']:
+            raise ValueError('Annotations changed in another window. Reload before saving.')
+        records = [dict(r, outcome=data['outcome'], reviewed=data['outcome'] != 'unknown')
+                   if r['scope'] == 'episode' else r for r in doc['records']]
+        updated = dict(doc, records=records, parent_revision=doc['revision'], producer=dict(kind='human'),
+                       updated_at=datasets.now(), revision=uuid.uuid4().hex)
+        versions = load_versions(path); versions.append(updated)
+        write_versions(path, versions, dataset, index, version)
+        datasets.modified(directory)
+        return dict(document=updated, history=list(reversed([v for v in versions if v['source_version'] == version])), source_changed=False)
+
+
+def write_versions(path, versions, dataset, index, version):
+    with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False) as tmp:
+        tmp_path = Path(tmp.name)
+        try:
+            json.dump(dict(versions=versions), tmp, ensure_ascii=False, indent=2)
+            tmp.flush(); os.fsync(tmp.fileno())
+            episodes.checked(dataset, index, version)
+            tmp_path.replace(path)
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+
+def annotations(dataset, index, version):
+    snapshot = annotation_snapshot(dataset, index, version)
+    meta = episodes.read(dataset, index, version)
+    def bind_frames(doc):
+        if doc.get('schema') != 'episode-outcome-v1':
+            return doc
+        return dict(doc, schema='interval-annotations-v1', length=meta['count'],
+                    records=[dict(r, end=meta['count']) for r in doc['records']])
+    return dict(snapshot, document=bind_frames(snapshot['document']),
+                history=[bind_frames(doc) for doc in snapshot['history']])
 
 
 def validate_records(records, length):
@@ -125,16 +184,7 @@ def save(data):
                        updated_at=stamp, revision=uuid.uuid4().hex)
         versions = load_versions(path)
         versions.append(updated)
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent, delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-            try:
-                json.dump(dict(versions=versions), tmp, ensure_ascii=False, indent=2)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-                episodes.checked(dataset, index, version)
-                tmp_path.replace(path)
-            finally:
-                tmp_path.unlink(missing_ok=True)
+        write_versions(path, versions, dataset, index, version)
         datasets.modified(directory)
         return dict(document=updated, history=list(reversed([v for v in versions if v["source_version"] == version])), source_changed=False)
 

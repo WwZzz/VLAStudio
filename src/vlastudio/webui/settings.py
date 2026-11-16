@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import tempfile
+import sys
 
 SETTINGS_FILE = Path(os.environ.get("XDG_CONFIG_HOME", Path.home()/".config")) / "vlastudio/webui-settings.json"
 DEFAULT_DATA = Path(__file__).resolve().parents[3] / "data/webui"
@@ -32,10 +33,53 @@ def configured_roots(data):
 
 def public():
     data, version = stored()
+    from ..paths import cache_root
+    from .managed_environments import entries
     return dict(data_dir=str(Path(data.get("data_dir", DEFAULT_DATA)).expanduser()),
                 checkpoint_dir=str(Path(data.get("checkpoint_dir", DEFAULT_DATA.parent / "checkpoints")).expanduser()),
                 config_roots=configured_roots(data), hf_username=data.get("hf_username", ""),
-                token_set=bool(data.get("hf_token", os.environ.get("HF_TOKEN", ""))), version=version)
+                token_set=bool(data.get("hf_token", os.environ.get("HF_TOKEN", ""))), version=version,
+                interpreters=data.get('interpreters', []), interpreter_bindings=data.get('interpreter_bindings', {}),
+                interpreter_overrides=data.get('interpreter_overrides', []), webui_python=sys.executable,
+                managed_interpreters=entries(),
+                cache_root=str(cache_root()), webui_python_display=interpreter_display_path())
+
+
+def interpreter_display_path():
+    from ..paths import cache_root
+    root = cache_root()
+    python = Path(sys.executable).absolute()
+    try:
+        return '$VLASTUDIO/' + python.relative_to(root).as_posix()
+    except ValueError:
+        pass
+    for alias in sorted((root / 'envs').glob('*')):
+        candidate = alias / python.parent.name / python.name
+        try:
+            if candidate.samefile(python):
+                return '$VLASTUDIO/' + candidate.relative_to(root).as_posix()
+        except OSError:
+            continue
+    return str(python)
+
+
+def register_interpreter_alias():
+    """Give an external environment a cache-local name without moving it."""
+    from ..paths import cache_root
+    root = cache_root()
+    python = Path(sys.executable).absolute()
+    if interpreter_display_path().startswith('$VLASTUDIO/'):
+        return
+    prefix = python.parent.parent
+    name = prefix.name or 'webui'
+    alias = root / 'envs' / name
+    if alias.exists() or alias.is_symlink():
+        alias = alias.with_name(name + '-' + hashlib.sha256(str(prefix).encode()).hexdigest()[:8])
+    try:
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(prefix, target_is_directory=True)
+    except OSError:
+        pass  # A read-only cache must not prevent the dashboard from starting.
 
 
 def data_directory():
@@ -118,6 +162,9 @@ def save(studio, payload):
         data, version = stored()
         if payload.get("version") != version:
             raise ValueError("Settings changed. Reopen settings before saving.")
+        from .interpreters import validate
+        interpreter_settings = validate({key: payload.get(key, data.get(key, default)) for key, default in
+                                        (('interpreters', []), ('interpreter_bindings', {}), ('interpreter_overrides', []))})
         data_dir = absolute_directory(payload.get("data_dir", ""), required=True)
         checkpoint_dir = absolute_directory(payload.get("checkpoint_dir", str(checkpoint_directory())), required=True)
         previous = configured_roots(data)
@@ -158,6 +205,7 @@ def save(studio, payload):
             pass
         data.pop("config_root", None)
         data.update(data_dir=data_dir, checkpoint_dir=checkpoint_dir, config_roots=roots, hf_username=username)
+        data.update(interpreter_settings)
         if payload.get("clear_token"):
             data["hf_token"] = ""
         elif token:

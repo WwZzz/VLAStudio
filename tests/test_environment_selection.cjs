@@ -1,0 +1,14 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const source=fs.readFileSync(path.join(__dirname,'../src/vlastudio/webui/static/environment-installer.js'),'utf8').split('// Settings UI')[0];
+const context={window:{}};vm.runInNewContext(source,context);const select=context.window.EnvironmentSelection.select;
+const rows=[{id:'act',bindings:{training:['act'],inference:['act']}},{id:'pi',bindings:{training:['pi0'],inference:['pi0']}},{id:'sim',bindings:{simulation:['aloha']}},{id:'robot',bindings:{robot:['so101']}},{id:'tele',bindings:{teleop:['quest']}},{id:'remote',bindings:{inference:['vlastudio.policy.remote']}}];
+const ids=result=>Array.from(result.rows,row=>row.id);
+assert.deepEqual(ids(select(rows,{mode:'train',policy:'pi0',robot:'so101',teleop:'quest'})),['pi']);
+assert.deepEqual(ids(select(rows,{mode:'collect',policy:'pi0',robot:'so101',teleop:'quest'})),['robot','tele']);
+assert.deepEqual(ids(select(rows,{mode:'infer',robot:'aloha',policy:'/ckpt/model/checkpoint-50'},[{policy:'act',output_dir:'/ckpt/model'}])),['sim','act']);
+assert.deepEqual(ids(select(rows,{mode:'infer',robot:'aloha',policy:'localhost:5000'})),['sim','remote']);
+assert.deepEqual(ids(select(rows,{mode:'infer',robot:'aloha',policy:'https://policy.example/act'})),['sim','remote']);
+assert.equal(select(rows,{mode:'infer',robot:'so101',policy:'/unrecognized/model'}).missing.length,1);
+assert.equal(select(rows,{mode:'infer',policy:'/ckpt/model-other'},[{policy:'act',output_dir:'/ckpt/model'}]).missing.length,1);
+assert.deepEqual(ids(select(rows,{mode:'data'})),[]);
+console.log('8 current-configuration scope checks passed');

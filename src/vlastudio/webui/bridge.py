@@ -5,7 +5,7 @@ import os
 import select
 import sys
 
-PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy", "record_paused", "waiting_robot")
+PHASES = ("loading", "ready", "recording", "save", "infer_ready", "running", "paused", "busy", "record_paused", "waiting_robot", "infer_save")
 PAUSE, RUN, RESET_A, RESET_B, RESETTING, RESET_AND_RESUME = range(6)
 
 
@@ -24,7 +24,7 @@ def phase(name):
     if _box is not None:
         if name == "running":
             _box[0] = RUN
-        elif name == "paused" and _box[0] == RUN:
+        elif name in ("paused", "infer_ready", "infer_save") and _box[0] == RUN:
             _box[0] = PAUSE
         _box[2] = PHASES.index(name)
         _box[3] = (_box[3] + 1) % 256

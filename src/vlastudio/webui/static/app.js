@@ -56,7 +56,8 @@ const names = {
   home: "Reset",
   tele_run: "Enable teleoperation",
   tele_pause: "Pause teleoperation",
-  stop: collecting ? "Disconnect teleoperation" : "Disconnect policy",
+  stop: collecting ? "Disconnect teleoperation" : "Stop inference",
+  disconnect: "Disconnect policy",
 };
 const phases = {
   idle: "Not connected",
@@ -69,6 +70,7 @@ const phases = {
   infer_ready: "Policy ready",
   running: "Inference running",
   paused: "Inference paused",
+  infer_save: "Awaiting save",
   homing: "Resetting",
   busy: "Processing",
   stopping: "Disconnecting",
@@ -79,6 +81,7 @@ let robotTasks = [];
 sessionStorage.removeItem("vla-key");
 let state = null,
   profiles = null,
+  initialized = false,
   busy = false,
   lastButtons = "";
 let modelData = {},
@@ -232,6 +235,7 @@ function options() {
     task: $("task").value,
     real_task: $("real_task").value,
     on_success: $("on_success").value,
+    record_inference: $("recordInference").checked,
   };
 }
 function fillRobotTasks() {
@@ -351,8 +355,10 @@ async function init() {
   if (saved.task && settings?.tasks?.includes(saved.task))
     $("task").value = saved.task;
   $("on_success").value = saved.on_success || "continue";
+  $("recordInference").checked = saved.record_inference !== false;
   renderTaskPanel();
   syncProfilePickers();
+  initialized = true;
   await refresh();
 }
 $("robot").onchange = defaults;
@@ -372,7 +378,7 @@ $("form").onsubmit = async (e) => {
   e.preventDefault();
   if (busy) return;
   if (state?.session.active) {
-    await act("stop");
+    await act(collecting ? "stop" : "disconnect");
     return;
   }
   const opts = options();
@@ -437,14 +443,16 @@ async function post(route, data) {
     if (state) renderSession(state.session);
   }
 }
+let episodeOutcome='unknown', outcomeEpisodeKey='';
 async function act(action) {
   const sid = state.session.id;
-  if (["discard", "stop"].includes(action)) {
+  if ((action === "discard" && (collecting || state.session.phase !== 'infer_save')) || action === "disconnect" || (collecting && action === "stop")) {
     const msg = {
       discard: tr("Discard this episode?"),
       stop: tr(
         "Disconnect this source and keep the robot connected?",
       ),
+      disconnect: tr("Disconnect the policy? The robot stays connected."),
     };
     if (!(await confirmAction(tr(names[action]), msg[action]))) return;
   }
@@ -453,8 +461,19 @@ async function act(action) {
   if (collecting && action === "record" && !$("realTaskFields").hidden)
     payload.real_task = $("real_task").value;
   if (collecting && action === "record") payload.suffix = $("suffix").value;
-  await post("action", payload);
+  if(action==='save')await post('episode/save-outcome',{mode,id:sid,outcome:episodeOutcome});
+  else await post("action", payload);
 }
+let pendingRecordingSetting=null;
+$("recordInference").onchange=async()=>{
+  const enabled=$("recordInference").checked;
+  if(state?.session.active){
+    pendingRecordingSetting=enabled;
+    try{await post('inference/recording',{id:state.session.id,record_inference:enabled});}
+    finally{pendingRecordingSetting=null;if(state)renderSession(state.session);}
+  }
+  localStorage.setItem('vla-'+mode,JSON.stringify(options()));
+};
 function transportIcon(key) {
   const shapes = {
     record: '<circle cx="12" cy="12" r="7" fill="currentColor"/>',
@@ -475,12 +494,17 @@ $("teleSwitch").onclick = (event) => {
   act(enabled ? "tele_pause" : "tele_run");
 };
 document.addEventListener("keydown", (event) => {
-  const shortcut = event.key === " " ? "Space" : event.key;
-  if (!["Enter", "Space"].includes(shortcut) || reviewingEpisode() || !collecting || event.isComposing || event.defaultPrevented ||
-      event.ctrlKey || event.altKey || event.metaKey || event.shiftKey ||
+  if(['1','2'].includes(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey&&!event.shiftKey&&!event.isComposing&&!event.defaultPrevented&&!event.repeat&&!busy&&!reviewingEpisode()&&state?.session.actions.includes('save')&&!document.querySelector('dialog[open]')&&!event.target.closest('input,textarea,select,button,a,[contenteditable],#terminalPanel')){
+    event.preventDefault();event.stopImmediatePropagation();episodeOutcome=event.key==='1'?'success':'failure';act('save');return;
+  }
+  const key = event.key === " " ? "Space" : event.key;
+  if (!["Enter", "Space"].includes(key) || reviewingEpisode() || event.isComposing || event.defaultPrevented ||
+      event.altKey || event.metaKey || event.shiftKey ||
+      (event.ctrlKey && key !== 'Enter') ||
       document.querySelector("dialog[open]") ||
-      event.target.closest("input,textarea,select,button,a,summary,[contenteditable=true]")) return;
-  const action = $("buttons").querySelector(`[aria-keyshortcuts="${shortcut}"]:enabled`);
+      event.target.closest("#terminalPanel,input,textarea,select,button,a,summary,[contenteditable]:not([contenteditable=false]),[role=textbox],[role=combobox]")) return;
+  const shortcut = (event.ctrlKey ? 'Control+' : '') + key;
+  const action = $("buttons").querySelector(`[aria-keyshortcuts~="${shortcut}"]:enabled`);
   if (!action) return;
   event.preventDefault();
   event.stopPropagation();
@@ -499,8 +523,11 @@ document.addEventListener("keydown", (event) => {
   reset.click();
 });
 function renderSession(s) {
+  const outcomeKey=JSON.stringify([s.id,s.episode,['save','infer_save'].includes(s.phase)]);
+  if(outcomeKey!==outcomeEpisodeKey){episodeOutcome='unknown';outcomeEpisodeKey=outcomeKey;}
   const other = s.active && s.mode !== mode;
   const c = s.connection;
+  if($('actualInterpreters')){const values=[];if(c?.runtime)values.push(tr('Device')+': '+c.runtime.python);if(s.runtime)values.push(tr('Policy / teleoperation')+': '+s.runtime.python);$('actualInterpreters').textContent=values.join(' · ');$('actualInterpreters').hidden=!values.length;}
   const selection = c || s.prepared;
   if (selection && $("robot").value !== selection.robot) {
     if (![...$("robot").options].some(o => o.value === selection.robot))
@@ -511,6 +538,7 @@ function renderSession(s) {
   if (selection?.task) $("task").value = selection.task;
   if (selection?.on_success) $("on_success").value = selection.on_success;
   if (s.active && !other) {
+    if (!collecting) $("recordInference").checked = pendingRecordingSetting ?? (s.options.record_inference !== false);
     const settings = profiles.robot_options?.[s.robot];
     $("simulationFields").hidden = !settings?.tasks;
     const tasks = settings?.tasks || [];
@@ -531,6 +559,7 @@ function renderSession(s) {
       : "") + tr(phases[s.phase]);
   for (const field of $("form").elements)
     field.disabled = s.active || connecting;
+  $("recordInference").disabled=busy||connecting||other||(s.active&&s.phase!=='infer_ready');
   {
     const locked = connecting || (!collecting && s.active) || ["recording", "record_paused", "save", "busy", "homing", "stopping"].includes(s.phase);
     $("real_task").disabled = $("newTask").disabled = locked;
@@ -542,7 +571,7 @@ function renderSession(s) {
   $("robotConnection").textContent = tr(c ? c.ready ? "Disconnect robot" : "Connecting robot" : "Connect robot");
   const loading = connecting || (s.active && s.phase === "loading");
   $("launch").disabled = busy || other || (profiles.robot_options?.[$("robot").value]?.modes || ["collect","infer"]).indexOf(mode) < 0 ||
-    ["recording","record_paused","save","stopping"].includes(s.phase) || connecting;
+    ["recording","record_paused","save","infer_save","stopping"].includes(s.phase) || connecting || (s.active && !collecting && !s.actions.includes('disconnect'));
   $("launch").setAttribute(
     "aria-busy",
     String(loading || s.phase === "stopping"),
@@ -573,7 +602,8 @@ function renderSession(s) {
   const toggleLabel = tr(s.active && !other && !s.options?.teleop ? "Enable controls" : "Enable teleoperation");
   $("teleSwitchLabel").textContent = toggleLabel;
   toggle.setAttribute("aria-label", toggleLabel);
-  $("episodeNumber").classList.toggle("recording-now", collecting && !other && s.phase === "recording");
+  $("episodeNumber").classList.toggle("recording-now", !other && (collecting ? s.phase === "recording" : s.phase === 'running' && !!s.options?.output));
+  if (!collecting) $("recordInferenceState").textContent = tr((s.active ? !s.options?.output : !$("recordInference").checked) ? 'Preview only · no recording' : s.phase === 'infer_save' ? 'Save with Enter · Discard with Ctrl+Enter' : s.phase === 'running' ? 'Recording' : s.phase === 'paused' ? 'Recording paused' : 'Recording starts with Play');
   const inEpisode = s.phase === "recording" || s.phase === "record_paused";
   const current = s.active && !other && Number.isInteger(s.episode) &&
     (collecting ? inEpisode || s.phase === "save" : !!s.options?.output);
@@ -584,6 +614,12 @@ function renderSession(s) {
   const recordButton = inEpisode ? "finish" : "record";
   const pauseButton = s.phase === "recording" ? "record_pause" : "record_resume";
   const enterAction = {ready: "record", recording: "finish", record_paused: "finish", save: "save"}[s.phase];
+  const inferenceShortcuts = {
+    infer_ready: {run: ['Enter', 'Space']},
+    running: {stop: ['Enter'], pause: ['Space']},
+    paused: {stop: ['Enter'], run: ['Space']},
+    infer_save: {save: ['Enter'], discard: ['Control+Enter']},
+  }[s.phase] || {};
   const displayed = collecting
     ? [recordButton, pauseButton, "home"]
     : [allowed.includes("pause") ? "pause" : "run", "stop", "reset"];
@@ -591,15 +627,25 @@ function renderSession(s) {
   $("episodeNumber").textContent = s.active && !other && Number.isInteger(s.episode)
     ? (s.phase === "ready" && collecting ? tr("Next episode") : "Episode") + " " + String(s.episode).padStart(4, "0")
     : "Episode —";
-  const sig = JSON.stringify([s.id, allowed, displayed, enterAction, language, busy]);
+  const sig = JSON.stringify([s.id, s.phase, allowed, displayed, enterAction, language, busy]);
   if (sig !== lastButtons) {
     lastButtons = sig;
     $("buttons").replaceChildren();
+    if(allowed.includes('save')){
+      const choices=el('div');choices.id='outcomeChoices';choices.append(el('small','',tr('Outcome')));
+      for(const value of ['success','failure']){
+        const choice=el('button','outcome-choice '+value,VLAOutcomes.label(value));choice.type='button';choice.disabled=busy;
+        choice.title=tr(value==='success'?'Success and save (1)':'Failure and save (2)');choice.setAttribute('aria-pressed',String(episodeOutcome===value));
+        choice.onclick=()=>{episodeOutcome=episodeOutcome===value?'unknown':value;choices.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===choice&&episodeOutcome===value)));choice.blur();};choices.append(choice);
+      }
+      choices.append(el('small','',language==='zh'?'1 / 2：标注并保存':'1 / 2: label & save'));$("buttons").append(choices);
+    }
     for (const key of displayed) {
-      let shortcut = "";
-      if (collecting && key === enterAction) shortcut = "Enter";
-      if (collecting && inEpisode && key === pauseButton) shortcut = "Space";
-      const label = tr(names[key]) + (shortcut ? " (" + tr(shortcut) + ")" : "");
+      const shortcuts = collecting
+        ? key === enterAction ? ['Enter'] : key==='discard'&&s.phase==='save'?['Control+Enter']:inEpisode && key === pauseButton ? ['Space'] : []
+        : inferenceShortcuts[key] || [];
+      const shortcutLabel = shortcuts.map(s=>s === 'Control+Enter' ? 'Ctrl + '+tr('Enter') : tr(s)).join(' / ');
+      const label = tr(names[key]) + (shortcutLabel ? " (" + shortcutLabel + ")" : "");
       const button = el("button", "transport-key " + key);
       const isReset = key === "home" || key === "reset";
       button.innerHTML = transportIcon(key);
@@ -608,7 +654,7 @@ function renderSession(s) {
       }
       button.title = label + (isReset ? " (Ctrl + Alt + R)" : "");
       button.setAttribute("aria-label", button.title);
-      if (shortcut) button.setAttribute("aria-keyshortcuts", shortcut);
+      if (shortcuts.length) button.setAttribute("aria-keyshortcuts", shortcuts.join(' '));
       button.disabled = busy || !allowed.includes(key);
       button.onclick = (event) => {
         if (event.detail) button.blur();
@@ -666,7 +712,7 @@ async function drawCameraFrame(item, blob, stamp, signal) {
   if (item.context) {
     const frame = await createImageBitmap(blob);
     try {
-      if (signal.aborted || document.hidden || reviewingEpisode()) return;
+      if (signal.aborted || !window.VLAView.active() || reviewingEpisode()) return;
       const canvas = item.context.canvas;
       if (canvas.width !== frame.width) canvas.width = frame.width;
       if (canvas.height !== frame.height) canvas.height = frame.height;
@@ -701,7 +747,7 @@ async function streamCamera(name, item, signal) {
   async function paint() {
     drawing = true;
     try {
-      while (pending && !signal.aborted && !document.hidden && !reviewingEpisode()) {
+      while (pending && !signal.aborted && window.VLAView.active() && !reviewingEpisode()) {
         const frame = pending; pending = null;
         await drawCameraFrame(item, frame.blob, frame.stamp, signal);
       }
@@ -709,7 +755,7 @@ async function streamCamera(name, item, signal) {
     finally {drawing = false;}
   }
   try {
-    while (!signal.aborted && !document.hidden && !reviewingEpisode()) {
+    while (!signal.aborted && window.VLAView.active() && !reviewingEpisode()) {
       if (drawError) throw drawError;
       const {value, done} = await reader.read();
       if (done) break;
@@ -741,19 +787,20 @@ async function streamCamera(name, item, signal) {
   return true;
 }
 async function updateCamera(name, item) {
-  if (item.loading) return;
+  if (item.loading || !window.VLAView.active() || reviewingEpisode()) return;
+  if (item.controller.signal.aborted) item.controller = new AbortController();
   item.loading = true;
   const signal = item.controller.signal;
   try {
     if (await streamCamera(name, item, signal)) return;
-    while (!signal.aborted && !document.hidden && !reviewingEpisode()) {
+    while (!signal.aborted && window.VLAView.active() && !reviewingEpisode()) {
       const query = new URLSearchParams({name});
       if (item.stamp) query.set("after", item.stamp);
       const response = await fetch("/api/image?" + query, {signal, cache: "no-store"});
       if (response.status === 204) continue;
       if (!response.ok) break;
       const blob = await response.blob();
-      if (signal.aborted || document.hidden || reviewingEpisode()) break;
+      if (signal.aborted || !window.VLAView.active() || reviewingEpisode()) break;
       await drawCameraFrame(item, blob, response.headers.get("X-Frame-Stamp"), signal);
       // Older servers return snapshots immediately. Bound their polling rate.
       if (!item.stamp) await new Promise(resolve => setTimeout(resolve, 80));
@@ -959,11 +1006,12 @@ $("model").onpointerup = $("model").onpointercancel = () => (drag = null);
 $("arm").onchange = drawModel;
 let polling = false;
 async function refresh() {
-  if (polling) return;
+  if (!initialized || polling) return;
   polling = true;
   try {
     const previousSession = state?.session.id;
     state = await api("state?mode=" + mode);
+    if (!window.VLAView.active()) return;
     if (
       previousSession !== state.session.id ||
       state.session.tele !== "running"
@@ -1008,7 +1056,7 @@ function keyboardEnabled() {
     state.session.tele === "running" &&
     state.session.keyboard_arms &&
     document.hasFocus() &&
-    !document.hidden &&
+    window.VLAView.active() &&
     !element?.closest("input,textarea,select,#episodePanel,[contenteditable=true]") &&
     !document.querySelector("dialog[open]")
   );
@@ -1195,7 +1243,8 @@ $("inferFields").hidden = collecting;
 applyLanguage();
 init().catch((e) => notice(e.message));
 setInterval(() => {
-  if (profiles && !document.hidden)
+  if (profiles && (window.VLAView.active() ||
+      (state?.session.active && ['busy','homing'].includes(state.session.phase))))
     refresh().catch(() => {
       $("link").textContent = tr("Connection lost");
       $("link").className = "chip";
@@ -1203,7 +1252,7 @@ setInterval(() => {
 }, 450);
 
 document.addEventListener("settingsopening", () => heldKeys.clear());
-document.addEventListener("settingschanged", async () => {
+async function refreshSettings() {
   try {
       const previous=options();
       profiles=await api("catalog");
@@ -1219,4 +1268,20 @@ document.addEventListener("settingschanged", async () => {
       localStorage.setItem("vla-"+mode,JSON.stringify(options()));
       await refresh();
   } catch (error) { notice(error.message); }
+}
+document.addEventListener("settingschanged", refreshSettings);
+document.addEventListener("vla-settingsrefresh", refreshSettings);
+document.addEventListener("vla-preferenceschange", () => {
+  language = localStorage.getItem("vla-language") === "zh" ? "zh" : "en";
+  window.VLATheme.apply();
+  applyLanguage();
+  document.dispatchEvent(new Event("themechange"));
+});
+document.addEventListener("vla-viewvisibility", () => {
+  heldKeys.clear();
+  if (!window.VLAView.active()) {
+    for (const item of feeds.values()) item.controller.abort();
+  } else if (profiles) {
+    refresh().catch(error => notice(error.message));
+  }
 });

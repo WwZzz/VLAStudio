@@ -72,7 +72,7 @@ class Studio:
                 raise ValueError("Robot is already connected")
             self._compatible_profile(profile, dict(task=task, on_success=behavior))
             runtime = resolve_runtime(profile)
-            runtime.probe()
+            runtime_info = runtime.probe()
             self.preview.stop()
             try:
                 lock_devices(profile, self.locks)
@@ -98,7 +98,7 @@ class Studio:
                         row["args"].update(task=task, on_success=behavior)
                 host.stdin.write((json.dumps(manifest) + "\n").encode())
                 host.stdin.flush()
-                self.connected = dict(robot=profile, task=task, on_success=behavior,
+                self.connected = dict(robot=profile, task=task, on_success=behavior, runtime=dict(name=runtime.name, python=runtime_info['python']),
                                       id=os.path.basename(self.directory.name), pid=host.pid)
                 self.robot_type = robots[0][1] if robots else ""
                 self.preview.start(profile, runtime)
@@ -169,12 +169,19 @@ class Studio:
         task = (opts.get("task") or tasks[0]) if tasks else ""
         if task and task not in tasks:
             raise ValueError("Unknown simulation task")
-        return datasets.scope(opts["robot"], task, opts.get("real_task", ""))
+        return datasets.scope(opts["robot"], task, opts.get("real_task", ""),
+                              recording_source='inference' if opts.get('mode') == 'infer' else 'collection')
 
     def start(self, mode, opts):
         if mode not in self.runners:
             raise ValueError("Unknown mode")
-        runtime = resolve_runtime(opts["robot"])
+        opts = dict(opts, mode=mode)
+        if mode == 'infer':
+            record = opts.setdefault('record_inference', True)
+            if type(record) is not bool:
+                raise ValueError('Choose whether to record inference')
+        runtime = resolve_runtime(opts["robot"], role='inference' if mode == 'infer' else 'teleop',
+                                  key=opts.get('policy', '') if mode == 'infer' else opts.get('teleop', ''))
         info = runtime.probe(check_cuda=mode == "infer")
         with self.lock:
             if opts.get("connection") != self.connected.get("id"):
@@ -186,9 +193,12 @@ class Studio:
                 opts = dict(opts, task=self.connected["task"], on_success=self.connected["on_success"])
             opts.setdefault("on_success", "continue")
             self._compatible_profile(opts["robot"], opts)
-            item = datasets.identity(self.collection(opts), opts.get("suffix", ""))
-            datasets.ensure(item)
-            opts = dict(opts, output=item["dataset"])
+            if mode == 'collect' or opts['record_inference']:
+                item = datasets.identity(self.collection(opts), opts.get("suffix", ""))
+                datasets.ensure(item)
+                opts = dict(opts, output=item["dataset"])
+            else:
+                opts = dict(opts, output='')
             descriptor = self._source(mode, opts)
             if descriptor.get("qpos_contract") == "rebot_b601rs" and not any(
                 typ.endswith(".RebotB601RS") and not args.get("read_only")
@@ -206,6 +216,25 @@ class Studio:
                 raise
             runner.descriptor = dict(descriptor, mailbox=str(runner.mailbox_path))
 
+    def configure_recording(self, sid, enabled):
+        if type(enabled) is not bool:
+            raise ValueError('Choose whether to record inference')
+        with self.lock:
+            runner = self.runners['infer']
+            state = runner.state()
+            if sid != runner.sid or state['phase'] != 'infer_ready':
+                raise ValueError('Finish this inference trial before changing recording')
+            destination = ''
+            if enabled:
+                opts = dict(runner.options, mode='infer')
+                item = datasets.identity(self.collection(opts), opts.get('suffix', ''))
+                other = self.runners['collect']
+                if other.proc and other.output == item['dataset']:
+                    raise ValueError('Dataset is in use')
+                datasets.ensure(item)
+                destination = item['dataset']
+            runner.configure_recording(sid, enabled, destination)
+
     def _release_source(self, runner):
         if self.selected == runner.sid and self.robot_type:
             self.selector.select(None)
@@ -219,17 +248,18 @@ class Studio:
                 state = runner.state()
                 if sid != runner.sid or action not in state["actions"]:
                     raise ValueError("Source state changed; refresh and retry")
-                if action != "stop" and not self.ready():
+                disconnect = action == 'disconnect' or (mode == 'collect' and action == 'stop')
+                if not disconnect and not self.ready():
                     raise ValueError("Robot is not ready")
-                if action == "stop":
-                    if state["phase"] in ("recording", "record_paused", "save"):
+                if disconnect:
+                    if state["phase"] in ("recording", "record_paused", "save", "infer_save"):
                         raise ValueError("Finish and save or discard the current episode first")
                     runner.box[0] = PAUSE
                     self._release_source(runner)
                 if action in ("run", "tele_run", "reset", "home") and self.selected != sid:
                     other = self.runners["infer" if mode == "collect" else "collect"]
                     other_state = other.state()
-                    if other_state["phase"] in ("recording", "record_paused", "save", "homing", "busy", "stopping"):
+                    if other_state["phase"] in ("recording", "record_paused", "save", "infer_save", "homing", "busy", "stopping"):
                         raise ValueError("Finish the current episode or pending operation before switching")
                     if other_state["controls_enabled"] or other_state["phase"] == "running":
                         pause = "pause" if mode == "collect" else "tele_pause"

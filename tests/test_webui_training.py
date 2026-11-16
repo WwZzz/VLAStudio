@@ -112,3 +112,19 @@ def test_empty_log_range(saved_run):
             urllib.request.urlopen(urllib.request.Request(url, headers={'Range': 'bytes=0-1023'}))
         assert error.value.code == 416
         assert error.value.headers['Content-Range'] == 'bytes */0'
+
+
+def test_comparison_metrics_endpoint_is_separate_from_artifacts(saved_run, monkeypatch):
+    folder, _ = saved_run
+    records = [{'step': i, 'loss': 1 / (i + 1), 'epoch': i / 10} for i in range(10005)]
+    (folder / 'metrics.jsonl').write_text('\n'.join(json.dumps(row) for row in records) + '\n{"step":')
+    with log_server() as url:
+        # Comparing runs must not scan every checkpoint or read their logs.
+        monkeypatch.setattr(Path, 'rglob', lambda *args: (_ for _ in ()).throw(AssertionError('artifact scan')))
+        with urllib.request.urlopen(url.replace('/log?', '/metrics?')) as response:
+            data = json.load(response)
+        assert set(data) == {'run', 'metrics'}
+        assert data['metrics'] == records[-10000:]
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(url.replace('/log?id=sample', '/metrics?id=missing'))
+        assert error.value.code == 409

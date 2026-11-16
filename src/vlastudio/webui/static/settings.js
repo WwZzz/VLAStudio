@@ -3,6 +3,31 @@
   const dialog=$("settingsDialog"), token=$("settingsToken");
   let settings, pending=false, revision=0;
   const roots=$("settingsRootList");
+  const tabs=[...dialog.querySelectorAll('[role="tab"]')];
+  function selectTab(tab) {
+    for (const item of tabs) {
+      const selected=item===tab;
+      item.setAttribute("aria-selected",String(selected));
+      item.tabIndex=selected ? 0 : -1;
+      $(item.getAttribute("aria-controls")).hidden=!selected;
+    }
+  }
+  tabs.forEach((tab,index)=>{
+    tab.onclick=()=>selectTab(tab);
+    tab.onkeydown=event=>{
+      let next;
+      if (event.key==="ArrowDown") next=tabs[(index+1)%tabs.length];
+      else if (event.key==="ArrowUp") next=tabs[(index+tabs.length-1)%tabs.length];
+      else if (event.key==="Home") next=tabs[0];
+      else if (event.key==="End") next=tabs[tabs.length-1];
+      else return;
+      event.preventDefault();selectTab(next);next.focus();
+    };
+  });
+  $("settingsForm").addEventListener("invalid",event=>{
+    const panel=event.target.closest('[role="tabpanel"]');
+    if (panel) selectTab($(panel.getAttribute("aria-labelledby")));
+  },true);
   function rootLabels() {
     const rows=[...roots.children];
     rows.forEach((row,index)=>{
@@ -120,6 +145,7 @@
   };
   picker.addEventListener("close",()=>{browseRevision++;folder=null;createForm.hidden=true;folderName.value="";folderControls();});
   function controls() {
+    window.InterpreterSettings?.disable(pending || !settings);
     $("settingsBrowse").disabled=$("settingsCheckpointBrowse").disabled=pending || !settings;
     $("settingsSave").disabled=pending || !settings;
     for (const id of ["settingsData","settingsCheckpoint","settingsConfigs","settingsUsername","settingsToken","settingsClearToken"])
@@ -141,12 +167,14 @@
     const request=++revision;
     roots.replaceChildren();
     settings=null;pending=true;token.value="";failure("");controls();
+    selectTab(tabs[0]);
     $("settingsTokenState").textContent=tr("Loading settings");
     dialog.showModal();
     try {
       const result=await api("settings");
       if (revision!==request || !dialog.open) return;
       settings=result;
+      window.InterpreterSettings?.load(result);
       $("settingsData").value=result.data_dir;
       $("settingsCheckpoint").value=result.checkpoint_dir;
       for (const path of result.config_roots) addRoot(path);
@@ -157,7 +185,17 @@
     finally {if (revision===request) {pending=false;controls();}}
   };
   $("settingsClose").onclick=()=>dialog.close();
-  dialog.addEventListener("close",()=>{revision++;token.value="";});
+  let backdropPress=false;
+  function outsideDialog(event) {
+    const rect=dialog.getBoundingClientRect();
+    return event.target===dialog && (event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom);
+  }
+  dialog.addEventListener("pointerdown",event=>{backdropPress=event.button===0 && outsideDialog(event);});
+  dialog.addEventListener("click",event=>{
+    if (backdropPress && outsideDialog(event) && !pending) dialog.close();
+    backdropPress=false;
+  });
+  dialog.addEventListener("close",()=>{revision++;token.value="";backdropPress=false;});
   $("settingsForm").onsubmit=async event=>{
     event.preventDefault();
     if (pending || !settings) return;
@@ -165,7 +203,7 @@
     try {
       const payload={version:settings.version,data_dir:$("settingsData").value,checkpoint_dir:$("settingsCheckpoint").value,
         config_roots:[...roots.querySelectorAll("input")].map(input=>input.value.trim()).filter(Boolean),hf_username:$("settingsUsername").value,
-        clear_token:$("settingsClearToken").checked};
+        clear_token:$("settingsClearToken").checked,...window.InterpreterSettings?.value()};
       if (token.value) payload.hf_token=token.value.trim();
       settings=await api("settings",payload);
       token.value="";

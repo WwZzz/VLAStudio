@@ -195,7 +195,7 @@ class Manager:
                 finish(profile, self.cache, python, env, execute, pip=pip, accepted=accepted, assets=assets)
                 execute([*self.uv(), 'pip', 'check', '--python', python])
                 entry['receipts']['accepted_licenses'] = sorted(set(accepted))
-                entry['variables'] = {k: v for k, v in env.items() if k.startswith(('COPPELIA', 'QT_', 'OMNIGIBSON_', 'OMNI_KIT_', 'VLASTUDIO_RUNTIME_', 'LIBERO_')) or k in ('LD_LIBRARY_PATH', 'CUDA_HOME')}
+                entry['variables'] = {k: v for k, v in env.items() if k.startswith(('COPPELIA', 'QT_', 'OMNIGIBSON_', 'OMNI_KIT_', 'VLASTUDIO_RUNTIME_', 'LIBERO_')) or k in ('LD_LIBRARY_PATH', 'CUDA_HOME', 'DISPLAY', 'MUJOCO_GL', 'PYOPENGL_PLATFORM')}
                 entry['status'] = 'installed'
                 entry['receipts']['profile_sha256'] = hashlib.sha256(json.dumps(profile, sort_keys=True).encode()).hexdigest()
                 entry['receipts']['python_version'] = version

@@ -378,6 +378,10 @@ def eval_real_session_recorder_main(
                 _open_video_writer_for_episode(actual_episode_idx)
             episode_open = True
             return
+        if requested_idx is None:
+            # Video-only recordings may predate the first dataset episode.
+            # Choose one free index before opening either writer so they agree.
+            requested_idx = max(data_saver.episode_count, _next_video_only_episode_idx())
         actual_episode_idx = data_saver.start_episode(
             episode_idx=requested_idx,
             device_names=device_name_list,
@@ -427,6 +431,11 @@ def eval_real_session_recorder_main(
             return 0
         n = data_saver.finish_episode(save=save and n_buf > 0)
         episode_open = False
+        if save and n > 0 and dataset_format == 'hdf5':
+            import h5py
+            from pathlib import Path
+            with h5py.File(Path(data_saver.output_dir) / f'episode_{actual_episode_idx:04d}.hdf5', 'r+') as recording:
+                recording.attrs['recording_source'] = 'inference'
         if save and n > 0:
             saved_awaiting_next = True
             if os.environ.get("VLASTUDIO_WEB_FD"):
@@ -515,6 +524,7 @@ def eval_real_session_recorder_main(
                 output_dir=dataset_output_dir,
                 fps=int(round(fps)),
                 task=task,
+                hdf5_compression='lzf',
             )
             # Explicit -s N may overwrite that slot; auto index never clobbers.
             _start_new_episode(
@@ -650,6 +660,7 @@ def setup_eval_real_output_dir(args) -> str:
     logger.info("Output directory (resolved): {}", output_dir)
     manifest = {
         "script": "vlastudio infer",
+        "recording_source": "inference",
         "output_dir": output_dir,
         "robot": getattr(args, "robot", ""),
         "model_name_or_path": getattr(args, "model_name_or_path", ""),
@@ -813,6 +824,12 @@ class EvalRealRuntime:
             logger.warning("Session recorder did not exit; terminating")
             p.terminate()
             p.join(timeout=5.0)
+
+        for name in ('cmd_queue', 'ack_queue'):
+            channel = st.get(name)
+            if channel is not None:
+                channel.close()
+            st[name] = None
 
     _RECORDER_ACK_STATUS = {
         "pause_recording": "paused",

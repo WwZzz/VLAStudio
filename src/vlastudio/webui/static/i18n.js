@@ -1,5 +1,9 @@
 "use strict";
 const chinese = {
+  "General": "通用",
+  "Directories": "目录",
+  "Disconnect devices before changing directories.": "修改目录前请先断开设备。",
+  "Account changes apply to newly started sessions.": "账号设置对新启动的会话生效。",
   "Browse…": "浏览…",
   "Choose a directory": "选择目录",
   "Go to parent directory": "回到上一级目录",
@@ -300,3 +304,17 @@ Object.assign(chinese, {
 });
 
 Object.assign(chinese,{"Used for recordings and training downloads. Training datasets are stored in datasets/.":"用于录制数据和训练下载。训练数据集保存在 datasets/ 子目录。"});
+Object.assign(chinese,{
+  'Finish this inference trial before changing recording':'请先结束本次推理并保存或丢弃，再切换录制。',
+  'Record inference results':'录制本次推理',
+  'Change recording between trials. Robot and policy stay connected.':'可在两次推理之间切换录制，机器人和策略保持连接。',
+  'Recording starts with Play':'播放时开始录制',
+  'Preview only · no recording':'仅推理 · 不录制',
+  'Stop inference':'停止本次推理',
+  'Save with Enter · Discard with Ctrl+Enter':'回车保存 · Ctrl+回车丢弃',
+  'Save this inference trial?':'是否保存本次推理？',
+  'Inference has stopped. The policy remains connected. Save or discard this recording before starting another trial.':'本次推理已结束，策略保持连接。保存或丢弃这次录制后，可以再次播放开始新一轮推理。',
+  'Inference recording':'推理录制',
+  'Unknown recording source':'来源未标记',
+  'Disconnect the policy? The robot stays connected.':'断开策略连接？机器人保持连接。',
+});

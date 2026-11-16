@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import threading
@@ -48,7 +49,10 @@ def paths(kind):
 
 
 def catalog():
-    return {kind: list(paths(kind)) for kind in ('policy', 'task', 'training')}
+    result = {kind: list(paths(kind)) for kind in ('policy', 'task', 'training')}
+    result['interpreters'] = [{key: entry[key] for key in ('id', 'name', 'python')}
+                              for entry in settings.public()['interpreters']]
+    return result
 
 
 def directory(identifier):
@@ -125,6 +129,8 @@ def start(payload):
         # Resolve the full configuration here, before accepting a request.
         configs['training'].update(overrides)
         configs['training'].update(report_to='none', resume_from_checkpoint=False)
+        from .runtimes import resolve_runtime
+        runtime = resolve_runtime(None, role='training', key=payload['policy'])
         identifier = uuid.uuid4().hex
         folder = settings.checkpoint_directory() / identifier
         folder.mkdir(parents=True)
@@ -132,33 +138,110 @@ def start(payload):
             (folder / f'{kind}.yaml').write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False))
         item = dict(id=identifier, name=name, status='starting', created_at=now(),
                     policy=payload['policy'], task=payload['task'], training=payload['training'],
-                    overrides=overrides, data_dir=str(settings.data_directory()), max_steps=configs['training'].get('max_steps'), output_dir=str(folder / 'model'), python=sys.executable)
+                    overrides=overrides, data_dir=str(settings.data_directory()), max_steps=configs['training'].get('max_steps'), output_dir=str(folder / 'model'), python=runtime.prefix[0])
+        from .interpreters import selection
+        entry = selection('training', payload['policy'])
+        if entry:
+            item['interpreter'] = dict(entry)
         write(folder / 'run.json', item)
         index = entries()
         index[identifier] = str(folder)
         registry().parent.mkdir(parents=True, exist_ok=True)
         write(registry(), index)
-        env = settings.runtime_environment(os.environ)
-        env["VLASTUDIO_DATA_CACHE_DIR"] = item["data_dir"]
-        env.setdefault("TQDM_POSITION", "-1")
-        env.setdefault("TQDM_MININTERVAL", "2")
-        env['PYTHONPATH'] = os.pathsep.join([str(ROOT / 'src'), env.get('PYTHONPATH', '')])
+        return launch(folder, item)
+
+
+def launch(folder, item):
+    from .interpreters import launch as interpreter_launch
+    from .runtimes import RuntimeLaunch
+    runtime = (interpreter_launch(item['interpreter']) if item.get('interpreter') else
+               RuntimeLaunch('Training', [item.get('python', sys.executable)], settings.runtime_environment(os.environ)))
+    env = runtime.env
+    env["VLASTUDIO_DATA_CACHE_DIR"] = item["data_dir"]
+    env.setdefault("TQDM_POSITION", "-1")
+    env.setdefault("TQDM_MININTERVAL", "2")
+    env['PYTHONPATH'] = os.pathsep.join([str(ROOT / 'src'), env.get('PYTHONPATH', '')])
+    try:
+        with (folder / 'training.log').open('ab') as log:
+            proc = subprocess.Popen([*runtime.module('vlastudio.webui.training_worker'), str(folder)],
+                                    cwd=ROOT, env=env, stdout=log, stderr=log, start_new_session=True)
+        # The worker owns run.json after launch; no parent writes may race it.
+        threading.Thread(target=proc.wait, daemon=True).start()
+    except OSError as exc:
+        item.update(status='failed', error=str(exc), finished_at=now())
+        write(folder / 'run.json', item)
+    return item
+
+
+def resume_info(folder, item):
+    checkpoint = None
+    candidates = []
+    for path in (folder / 'model').glob('checkpoint-*'):
+        if path.is_symlink() or not path.is_dir() or not re.fullmatch(r'checkpoint-\d+', path.name):
+            continue
         try:
-            with (folder / 'training.log').open('ab') as log:
-                proc = subprocess.Popen([sys.executable, '-u', '-m', 'vlastudio.webui.training_worker', str(folder)],
-                                        cwd=ROOT, env=env, stdout=log, stderr=log, start_new_session=True)
-            # The worker owns run.json after launch; no parent writes may race it.
-            threading.Thread(target=proc.wait, daemon=True).start()
-        except OSError as exc:
-            item.update(status='failed', error=str(exc), finished_at=now())
-            write(folder / 'run.json', item)
-        return item
+            state = json.loads((path / 'trainer_state.json').read_text())
+            step = int(path.name.split('-')[-1])
+            weights = any(p.is_file() and not p.is_symlink() and
+                          (p.suffix in ('.safetensors', '.pt') or p.name.startswith('pytorch_model'))
+                          and p.name not in ('optimizer.pt', 'scheduler.pt', 'scaler.pt') for p in path.iterdir())
+            if step > 0 and state.get('global_step') == step and weights:
+                candidates.append((step, path))
+        except (OSError, ValueError):
+            continue
+    if candidates:
+        checkpoint = max(candidates)[1]
+    return dict(available=item['status'] in ('failed', 'cancelled', 'interrupted'),
+                checkpoint=str(checkpoint) if checkpoint else None,
+                step=int(checkpoint.name.split('-')[-1]) if checkpoint else 0)
 
 
-def detail(identifier):
+def resume(identifier, interpreter_id=None):
     with LOCK:
         folder = directory(identifier)
         item = read(folder)
+        info = resume_info(folder, item)
+        if not info['available']:
+            raise ValueError('Only failed, stopped or interrupted runs can be resumed')
+        if any(row['status'] in ACTIVE for row in runs()):
+            raise ValueError('A training run is already active')
+        from .interpreters import selection
+        selected = selection('training', item.get('policy', ''))
+        if interpreter_id:
+            prefs = settings.public()
+            selected = next((entry for entry in prefs['interpreters'] + prefs['managed_interpreters'] if entry['id'] == interpreter_id), None)
+            if selected is None:
+                raise ValueError('Select an existing interpreter')
+        # Reuse the original resolved YAMLs, even if catalog configurations changed.
+        config = yaml.safe_load((folder / 'training.yaml').read_text())
+        for kind in ('policy', 'task'):
+            if not isinstance(yaml.safe_load((folder / f'{kind}.yaml').read_text()), dict):
+                raise ValueError('Original run configuration is missing or invalid')
+        if not isinstance(config, dict):
+            raise ValueError('Original run configuration is missing or invalid')
+        config['resume_from_checkpoint'] = info['checkpoint'] or False
+        attempt = folder / 'attempts' / uuid.uuid4().hex
+        attempt.mkdir(parents=True)
+        for name in ('run.json', 'training.yaml', 'metrics.jsonl'):
+            if (folder / name).exists():
+                shutil.copy2(folder / name, attempt / name)
+        # Roll back metrics beyond the restored checkpoint; retain the old copy.
+        metrics = [row for row in read_metrics(folder) if info['checkpoint'] and row.get('step', 0) <= info['step']]
+        (folder / 'metrics.jsonl').write_text(''.join(json.dumps(row) + '\n' for row in metrics))
+        (folder / 'training.yaml').write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False))
+        with (folder / 'training.log').open('a') as log:
+            log.write('\n[INFO] Resume requested: ' + (info['checkpoint'] or 'no checkpoint; retry original configuration') + '\n')
+        for key in ('pid', 'process_start', 'exit_code', 'error', 'started_at', 'finished_at'):
+            item.pop(key, None)
+        if selected:
+            item.update(interpreter=selected, python=selected['python'])
+        item.update(status='starting', created_at=now(), resumed_at=now(),
+                    resume_count=item.get('resume_count', 0) + 1, resume_checkpoint=info['checkpoint'])
+        write(folder / 'run.json', item)
+        return launch(folder, item)
+
+
+def read_metrics(folder):
     metrics = []
     path = folder / 'metrics.jsonl'
     if path.exists():
@@ -173,6 +256,21 @@ def detail(identifier):
                 metrics.append(json.loads(line))
             except ValueError:
                 pass  # Worker may be appending the last line.
+    return metrics[-10000:]
+
+
+def metrics(identifier):
+    with LOCK:
+        folder = directory(identifier)
+        item = read(folder)
+    return dict(run=item, metrics=read_metrics(folder))
+
+
+def detail(identifier):
+    with LOCK:
+        folder = directory(identifier)
+        item = read(folder)
+    metrics = read_metrics(folder)
     log = folder / 'training.log'
     log_stat = log.stat() if log.exists() else None
     if log.exists():
@@ -182,8 +280,8 @@ def detail(identifier):
     else:
         tail = ''
     files = [str(p.relative_to(folder)) for p in sorted(folder.rglob('*'))
-             if p.is_file() and not p.is_symlink() and p.name != 'run.json']
-    return dict(run=item, metrics=metrics[-10000:], log=tail.replace('\r\n', '\n').replace('\r', '\n'), files=files,
+             if p.is_file() and not p.is_symlink() and p.name != 'run.json' and 'attempts' not in p.relative_to(folder).parts]
+    return dict(run=item, resume=resume_info(folder, item), metrics=metrics[-10000:], log=tail.replace('\r\n', '\n').replace('\r', '\n'), files=files,
                 checked_at=now(), log_bytes=log_stat.st_size if log_stat else 0,
                 log_updated_at=datetime.fromtimestamp(log_stat.st_mtime, timezone.utc).isoformat() if log_stat else None)
 
