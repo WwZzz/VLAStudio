@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Mapping
 
-from .configuration import resolve_config
+from vlastudio.core.configuration import resolve_config
 
 
 def _path(value):
@@ -35,7 +35,7 @@ class TaskError(RuntimeError):
 
 
 def _run(command, args, options):
-    from . import run
+    from vlastudio import run
     code = run(command, args, **options)
     if code:
         raise TaskError(f"{command} failed with exit code {code}; see worker output above")
@@ -130,7 +130,7 @@ def load_dataset(config="sim_transfer_cube_scripted", *, cache_dir=None, check_d
     """
     path = _config(config, "task")
     if check_dependencies:
-        from .dependencies import require_dependencies
+        from vlastudio.deploy.interpreter.dependencies import require_dependencies
         require_dependencies(dataset=str(path))
     return Dataset(path, _path(cache_dir) if cache_dir is not None else None)
 
@@ -147,14 +147,14 @@ def load_policy(config="act", *, checkpoint=None, check_dependencies=True, **run
     options.setdefault("runtime", "current")
     path = _config(config, "policy")
     if check_dependencies and options['runtime'] == 'current':
-        from .dependencies import require_dependencies
+        from vlastudio.deploy.interpreter.dependencies import require_dependencies
         require_dependencies(**({'manifest': options['runtime_manifest']} if options.get('runtime_manifest') else {'policy': str(path)}))
     return Policy(path, _path(checkpoint) if checkpoint else None, options)
 
 
 def connect_policy(address):
     """Create a remote policy handle for TCP, HTTP(S), or shared memory."""
-    from .deploy.comm import is_server_address
+    from vlastudio.deploy.comm import is_server_address
     value = str(address)
     if not is_server_address(value):
         raise ValueError(
@@ -169,7 +169,7 @@ def load_env(config, *, check_dependencies=True, **runtime_options):
     options.setdefault("runtime", "current")
     path = _config(config, "env")
     if check_dependencies and options['runtime'] == 'current':
-        from .dependencies import require_dependencies
+        from vlastudio.deploy.interpreter.dependencies import require_dependencies
         require_dependencies(**({'manifest': options['runtime_manifest']} if options.get('runtime_manifest') else {'environment': str(path)}))
     return Environment(path, options)
 
@@ -203,14 +203,14 @@ def show_camera(config, *, camera_names=None, fps=30.0, title="Camera",
     """
     import multiprocessing as mp
 
-    from .configs.loader import ConfigLoader
-    from .deploy.base import _get_device_shm_name, start_device
-    from .deploy.camera_viewer import LiveCameraViewer
+    from vlastudio.configs.loader import ConfigLoader
+    from vlastudio.deploy.base import _get_device_shm_name, start_device
+    from vlastudio.deploy.camera_viewer import LiveCameraViewer
 
     cfg, path = ConfigLoader().load_robot(config)
     if isinstance(cfg, list):
         # Multi-row YAML: pick the robot device, skip visualizer rows.
-        from .deploy.utils import is_visualizer_config
+        from vlastudio.deploy.utils import is_visualizer_config
 
         robot_rows = [row for row in cfg if isinstance(row, dict) and not is_visualizer_config(row)]
         if not robot_rows:
@@ -252,7 +252,7 @@ def serve(policy, *, address="0.0.0.0", port=None, device="cuda",
     """
     if not isinstance(policy, Policy) or policy.checkpoint is None:
         raise ValueError("serve() requires a Policy with a supplied or trained checkpoint")
-    from .deploy.comm import is_http_address, is_server_address, is_shm_address, parse_server_address
+    from vlastudio.deploy.comm import is_http_address, is_server_address, is_shm_address, parse_server_address
     bind = str(address)
     if is_server_address(bind) and not is_http_address(bind) and not is_shm_address(bind):
         bind, address_port = parse_server_address(bind)

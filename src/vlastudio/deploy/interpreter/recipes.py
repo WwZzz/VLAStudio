@@ -8,7 +8,7 @@ import yaml
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
 
-from .paths import package_source_root
+from vlastudio.core.paths import package_source_root
 
 
 POLICY_PROFILES = {
@@ -27,7 +27,7 @@ FIELDS = {'extends', 'python', 'requires_python', 'requirements', 'lockfile', 'l
 
 
 def recipe(name):
-    return package_source_root() / 'environments' / (name + '.yaml')
+    return package_source_root() / 'configs' / 'interpreter' / (name + '.yaml')
 
 
 def _requirements(parent, child):

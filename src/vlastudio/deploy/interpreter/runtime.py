@@ -56,7 +56,7 @@ def execute(command, args, python, app, env, entrypoint=None, isolated=True):
     if entrypoint:
         worker_args = ["--entrypoint", entrypoint, *worker_args]
     kwargs = {"start_new_session": True} if os.name != "nt" else {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
-    child = subprocess.Popen([str(python), "-m", "vlastudio.worker", *worker_args], env=child_env, **kwargs)
+    child = subprocess.Popen([str(python), "-m", "vlastudio.deploy.interpreter.worker", *worker_args], env=child_env, **kwargs)
     def forward(signum, frame=None):
         if child.poll() is None:
             if os.name != "nt":

@@ -18,9 +18,9 @@ from vlastudio.benchmark.matterport3d import graph_distances, load_graph, Matter
                                  'habitat.habitat_vlnce_cma', 'matterport3d.matterport_r2r',
                                  'matterport3d.matterport_r2r_candidates', 'matterport3d.matterport_r2r_vlnbert'])
 def test_packaged_configs_resolve_to_factory_and_runtime(name):
-    from vlastudio.configuration import read_config
-    from vlastudio.extensions import resolve
-    from vlastudio.profiles import environment_for
+    from vlastudio.core.configuration import read_config
+    from vlastudio.core.extensions import resolve
+    from vlastudio.deploy.interpreter.recipes import environment_for
     config, path = read_config(name, 'env')
     assert callable(resolve(config['type'], kind='env'))
     assert config['task']
@@ -116,7 +116,7 @@ def test_r2r_graph_distance_is_not_straight_line(tmp_path):
 
 
 def test_vlnce_config_uses_the_paper_success_distance():
-    from vlastudio.configuration import read_config
+    from vlastudio.core.configuration import read_config
     cfg, _ = read_config('habitat.habitat_vlnce', 'env')
     assert 'habitat.task.measurements.success.success_distance=3.0' in cfg['habitat_overrides']
 

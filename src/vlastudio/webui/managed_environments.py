@@ -3,7 +3,7 @@ import json
 import time
 from pathlib import Path
 
-from ..paths import cache_root
+from vlastudio.core.paths import cache_root
 
 
 def location():
@@ -44,7 +44,7 @@ def choose(role, key):
 
 def register(component, environment, python, variables):
     from filelock import FileLock
-    from ..env_manager import atomic_json
+    from vlastudio.deploy.interpreter.manager import atomic_json
     path = location()
     path.parent.mkdir(parents=True, exist_ok=True)
     identifier = 'managed-' + environment

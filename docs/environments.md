@@ -134,7 +134,8 @@ also has Check and Install / repair. A separate Install specified components cat
 supports category/search filters, individual row actions and explicit multi-selection,
 independently of the current workspace configuration. The background queue survives page closure.
 It runs real import checks first and reuses a working interpreter. Missing
-components use the existing `env_manager.Manager` recipes and uv to create
+components use `deploy.interpreter.manager.Manager` and the dependency recipes
+in `configs/interpreter/`, with uv to create
 separate environments under the shared cache's `envs/` directory. Logs and
 progress remain available in the settings panel. No training or robot motion is
 started by these import checks.

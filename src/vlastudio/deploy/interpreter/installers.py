@@ -107,7 +107,7 @@ def prepare(profile, cache, env, pip, execute, *, accepted=()):
     requirements = []
     for name in profile.get('installers', []):
         if name == 'robotwin':
-            from .env_robotwin import REVISION
+            from vlastudio.deploy.interpreter.robotwin import REVISION
             root = archive(f'https://github.com/WwZzz/RoboTwin/archive/{REVISION}.tar.gz', cache / 'runtimes' / ('robotwin-' + REVISION[:8]), cache, offline=env.get('UV_OFFLINE') == '1')
             env['VLASTUDIO_RUNTIME_ROBOTWIN_ROOT'] = str(root)
             env.setdefault('CUDA_HOME', str(Path(shutil.which('nvcc')).parent.parent) if shutil.which('nvcc') else '/usr/local/cuda')
@@ -163,26 +163,26 @@ def finish(profile, cache, python, env, execute, *, pip, accepted=(), assets=Fal
         # Upstream resolves app icons and companion files relative to its repository.
         pip(['-e', str(Path(env['VLASTUDIO_RUNTIME_BEHAVIOR_ROOT']) / 'OmniGibson')])
     if 'robotwin' in profile.get('installers', []):
-        from .env_robotwin import CUROBO, PYTORCH3D
+        from vlastudio.deploy.interpreter.robotwin import CUROBO, PYTORCH3D
         # The pinned cuRobo tag uses setuptools-scm; archives have no .git metadata.
         env['SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NVIDIA_CUROBO'] = '0.7.7'
         pip([*profile['requirements'],
              f'pytorch3d @ https://github.com/facebookresearch/pytorch3d/archive/{PYTORCH3D}.tar.gz',
              f'nvidia-curobo @ https://github.com/NVlabs/curobo/archive/{CUROBO}.tar.gz'], '--no-build-isolation')
         env.pop('SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NVIDIA_CUROBO', None)
-        execute([python, '-m', 'vlastudio.env_robotwin', 'configure'])
+        execute([python, '-m', 'vlastudio.deploy.interpreter.robotwin', 'configure'])
         if assets:
-            execute([python, '-m', 'vlastudio.env_robotwin', 'assets'])
+            execute([python, '-m', 'vlastudio.deploy.interpreter.robotwin', 'assets'])
     if 'libero' in profile.get('installers', []):
         # Upstream builds an empty wheel; register the pinned source with this interpreter.
         execute([python, '-c', 'import pathlib,sysconfig,sys; pathlib.Path(sysconfig.get_path("purelib"), "vlastudio_libero.pth").write_text(sys.argv[1]+"\\n", encoding="utf-8")', env['LIBERO_ROOT']])
     # Run overlays under the target interpreter, without importing the ML module.
     for overlay in profile.get('overlays', []):
-        execute([python, '-m', 'vlastudio.env_installers', 'overlay', json.dumps(overlay)])
+        execute([python, '-m', 'vlastudio.deploy.interpreter.installers', 'overlay', json.dumps(overlay)])
     if assets and 'behavior1k' in profile.get('installers', []):
         if 'behavior-dataset' not in accepted:
             raise ValueError(f'Review {LICENSES["behavior-dataset"]}; use --assets --accept-license behavior-dataset to download.')
-        execute([python, '-m', 'vlastudio.env_behavior', '--accept-license'])
+        execute([python, '-m', 'vlastudio.deploy.interpreter.behavior', '--accept-license'])
 
 
 def apply_overlay(value):

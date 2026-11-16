@@ -39,8 +39,8 @@ def configure():
 
 
 def assets():
-    from .env_downloads import download
-    from .paths import cache_root
+    from vlastudio.deploy.interpreter.downloads import download
+    from vlastudio.core.paths import cache_root
     root = Path(os.environ['VLASTUDIO_RUNTIME_ROBOTWIN_ROOT'])
     destination = root / 'assets'
     destination.mkdir(exist_ok=True)

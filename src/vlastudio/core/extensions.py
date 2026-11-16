@@ -98,7 +98,7 @@ def _load_file_module(path):
 def resolve(reference, kind=None, module=False):
     if not isinstance(reference, str):
         return reference
-    from .compat import canonical
+    from vlastudio.core.compat import canonical
     reference = canonical(reference)
     if reference.startswith("@"):
         group, name = reference[1:].split("/", 1)

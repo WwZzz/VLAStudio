@@ -16,7 +16,7 @@ def inspect_environment(profile):
     from packaging.requirements import Requirement
     from packaging.specifiers import SpecifierSet
     from packaging.version import Version
-    from .profiles import _requirements, platform_issues
+    from vlastudio.deploy.interpreter.recipes import _requirements, platform_issues
     issues = platform_issues(profile)
     python = profile['python']
     spec = profile.get('requires_python') or (python if python.startswith(('>', '<', '=', '!', '~')) else '==' + python + '.*')
@@ -55,7 +55,7 @@ def _command(tokens):
 
 def environment_plan(*, policy=None, environment=None, dataset=None, manifest=None, remote=False):
     """Read-only installation plan for the calling interpreter."""
-    from .env_cli import select_profile
+    from vlastudio.deploy.interpreter.cli import select_profile
     kind, profile = select_profile(policy, environment, manifest, remote, dataset, check_platform=False)
     issues, packages = inspect_environment(profile)
     selectors = []

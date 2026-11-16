@@ -10,7 +10,7 @@ import pytest
 
 pytest.importorskip('fcntl')
 from vlastudio.webui import environment_installation as install, managed_environments as managed, interpreters
-from vlastudio.env_manager import Manager, atomic_json
+from vlastudio.deploy.interpreter.manager import Manager, atomic_json
 
 
 @pytest.fixture(autouse=True)

@@ -150,7 +150,7 @@ def smoke(name):
 def main():
     import os
     os.environ.setdefault('MUJOCO_GL', 'egl' if sys.platform == 'linux' else 'glfw')
-    from .dependencies import inspect_environment
+    from vlastudio.deploy.interpreter.dependencies import inspect_environment
     with open(sys.argv[1], encoding='utf-8') as source:
         profile = json.load(source)
     issues, _ = inspect_environment(profile)
@@ -177,7 +177,7 @@ def main():
         for name in simulation:
             # First Isaac startup can take several minutes to initialize rendering.
             timeout = 900 if name == 'behavior1k' else 300
-            result = subprocess.run([sys.executable, '-c', f'from vlastudio.env_probe import smoke; smoke({name!r})'], capture_output=True, text=True, timeout=timeout)
+            result = subprocess.run([sys.executable, '-c', f'from vlastudio.deploy.interpreter.probe import smoke; smoke({name!r})'], capture_output=True, text=True, timeout=timeout)
             print(result.stdout, end='', flush=True)
             print(result.stderr, end='', file=sys.stderr, flush=True)
             result.check_returncode()

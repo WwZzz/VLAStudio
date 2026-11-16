@@ -50,7 +50,7 @@ args:
   custom_serial: "SO101-CUSTOM-06"
 ```
 
-The `type` field supports several external references (see `extensions.py`):
+The `type` field supports several external references (see `core/extensions.py`):
 
 - **Local file**: `/path/my_robot.py:MyRobotInterface` or `/path/my_robot.py`
 - **Local package dir**: `/path/my_robot_pkg/` (loads `__init__.py`)

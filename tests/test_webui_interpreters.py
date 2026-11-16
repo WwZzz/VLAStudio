@@ -98,7 +98,7 @@ def test_training_and_resume_follow_settings_and_record_actual_interpreter(envir
 
 
 def test_cache_alias_uses_shared_cache_and_preserves_external_environment(tmp_path, monkeypatch):
-    from vlastudio import paths
+    from vlastudio.core import paths
     cache=tmp_path/'shared-cache'
     python=tmp_path/'external-env'/'bin'/'python'
     python.parent.mkdir(parents=True);python.write_text('original executable')
@@ -112,7 +112,7 @@ def test_cache_alias_uses_shared_cache_and_preserves_external_environment(tmp_pa
 
 
 def test_cache_alias_does_not_overwrite_an_existing_environment(tmp_path, monkeypatch):
-    from vlastudio import paths
+    from vlastudio.core import paths
     cache=tmp_path/'cache';existing=cache/'envs/external-env';existing.mkdir(parents=True)
     (existing/'keep').write_text('existing')
     python=tmp_path/'external-env/bin/python';python.parent.mkdir(parents=True);python.touch()

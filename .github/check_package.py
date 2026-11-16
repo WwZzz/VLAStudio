@@ -8,7 +8,7 @@ with tempfile.TemporaryDirectory() as workdir:
 import importlib.metadata
 import sys
 import vlastudio as vla
-from vlastudio.paths import package_root
+from vlastudio.core.paths import package_root
 
 assert vla.__version__ == importlib.metadata.version('vlastudio')
 assert 'torch' not in sys.modules
@@ -21,7 +21,7 @@ for handle in (
 ):
     assert handle.config_path.is_file(), handle
     assert root in handle.config_path.parents, handle
-assert (root / 'environments' / 'base.yaml').is_file()
+assert (root / 'configs' / 'interpreter' / 'base.yaml').is_file()
 assert list((root / 'benchmark' / 'aloha' / 'assets').rglob('*.xml'))
 assert list((root / 'benchmark' / 'aloha' / 'assets').rglob('*.stl'))
 assert vla.connect_policy('127.0.0.1:8000').address == '127.0.0.1:8000'

@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 import numpy as np
 from vlastudio.data_utils.datasets.libero_h5 import LiberoHDF5
-from vlastudio.paths import cache_root
+from vlastudio.core.paths import cache_root
 
 
 class ObjectDataset(LiberoHDF5):

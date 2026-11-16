@@ -11,10 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
 import vlastudio as vla
-from vlastudio import dependencies
-from vlastudio.configuration import read_config
-from vlastudio.env_cli import main, select_profile
-from vlastudio.profiles import environment_for, recipe, combine_profiles, dataset_environment
+from vlastudio.deploy.interpreter import dependencies
+from vlastudio.core.configuration import read_config
+from vlastudio.deploy.interpreter.cli import main, select_profile
+from vlastudio.deploy.interpreter.recipes import environment_for, recipe, combine_profiles, dataset_environment
 
 
 def missing(name):
@@ -156,7 +156,7 @@ def test_existing_example_runtimes_resolve(example, selector):
 
 
 def test_dispatch_uses_current_python_without_installing(monkeypatch):
-    from vlastudio import cli
+    from vlastudio.entrypoints import cli
     calls = []
     monkeypatch.setattr(cli, 'execute', lambda *args, **kwargs: calls.append((args, kwargs)) or 0)
     assert cli.main(['train', '-p', 'act']) == 0
@@ -166,7 +166,7 @@ def test_dispatch_uses_current_python_without_installing(monkeypatch):
 
 
 def test_legacy_dispatch_is_current_by_default(capsys):
-    from vlastudio.cli import main as cli_main
+    from vlastudio.entrypoints.cli import main as cli_main
     assert cli_main(['train', '-p', 'act', '--dry-run']) == 0
     plan = json.loads(capsys.readouterr().out)
     assert plan['runtime'] == 'current'
@@ -195,7 +195,7 @@ def test_data_runtime_can_select_its_own_python():
 
 
 def test_child_override_preserves_other_environment_markers():
-    from vlastudio.profiles import _requirements
+    from vlastudio.deploy.interpreter.recipes import _requirements
     result = _requirements(['numpy==1.0; sys_platform == "linux"', 'numpy==1.1; sys_platform == "win32"'],
                            ['numpy==2.0; sys_platform == "win32"'])
     assert result == ['numpy==1.0; sys_platform == "linux"', 'numpy==2.0; sys_platform == "win32"']
@@ -209,7 +209,7 @@ def test_rlds_requires_tensorflow_but_hdf5_does_not():
 
 
 def test_dispatch_manifest_is_metadata_only(capsys):
-    from vlastudio.cli import main as cli_main
+    from vlastudio.entrypoints.cli import main as cli_main
     assert cli_main(['evaluate', '-m', 'localhost:8765', '-e', 'aloha_transfer',
                      '--runtime-manifest', str(recipe('aloha')), '--dry-run']) == 0
     plan = json.loads(capsys.readouterr().out)
@@ -219,7 +219,7 @@ def test_dispatch_manifest_is_metadata_only(capsys):
 
 def test_linux_glibc_requirement(monkeypatch):
     import platform
-    from vlastudio.profiles import platform_issues
+    from vlastudio.deploy.interpreter.recipes import platform_issues
     monkeypatch.setattr(sys, 'platform', 'linux')
     monkeypatch.setattr(platform, 'libc_ver', lambda: ('glibc', '2.28'))
     assert 'glibc >= 2.31' in platform_issues({'min_glibc': '2.31'})[0]
@@ -227,7 +227,7 @@ def test_linux_glibc_requirement(monkeypatch):
 
 def test_library_has_no_package_installation_entrypoint():
     assert not hasattr(vla, 'install_dependencies')
-    from vlastudio import runtime
+    from vlastudio.deploy.interpreter import runtime
     assert not hasattr(runtime, 'prepare')
     assert not hasattr(runtime, 'install_application')
     assert not (ROOT / 'src/vlastudio/env_registry.py').exists()
@@ -258,7 +258,7 @@ def test_external_requirements_match_dependency_metadata(name):
 
 
 def test_robot_library_calls_forward_configuration_and_policy(tmp_path, monkeypatch):
-    from vlastudio import api
+    from vlastudio.core import api
     calls = []
     monkeypatch.setattr(api, '_run', lambda *args: calls.append(args))
     vla.collect('so101', teleop='so101_leader', output_dir=tmp_path / 'data',

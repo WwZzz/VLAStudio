@@ -13,9 +13,9 @@ import uuid
 from filelock import FileLock
 import yaml
 
-from ..env_manager import Manager, atomic_json
-from ..paths import cache_root, package_source_root
-from ..profiles import environment_for, recipe, combine_profiles, platform_issues
+from vlastudio.deploy.interpreter.manager import Manager, atomic_json
+from vlastudio.core.paths import cache_root, package_source_root
+from vlastudio.deploy.interpreter.recipes import environment_for, recipe, combine_profiles, platform_issues
 from . import managed_environments
 from .profiles import config_roots, ROOT
 
@@ -37,7 +37,7 @@ def fingerprint(value):
 def components():
     """Discover actual configurations and merge aliases of one component."""
     from .training import paths
-    from ..env_installers import describe
+    from vlastudio.deploy.interpreter.installers import describe
     found = {}
 
     def add(kind, name, profile, modules, bindings, error='', recipe_issue=''):
@@ -187,7 +187,7 @@ def submit(payload):
         action = payload.get('action', 'install')
         if action not in ('check', 'install'):
             raise ValueError('Invalid environment action')
-        from ..env_installers import LICENSES
+        from vlastudio.deploy.interpreter.installers import LICENSES
         accepted = payload.get('accepted_licenses', [])
         if not isinstance(accepted, list) or any(not isinstance(key, str) or key not in LICENSES for key in accepted):
             raise ValueError('Invalid license selection')
@@ -218,7 +218,7 @@ def cancel(payload):
 
 def probe(component, entry, manager):
     """Actual imports, not strict metadata pins or just find_spec(). No robot instances."""
-    from ..env_probe import IMPORTS
+    from vlastudio.deploy.interpreter.probe import IMPORTS
     imports = ['vlastudio', 'loguru', 'yaml'] + component['imports']
     for check in component['profile'].get('checks', []):
         imports += [check.split(':', 1)[1]] if check.startswith('import:') else IMPORTS.get(check, [])
@@ -310,7 +310,7 @@ def run_component(row, manager, accepted, action, update):
         row.update(status='missing', message=reason);return
     if component.get('recipe_issue'):
         row.update(status='unavailable', message=component['recipe_issue']);return
-    from ..env_installers import preflight
+    from vlastudio.deploy.interpreter.installers import preflight
     missing = set(component['licenses']) - set(accepted)
     if missing:
         row.update(status='needs_license', message='Review and accept the required licenses before installing');return
@@ -347,7 +347,7 @@ def logs(identifier, component_id):
     if row is None:
         raise ValueError('Unknown component')
     name = row.get('environment', row['component']['environment'])
-    from ..env_manager import valid_name
+    from vlastudio.deploy.interpreter.manager import valid_name
     valid_name(name)
     path = cache_root() / 'installations' / name / 'install.log'
     if not path.is_file():

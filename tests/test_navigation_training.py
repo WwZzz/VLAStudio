@@ -114,8 +114,8 @@ def test_standard_dataset_handles_resolve_without_loading_simulators(tmp_path):
 
 
 def test_replay_datasets_declare_native_runtime_dependencies():
-    from vlastudio.configuration import read_config
-    from vlastudio.profiles import dataset_environment
+    from vlastudio.core.configuration import read_config
+    from vlastudio.deploy.interpreter.recipes import dataset_environment
     for alias in ['navigation.r2r', 'navigation.vlnce']:
         config, path = read_config(alias, 'task')
         profile = dataset_environment(config, path, check_platform=False)

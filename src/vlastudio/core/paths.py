@@ -5,12 +5,12 @@ from pathlib import Path
 
 
 def package_root():
-    return Path(__file__).resolve().parent
+    return Path(__file__).resolve().parents[1]
 
 
 def package_source_root():
     """The installed or checkout package, not a cached application snapshot."""
-    here = Path(__file__).resolve().parent
+    here = Path(__file__).resolve().parents[1]
     origin = here / ".package_origin"
     if origin.is_file():
         path = Path(origin.read_text(encoding="utf-8").strip())

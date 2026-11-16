@@ -1,5 +1,5 @@
 """Lazy access to existing interfaces for extension authors in a runtime environment."""
-from .extensions import resolve
+from vlastudio.core.extensions import resolve
 
 _TARGETS = {
     "MetaObs": "vlastudio.benchmark.base.MetaObs",

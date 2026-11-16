@@ -1,4 +1,4 @@
-extends: ../../src/vlastudio/environments/smolvla.yaml
+extends: ../../src/vlastudio/configs/interpreter/smolvla.yaml
 requirements:
 - robosuite==1.4.1
 - libero @ git+https://github.com/Lifelong-Robot-Learning/LIBERO.git@8f1084e3132a39270c3a13ebe37270a43ece2a01

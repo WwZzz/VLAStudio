@@ -7,9 +7,9 @@ from pathlib import Path
 import sys
 import subprocess
 import yaml
-from .paths import cache_root, runtime_env
-from .profiles import environment_for
-from .runtime import execute
+from vlastudio.core.paths import cache_root, runtime_env
+from vlastudio.deploy.interpreter.recipes import environment_for
+from vlastudio.deploy.interpreter.runtime import execute
 
 
 PUBLIC_COMMANDS = ["device", "train", "evaluate", "collect", "infer", "serve", "doctor"]
@@ -40,7 +40,7 @@ def parse(argv):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == 'env':
-        from .env_cli import main as env_main
+        from vlastudio.deploy.interpreter.cli import main as env_main
         return env_main(argv[1:])
     options, args = parse(sys.argv[1:] if argv is None else argv)
     try:
@@ -76,7 +76,7 @@ def main(argv=None):
                 preview["lock"] = {"sha256": hashlib.sha256(preview["lock"].encode()).hexdigest(), "lines": len(preview["lock"].splitlines())}
             print(json.dumps({"command": options.command, "args": args, "runtime": options.runtime, "profile": preview, "cache": str(cache), "cwd": os.getcwd()}, indent=2))
             return 0
-        from .paths import package_source_root
+        from vlastudio.core.paths import package_source_root
         if profile:
             env["VLASTUDIO_RUNTIME_JSON"] = json.dumps({k: v for k, v in profile.items() if k != "entrypoint"})
         return execute(options.command, args, Path(sys.executable), package_source_root().parent,

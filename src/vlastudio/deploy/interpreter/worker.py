@@ -1,8 +1,8 @@
 """Runs legacy entry points only after the selected environment is ready."""
 import runpy
 import sys
-from .paths import package_root
-from .compat import enable_legacy_imports
+from vlastudio.core.paths import package_root
+from vlastudio.core.compat import enable_legacy_imports
 
 ENTRIES = {
     "device": None,
@@ -26,14 +26,14 @@ def main():
     root = package_root()
     enable_legacy_imports()
     if entrypoint:
-        from .extensions import resolve
+        from vlastudio.core.extensions import resolve
         result = resolve(entrypoint)(command, args)
         raise SystemExit(result or 0)
     if command == "device":
         import argparse
         import signal
-        from .configuration import read_config
-        from .extensions import create
+        from vlastudio.core.configuration import read_config
+        from vlastudio.core.extensions import create
         parser = argparse.ArgumentParser()
         parser.add_argument("-c", "--config", required=True)
         options = parser.parse_args(args)

@@ -1,8 +1,8 @@
 """Resolve user configs without importing training libraries."""
 import os
 from pathlib import Path
-from .paths import package_root
-from .extensions import resolve
+from vlastudio.core.paths import package_root
+from vlastudio.core.extensions import resolve
 
 
 def resolve_config(value, category, base_dir=None):

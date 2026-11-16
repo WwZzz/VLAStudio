@@ -229,9 +229,9 @@ def test_asset_extraction_rejects_escaping_members(tmp_path, name, link):
 
 
 def test_carla_recipe_declares_native_installation():
-    from vlastudio.configuration import read_config
-    from vlastudio.profiles import environment_for
-    from vlastudio.env_installers import preflight
+    from vlastudio.core.configuration import read_config
+    from vlastudio.deploy.interpreter.recipes import environment_for
+    from vlastudio.deploy.interpreter.installers import preflight
     config, path = read_config('carla.bench2drive', 'env')
     profile = environment_for(config, path, check_platform=False)
     assert profile['installers'] == ['carla'] and 'carla' in profile['checks']
@@ -242,7 +242,7 @@ def test_carla_recipe_declares_native_installation():
 
 
 def test_native_installer_uses_target_interpreter_and_shared_cache(tmp_path):
-    from vlastudio.env_installers import finish
+    from vlastudio.deploy.interpreter.installers import finish
     commands, env = [], {'UV_OFFLINE': '1'}
     finish({'installers': ['carla']}, tmp_path, '/target/bin/python', env, commands.append, pip=lambda *args: None)
     root = str(tmp_path/'driving/runtimes/carla-0.9.15')

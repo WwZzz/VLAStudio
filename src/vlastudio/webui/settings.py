@@ -33,7 +33,7 @@ def configured_roots(data):
 
 def public():
     data, version = stored()
-    from ..paths import cache_root
+    from vlastudio.core.paths import cache_root
     from .managed_environments import entries
     return dict(data_dir=str(Path(data.get("data_dir", DEFAULT_DATA)).expanduser()),
                 checkpoint_dir=str(Path(data.get("checkpoint_dir", DEFAULT_DATA.parent / "checkpoints")).expanduser()),
@@ -46,7 +46,7 @@ def public():
 
 
 def interpreter_display_path():
-    from ..paths import cache_root
+    from vlastudio.core.paths import cache_root
     root = cache_root()
     python = Path(sys.executable).absolute()
     try:
@@ -65,7 +65,7 @@ def interpreter_display_path():
 
 def register_interpreter_alias():
     """Give an external environment a cache-local name without moving it."""
-    from ..paths import cache_root
+    from vlastudio.core.paths import cache_root
     root = cache_root()
     python = Path(sys.executable).absolute()
     if interpreter_display_path().startswith('$VLASTUDIO/'):

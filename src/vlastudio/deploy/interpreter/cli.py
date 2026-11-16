@@ -4,13 +4,13 @@ import json
 from pathlib import Path
 import sys
 
-from .configuration import read_config
-from .profiles import environment_for
+from vlastudio.core.configuration import read_config
+from vlastudio.deploy.interpreter.recipes import environment_for
 
 
 def select_profile(policy=None, environment=None, manifest=None, remote=False,
                    dataset=None, *, check_platform=True):
-    from .profiles import combine_profiles, dataset_environment, recipe
+    from vlastudio.deploy.interpreter.recipes import combine_profiles, dataset_environment, recipe
     if manifest:
         if policy or environment or dataset:
             raise ValueError('Use either a complete --runtime-manifest or component selectors')
@@ -26,7 +26,7 @@ def select_profile(policy=None, environment=None, manifest=None, remote=False,
         selected.append(('remote', environment_for({}, recipe('remote'), str(recipe('remote')),
                                                    check_platform=check_platform)))
     if environment:
-        from .profiles import ENV_PROFILES
+        from vlastudio.deploy.interpreter.recipes import ENV_PROFILES
         family = ENV_PROFILES.get(environment) or {'behavior': 'behavior1k', 'aloha_sim': 'aloha'}.get(environment)
         if family:
             profile = environment_for({}, recipe(family), str(recipe(family)), check_platform=check_platform)
@@ -58,7 +58,7 @@ def select_profile(policy=None, environment=None, manifest=None, remote=False,
 def main(argv):
     import os
     import subprocess
-    from .env_manager import Manager
+    from vlastudio.deploy.interpreter.manager import Manager
     # Everything after -- belongs verbatim to the child, including its options.
     command = []
     if '--' in argv:
@@ -88,9 +88,9 @@ def main(argv):
         parser.error('--dry-run is supported only for create, install and plan')
     if args.smoke and args.action not in ('create', 'install', 'check'):
         parser.error('--smoke requires create, install or check')
-    from .dependencies import environment_plan, format_plan
+    from vlastudio.deploy.interpreter.dependencies import environment_plan, format_plan
     try:
-        from .profiles import POLICY_PROFILES, ENV_PROFILES
+        from vlastudio.deploy.interpreter.recipes import POLICY_PROFILES, ENV_PROFILES
         if args.action == "catalog":
             print(json.dumps({'policies': POLICY_PROFILES, 'environments': ENV_PROFILES}, indent=2))
             return 0
@@ -105,7 +105,7 @@ def main(argv):
         if args.action in ('create', 'install'):
             _, profile = select_profile(args.policy, args.env, args.runtime_manifest, args.remote, args.dataset, check_platform=not args.dry_run)
             if args.dry_run:
-                from .env_installers import describe
+                from vlastudio.deploy.interpreter.installers import describe
                 print(json.dumps({'name': name, 'profile': profile, 'native': describe(profile)}, indent=2))
                 return 0
             manager = Manager(args.cache_dir)
@@ -138,7 +138,7 @@ def main(argv):
                                 dataset=args.dataset, manifest=args.runtime_manifest, remote=args.remote)
         if args.smoke:
             raise ValueError('Use env check NAME --smoke to validate a registered environment.')
-        from .env_installers import describe
+        from vlastudio.deploy.interpreter.installers import describe
         plan['native'] = describe(plan['profile'])
         print(json.dumps(plan, indent=2) if args.json else format_plan(plan))
         return 2 if args.action == "check" and plan["issues"] else 0

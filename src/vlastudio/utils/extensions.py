@@ -1,6 +1,6 @@
 """Compatibility access to the public extension resolver."""
 try:
-    from vlastudio.extensions import resolve
+    from vlastudio.core.extensions import resolve
 except ImportError:
     import importlib
     def resolve(reference, kind=None, module=False):

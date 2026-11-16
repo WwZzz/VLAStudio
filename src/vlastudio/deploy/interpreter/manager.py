@@ -13,7 +13,7 @@ import time
 
 from filelock import FileLock
 
-from .paths import cache_root, runtime_env
+from vlastudio.core.paths import cache_root, runtime_env
 
 
 def atomic_json(path, value):
@@ -108,8 +108,8 @@ class Manager:
 
     def install(self, name, profile, *, create=False, index=None, package=None,
                 accepted=(), assets=False, offline=False, system_packages=False):
-        from .env_installers import prepare, finish, preflight, install_system_packages
-        from .profiles import platform_issues, combine_profiles
+        from vlastudio.deploy.interpreter.installers import prepare, finish, preflight, install_system_packages
+        from vlastudio.deploy.interpreter.recipes import platform_issues, combine_profiles
         valid_name(name)
         self.entries()
         # Different invocations may target one interpreter under different names.
@@ -218,7 +218,7 @@ class Manager:
         record.mkdir(parents=True, exist_ok=True)
         profile_file = record / 'profile.json'
         atomic_json(profile_file, profile)
-        command = [entry['python'], '-m', 'vlastudio.env_probe', str(profile_file)]
+        command = [entry['python'], '-m', 'vlastudio.deploy.interpreter.probe', str(profile_file)]
         if smoke:
             command.append('--smoke')
         log_path = record / ('smoke.log' if smoke else 'check.log')

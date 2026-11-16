@@ -8,8 +8,8 @@ import zipfile
 
 from filelock import FileLock
 
-from .env_downloads import download
-from .paths import cache_root
+from vlastudio.deploy.interpreter.downloads import download
+from vlastudio.core.paths import cache_root
 
 REVISION = '9f0d57d465726976ed98138d3f8b8ca3e2186775'
 RESOURCES = {
