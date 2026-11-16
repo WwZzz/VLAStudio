@@ -24,7 +24,7 @@ def route_metrics(record):
 class Bench2DriveEnv(MetaEnv):
     """Official scenario dynamics and scoring, with ordinary reset/step semantics."""
     def __init__(self, config):
-        from vlastudio.utils.driving_assets import cache_root, source
+        from vlastudio.benchmark.carla.install import cache_root, source
         if getattr(config, 'ctrl_space', 'vehicle') != 'vehicle' or getattr(config, 'ctrl_type', 'control') != 'control':
             raise ValueError('Bench2Drive control actions are [steer, throttle, brake, reverse]')
         if list(getattr(config, 'action_order', ['steer', 'throttle', 'brake', 'reverse'])) != ['steer', 'throttle', 'brake', 'reverse']:
@@ -34,7 +34,7 @@ class Bench2DriveEnv(MetaEnv):
             raise ValueError('remove_map_parked_vehicles must be a boolean')
         if not isinstance(getattr(config, 'repair_bicycle_flow', False), bool):
             raise ValueError('repair_bicycle_flow must be a boolean')
-        original = Path(getattr(config, 'routes', '') or source('bench2drive')/'leaderboard/data/bench2drive_0.0.4_val.xml')
+        original = Path(getattr(config, 'routes', '') or source()/'leaderboard/data/bench2drive_0.0.4_val.xml')
         tree = ET.parse(original)
         routes = list(tree.getroot().findall('route'))
         requested = getattr(config, 'route_ids', None)

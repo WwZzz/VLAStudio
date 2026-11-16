@@ -24,7 +24,9 @@ def main(default_config=None):
     args = parser.parse_args()
     from . import Bench2DriveEnv
     from vlastudio.policy.tcp_b2d import load_model
-    from vlastudio.utils.driving_assets import B2D_REVISION, B2D_DATA_REVISION, TCP_REVISION, sha256, source
+    from .install import B2D_REVISION, TCP_REVISION, source
+    from vlastudio.data_utils.datasets.bench2drive import B2D_DATA_REVISION
+    from vlastudio.utils.assets import sha256
     if args.config:
         config = yaml.safe_load(Path(args.config).read_text())
     else:
@@ -45,7 +47,7 @@ def main(default_config=None):
     planner_type = json.loads((checkpoint.parent/'config.json').read_text())['planner_type'] if checkpoint.is_file() else 'merge_ctrl_traj'
     package = Path(__file__).resolve().parents[2]
     adapter_digest = hashlib.sha256()
-    for path in sorted(Path(__file__).parent.glob('*.py'))+[package/'utils/driving.py', package/'policy/tcp_b2d/__init__.py', package/'policy/tcp_b2d/upstream.py']:
+    for path in sorted(Path(__file__).parent.glob('*.py'))+[package/'data_utils/datasets/bench2drive.py', package/'utils/assets.py', package/'policy/tcp_b2d/__init__.py', package/'policy/tcp_b2d/upstream.py']:
         adapter_digest.update(str(path.relative_to(package)).encode())
         adapter_digest.update(path.read_bytes())
     manifest = {'model_sha256': model_digest, 'config_sha256': config_digest,
@@ -54,7 +56,7 @@ def main(default_config=None):
                 'model_config_sha256': sha256(checkpoint.parent/'config.json') if checkpoint.is_file() else hashlib.sha256(b'official:merge_ctrl_traj').hexdigest(),
                 'benchmark_revision': B2D_REVISION, 'model_code_revision': TCP_REVISION,
                 'training_data_revision': B2D_DATA_REVISION,
-                'routes_sha256': sha256(Path(config.get('routes') or source('bench2drive')/'leaderboard/data/bench2drive_0.0.4_val.xml'))}
+                'routes_sha256': sha256(Path(config.get('routes') or source()/'leaderboard/data/bench2drive_0.0.4_val.xml'))}
     manifest_path = output/'run.json'
     if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
         raise ValueError('Output contains a different evaluation; choose a new directory')
@@ -104,7 +106,7 @@ def main(default_config=None):
         env.close()
     if len(records) != len(expected):
         raise RuntimeError('Incomplete evaluation; no aggregate acceptance result was written')
-    official_routes = source('bench2drive')/'leaderboard/data/bench2drive_0.0.4_val.xml'
+    official_routes = source()/'leaderboard/data/bench2drive_0.0.4_val.xml'
     official_ids = [route.attrib['id'] for route in ET.parse(official_routes).getroot().findall('route')]
     full_split = expected == official_ids and manifest['routes_sha256'] == sha256(official_routes)
     result = {**manifest, 'routes': len(records), 'complete_official_val_split': full_split,

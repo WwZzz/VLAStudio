@@ -93,8 +93,9 @@ class CMAPolicy(nn.Module):
 
     @classmethod
     def from_pretrained(cls, path, device='cpu', download=True):
-        from vlastudio.utils.navigation_assets import resolve_checkpoint
-        path = resolve_checkpoint(path, 'vlnce_cma', download)
+        from vlastudio.utils.assets import resolve_checkpoint
+        from vlastudio.policy.vlnce_cma.pretrained import official_checkpoint
+        path = resolve_checkpoint(path, official=official_checkpoint, download=download)
         checkpoint = torch.load(path / 'policy.pt' if path.is_dir() else path,
                                 map_location='cpu', weights_only=True)
         model = cls(checkpoint['model_config'])

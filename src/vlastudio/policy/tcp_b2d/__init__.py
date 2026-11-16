@@ -134,9 +134,13 @@ class TCPPolicy(PreTrainedModel):
         return torch.tensor(controls, device=device, dtype=torch.float32)[:, None]
 
 
+TCP_WEIGHTS_REVISION = '140aea58c02185e787c3df39d7ad79e910967b8b'
+
+
 def official_model(config):
-    from vlastudio.utils.driving_assets import hf_asset, sha256, TCP_WEIGHTS_REVISION
-    source = hf_asset('rethinklab/Bench2DriveZoo', 'tcp_b2d.ckpt', TCP_WEIGHTS_REVISION, download=config.download)
+    from vlastudio.utils.assets import hf_asset, sha256
+    from vlastudio.core.paths import cache_root
+    source = hf_asset('rethinklab/Bench2DriveZoo', 'tcp_b2d.ckpt', TCP_WEIGHTS_REVISION, download=config.download, cache_dir=cache_root()/'driving/huggingface')
     if sha256(source) != 'e6573ff1f8ea910b9a53eddfb68f69cac469bf5bfa253a516578f6126110b4fe':
         raise ValueError('Official TCP checkpoint checksum mismatch')
     checkpoint = torch.load(source, map_location='cpu', weights_only=True)

@@ -1,5 +1,5 @@
 "use strict";
-Object.assign(chinese,{'Outcome':'结果','Unlabeled':'未标注','Success':'成功','Failure':'失败','All outcomes':'全部结果','Result updated':'结果已更新','Success and save (1)':'成功并保存（1）','Failure and save (2)':'失败并保存（2）','Save or cancel your annotation edits first.':'请先保存详细标注中的修改，再快捷修改结果。','Recording saved; label was not saved. Update its result in Data management.':'轨迹已保存，但结果标注失败，请在数据管理中补标。','Save confirmation timed out. Check this episode in Data management before retrying.':'保存确认超时，请先在数据管理检查该轨迹。'});
+Object.assign(chinese,{'Outcome':'结果','Unlabeled':'未标注','Success':'成功','Failure':'失败','All':'全部','Result updated':'结果已更新','Success and save (1)':'成功并保存（1）','Failure and save (2)':'失败并保存（2）','Save or cancel your annotation edits first.':'请先保存详细标注中的修改，再快捷修改结果。','Recording saved; label was not saved. Update its result in Data management.':'轨迹已保存，但结果标注失败，请在数据管理中补标。','Save confirmation timed out. Check this episode in Data management before retrying.':'保存确认超时，请先在数据管理检查该轨迹。'});
 window.VLAOutcomes={
   async list(dataset){
     const query='?dataset='+encodeURIComponent(dataset);
@@ -15,7 +15,7 @@ window.VLAOutcomes={
   filter(list,render){
     const group=document.createElement('div');group.className='outcome-filter';group.setAttribute('role','group');group.setAttribute('aria-label',tr('Outcome'));group.value='';
     for(const value of ['','success','failure','unknown']){
-      const button=document.createElement('button');button.type='button';button.textContent=value?this.label(value):tr('All outcomes');button.dataset.value=value;
+      const button=document.createElement('button');button.type='button';button.textContent=value?this.label(value):tr('All');button.dataset.value=value;
       button.setAttribute('aria-pressed',String(!value));
       button.onclick=()=>{group.value=value;for(const b of group.children)b.setAttribute('aria-pressed',String(b===button));render();};group.append(button);
     }

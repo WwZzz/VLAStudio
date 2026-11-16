@@ -166,7 +166,7 @@ class HabitatLabEnv(MetaEnv):
             values = dict(x.split('=', 1) for x in overrides if '=' in x)
             data_path = values.get('habitat.dataset.data_path', '')
             if not data_path or not Path(data_path).is_file():
-                from vlastudio.utils.navigation_assets import vlnce_annotations
+                from vlastudio.data_utils.datasets.navigation import vlnce_annotations
                 split = values.get('habitat.dataset.split', 'val_unseen')
                 annotation = vlnce_annotations(split)
                 overrides = [x for x in overrides if not x.startswith('habitat.dataset.data_path=')]

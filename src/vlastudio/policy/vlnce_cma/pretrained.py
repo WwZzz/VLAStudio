@@ -3,13 +3,18 @@
 Uses PyTorch's restricted weights-only loader, with the legacy Habitat config
 mapped to a known data-only dictionary class. No unrestricted pickle load.
 """
+
 import copy
 import hashlib
 import json
 from pathlib import Path
-
 import torch
 from yacs.config import CfgNode
+from vlastudio.utils.assets import fetch
+from vlastudio.core.paths import cache_root as shared_cache
+
+
+CMA_SHA = '06278fdbb52ad8c453b404dacb079fb353252056314b1c567a381df77e6827a3'
 
 
 class LegacyConfig(CfgNode):
@@ -67,3 +72,18 @@ def convert_checkpoint(source, output, expected_sha256):
         'ctrl_space': 'navigation', 'ctrl_type': 'discrete'}], 'state': {'r2r_vlnce': 'identity'},
         'action': {'r2r_vlnce': 'identity'}}))
     print(f'Converted {len(checkpoint["state_dict"])} tensors; original checkpoint SHA256={digest}')
+
+
+def official_checkpoint(download=True):
+    from filelock import FileLock
+    cache = shared_cache() / "navigation"
+    root = cache / "models/vlnce_cma"
+    root.parent.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(root) + ".lock"):
+        required = ['policy.pt', 'config.json', 'policy_metadata.json', 'normalize.json']
+        if all((root / file).is_file() for file in required):
+            return root
+        source = fetch('https://drive.usercontent.google.com/download?id=1o9PgBT38BH9pw_7V1QB3XUkY8auJqGKw&export=download&confirm=t',
+                       cache/'downloads/cma-pm-da-aug.pth', CMA_SHA, download)
+        convert_checkpoint(source, root, CMA_SHA)
+    return root

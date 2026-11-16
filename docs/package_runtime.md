@@ -48,6 +48,14 @@ registry writes. They serve a different purpose and remain in use. Custom
 runtime manifests can still supply `lockfile` or `lock` for a complete pinned
 installation.
 
+`utils/` contains tools shared across components: logging, extension resolution,
+observation representation checks, and generic asset download/checksum/extraction
+operations. Dataset-specific release metadata, annotation readers and camera or
+action conventions live in their dataset implementation (`bench2drive.py`,
+`navigation.py`, or `navigation_features.py`). Model weight downloads and
+converters live with each policy; CARLA server/source installation lives in
+`benchmark/carla/install.py`. Their existing cache locations are preserved.
+
 ## Paths and caches
 
 Built-in YAML files live under `src/vlastudio/configs`. User YAML files can live

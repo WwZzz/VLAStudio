@@ -98,8 +98,9 @@ class RecurrentVLNBERT(nn.Module):
 
     @classmethod
     def from_pretrained(cls, path, device='cpu', feature_store=None, download=True):
-        from vlastudio.utils.navigation_assets import resolve_checkpoint
-        path = resolve_checkpoint(path, 'recurrent_vlnbert', download)
+        from vlastudio.utils.assets import resolve_checkpoint
+        from vlastudio.policy.recurrent_vlnbert.pretrained import official_checkpoint
+        path = resolve_checkpoint(path, official=official_checkpoint, download=download)
         config = json.loads((path/'config.json').read_text())
         model = cls(feature_store or config.get('feature_store'), path/'vocab.txt')
         model.download = download

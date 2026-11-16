@@ -80,8 +80,9 @@ def main(default_config=None):
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--output', default='results/example09_cma_official')
     args = parser.parse_args()
-    from vlastudio.utils.navigation_assets import resolve_checkpoint
-    args.model = str(resolve_checkpoint(args.model, 'vlnce_cma'))
+    from vlastudio.utils.assets import resolve_checkpoint
+    from vlastudio.policy.vlnce_cma.pretrained import official_checkpoint
+    args.model = str(resolve_checkpoint(args.model, official=official_checkpoint))
     if args.episodes < 1 or args.batch_size < 1:
         parser.error('Episode count and batch size must be positive')
     config_path = Path(args.config)

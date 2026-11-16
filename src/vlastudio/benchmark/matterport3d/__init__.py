@@ -55,7 +55,7 @@ class MatterportNavigationEnv(NavigationEpisode, MetaEnv):
     def __init__(self, config):
         if getattr(config, 'auto_download', False) and not Path(config.episodes).is_file():
             import copy
-            from vlastudio.utils.navigation_assets import r2r_annotations
+            from vlastudio.data_utils.datasets.navigation import r2r_annotations
             config = copy.copy(config)
             split = Path(config.episodes).stem.removeprefix('R2R_')
             config.episodes = str(r2r_annotations(split))

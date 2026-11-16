@@ -3,7 +3,7 @@ import json
 import numpy as np
 import torch
 
-from vlastudio.utils.driving import COMMANDS, TARGET_PREFIX
+from vlastudio.data_utils.datasets.bench2drive import COMMANDS, TARGET_PREFIX
 
 
 def encode_task(state, text):
