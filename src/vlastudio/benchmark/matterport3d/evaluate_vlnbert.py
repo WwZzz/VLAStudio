@@ -40,12 +40,13 @@ def main(default_config=None):
     p.add_argument('--batch-size', type=int, default=8)
     p.add_argument('--device', default='cuda')
     a = p.parse_args()
-    from vlastudio.utils.navigation_assets import resolve_checkpoint
-    a.model = str(resolve_checkpoint(a.model, 'recurrent_vlnbert'))
+    from vlastudio.utils.assets import resolve_checkpoint
+    from vlastudio.policy.recurrent_vlnbert.pretrained import official_checkpoint
+    a.model = str(resolve_checkpoint(a.model, official=official_checkpoint))
     torch.set_num_threads(2)
     cfg = yaml.safe_load(Path(a.config).read_text())
     if cfg.get('auto_download', False) and not Path(cfg['episodes']).is_file():
-        from vlastudio.utils.navigation_assets import r2r_annotations
+        from vlastudio.data_utils.datasets.navigation import r2r_annotations
         split = Path(cfg['episodes']).stem.removeprefix('R2R_')
         cfg['episodes'] = str(r2r_annotations(split))
     if cfg.get('max_timesteps') != 15 or cfg.get('candidate_view_alignment') != 'panoramic':

@@ -1,53 +1,44 @@
-"""Pinned, lazy asset caching shared by driving datasets, policies and runtimes."""
+"""Shared asset downloads, integrity checks, safe extraction and checkpoint lookup."""
 import hashlib
 import json
 from pathlib import Path
 import tarfile
 
-B2D_REVISION = '7ec25d1c9f7522d923ce5f3420986cef1cb2d956'
-TCP_REVISION = '8a08b07883f10b7d83f6bf5dd475bda91a91c50a'
-TCP_WEIGHTS_REVISION = '140aea58c02185e787c3df39d7ad79e910967b8b'
-B2D_DATA_REVISION = 'd84ae18cf20a88b9220df1bc15c073d8824b7ac1'
-
-
-def cache_root():
-    from vlastudio.core.paths import cache_root as shared_cache
-    return shared_cache()/'driving'
-
 
 def sha256(path):
     digest = hashlib.sha256()
-    with Path(path).open('rb') as source:
-        for block in iter(lambda: source.read(8*1024*1024), b''):
-            digest.update(block)
+    with Path(path).open('rb') as stream:
+        for chunk in iter(lambda: stream.read(8*1024*1024), b''):
+            digest.update(chunk)
     return digest.hexdigest()
 
 
-def fetch(url, filename, *, checksum=None, download=True):
+def fetch(url, path, checksum=None, download=True):
+    """Atomically cache a public asset; local mode never makes a network request."""
     from filelock import FileLock
-    target = cache_root()/'downloads'/filename
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with FileLock(str(target)+'.lock'):
-        if target.is_file():
-            if checksum and sha256(target) != checksum:
-                raise ValueError(f'Driving asset checksum mismatch: {target}')
-            return target
+    path = Path(path).expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(path)+'.lock'):
+        if path.is_file():
+            if checksum and sha256(path) != checksum:
+                raise ValueError(f'Asset checksum mismatch: {path}')
+            return path
         if not download:
-            raise FileNotFoundError(f'Asset missing with download=false: {target}')
+            raise FileNotFoundError(f'Asset missing with download=false: {path}')
         import requests
-        temporary = target.with_suffix(target.suffix+'.partial')
-        with requests.get(url, stream=True, timeout=(30, 180)) as response:
+        temporary = path.with_name(path.name+'.partial')
+        with requests.get(url, stream=True, timeout=(20, 180)) as response:
             response.raise_for_status()
             if 'text/html' in response.headers.get('Content-Type', ''):
-                raise ValueError(f'Expected an archive, received HTML: {filename}')
+                raise ValueError(f'Expected an asset, received HTML: {path.name}')
             with temporary.open('wb') as output:
                 for chunk in response.iter_content(8*1024*1024):
                     output.write(chunk)
         if checksum and sha256(temporary) != checksum:
             temporary.unlink()
-            raise ValueError(f'Driving download checksum mismatch: {filename}')
-        temporary.replace(target)
-    return target
+            raise ValueError(f'Download checksum mismatch: {path.name}')
+        temporary.replace(path)
+    return path
 
 
 def extract(archive, destination, *, strip_root=False):
@@ -61,18 +52,18 @@ def extract(archive, destination, *, strip_root=False):
         if receipt.is_file():
             return destination
         if destination.exists():
-            raise ValueError(f'Incomplete or unmanaged driving asset: {destination}')
+            raise ValueError(f'Incomplete or unmanaged asset: {destination}')
         with tempfile.TemporaryDirectory(dir=destination.parent) as temporary:
             root = Path(temporary).resolve()
             with tarfile.open(archive) as source:
                 for member in source.getmembers():
                     target = (root/member.name).resolve()
                     if not target.is_relative_to(root) or member.isdev():
-                        raise ValueError('Unsafe driving archive member')
+                        raise ValueError('Unsafe asset archive member')
                     if member.issym() or member.islnk():
                         link = ((target.parent if member.issym() else root)/member.linkname).resolve()
                         if not link.is_relative_to(root):
-                            raise ValueError('Unsafe driving archive link')
+                            raise ValueError('Unsafe asset archive link')
                 source.extractall(root, **({'filter': 'data'} if hasattr(tarfile, 'data_filter') else {}))
             children = list(root.iterdir())
             extracted = children[0] if strip_root and len(children) == 1 and children[0].is_dir() else root
@@ -86,19 +77,7 @@ def extract(archive, destination, *, strip_root=False):
     return destination
 
 
-def source(name, download=True):
-    repositories = {'bench2drive': ('Thinklab-SJTU/Bench2Drive', B2D_REVISION),
-                    'tcp': ('Thinklab-SJTU/Bench2DriveZoo', TCP_REVISION)}
-    repository, revision = repositories[name]
-    root = cache_root()/'sources'/f'{name}-{revision[:12]}'
-    if root.joinpath('.vlastudio-asset.json').is_file():
-        return root
-    archive = fetch(f'https://github.com/{repository}/archive/{revision}.tar.gz',
-                    f'{name}-{revision}.tar.gz', download=download)
-    return extract(archive, root, strip_root=True)
-
-
-def hf_asset(repository, filename, revision, *, dataset=False, download=True):
+def hf_asset(repository, filename, revision, *, dataset=False, download=True, cache_dir=None):
     from huggingface_hub import hf_hub_download
     import requests
     import time
@@ -106,10 +85,23 @@ def hf_asset(repository, filename, revision, *, dataset=False, download=True):
         try:
             return Path(hf_hub_download(repository, filename, revision=revision,
                 repo_type='dataset' if dataset else 'model',
-                cache_dir=str(cache_root()/'huggingface'), local_files_only=not download))
+                cache_dir=str(cache_dir) if cache_dir is not None else None, local_files_only=not download))
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.ChunkedEncodingError):
             if not download or attempt == 5:
                 raise
             # The Hub resumes its existing partial file. Do not discard cached
             # bytes or retry authentication / missing-file errors.
             time.sleep(min(2**attempt, 30))
+
+
+def resolve_checkpoint(reference, *, official, download=True):
+    if reference == 'official':
+        return official(download=download)
+    path = Path(reference).expanduser()
+    if path.exists():
+        return path
+    # A configured HF repository is also a valid pretrained-weight source.
+    if '/' in str(reference) and not path.is_absolute() and not str(reference).startswith(('.', '~')):
+        from huggingface_hub import snapshot_download
+        return Path(snapshot_download(str(reference), local_files_only=not download))
+    raise FileNotFoundError(f'Checkpoint not found: {reference}')

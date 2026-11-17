@@ -11,8 +11,9 @@ AGENT_PIPE = None
 
 
 def prepare_sources(carla_root):
-    from vlastudio.utils.driving_assets import source
-    b2d, tcp = source('bench2drive'), source('tcp')
+    from .install import source as benchmark_source
+    from .install import tcp_source as policy_source
+    b2d, tcp = benchmark_source(), policy_source()
     for path in [b2d/'leaderboard', b2d/'scenario_runner', tcp, Path(carla_root)/'PythonAPI/carla']:
         if str(path) not in sys.path:
             sys.path.insert(0, str(path))

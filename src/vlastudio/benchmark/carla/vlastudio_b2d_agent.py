@@ -5,7 +5,7 @@ import carla
 from team_code.tcp_b2d_agent import TCPAgent
 from TCP.config import GlobalConfig
 from vlastudio.benchmark.carla import bridge
-from vlastudio.utils.driving import compose_images, driving_observation, local_points
+from vlastudio.data_utils.datasets.bench2drive import compose_images, driving_observation, local_points
 
 
 def get_entry_point():

@@ -68,7 +68,7 @@ def free_ports():
 
 class CarlaServer:
     def __init__(self, root=None, *, gpu=0, graphics_runtime=None, run_dir=None, timeout=180.):
-        from vlastudio.utils.driving_assets import cache_root
+        from vlastudio.benchmark.carla.install import cache_root
         self.root = Path(root or os.environ.get('VLASTUDIO_RUNTIME_CARLA_ROOT',
                           str(cache_root()/'runtimes/carla-0.9.15'))).expanduser().resolve()
         if not self.root.joinpath('CarlaUE4.sh').is_file():

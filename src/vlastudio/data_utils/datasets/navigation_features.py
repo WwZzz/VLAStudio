@@ -20,7 +20,6 @@ class PanoramaFeatureStore:
 
     def read(self, scan_id, viewpoint_id):
         if self._features is None:
-            from vlastudio.utils.navigation_assets import panorama_features
             root = panorama_features(self.path, self.download)
             self._index = json.loads((root/'index.json').read_text())
             self._features = np.load(root/'features.npy', mmap_mode='r')
@@ -80,3 +79,21 @@ def convert_features(archive, output, expected_sha256):
         'shape': [count, 36, 2048], 'dtype': 'float32', 'source': 'Official Recurrent-VLN-BERT Places365 ResNet-152 features'}, indent=2)+'\n')
     (out/'index.json').write_text(json.dumps(index)+'\n')
     print('Complete feature store', count, flush=True)
+
+
+FEATURE_SHA = '791344c4987de20ff792f80159a7f9e229310f421f59e4494c564b938c5bab8d'
+
+
+def panorama_features(path=None, download=True):
+    from filelock import FileLock
+    from .navigation import cache_root, dataset_root
+    from vlastudio.utils.assets import fetch
+    root = Path(path) if path else dataset_root()/'places365'
+    if (root/'index.json').is_file() and (root/'features.npy').is_file():
+        return root
+    archive = fetch('https://dl.dropboxusercontent.com/s/85tpa6tc3enl5ud/ResNet-152-places365.zip',
+                    cache_root()/'downloads/ResNet-152-places365.zip', FEATURE_SHA, download)
+    root.parent.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(root)+'.lock'):
+        convert_features(archive, root, FEATURE_SHA)
+    return root
